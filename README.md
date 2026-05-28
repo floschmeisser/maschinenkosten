@@ -54,7 +54,34 @@ Deployment auf Vercel:
 2. Neu deployen.
 3. Wenn Env-Variablen fehlen, das Supabase Paket nicht installiert ist, RLS blockiert oder Supabase nicht erreichbar ist, faellt die App ohne technische Fehlermeldung fuer Landwirte auf Platzhalterdaten zurueck.
 
-Wichtig: Login und Benutzerverwaltung sind noch nicht aktiv. Das Schema ist bereits mit RLS fuer Farm-Besitzer vorbereitet. Bis Auth verbunden ist, kann eine streng geschuetzte Supabase-Instanz Anfragen ablehnen; dann bleibt der Fallback aktiv.
+Wichtig: Login v1 ist nur Magic Link plus Standardbetrieb. Komplexe Rollen, Teams und Benutzerverwaltung sind noch nicht Teil dieser Stufe.
+
+## Login & Farm-Zuordnung
+
+Supabase Auth v1 nutzt Magic-Link Login per E-Mail. Auf der Login-Seite tragen Nutzer nur ihre E-Mail-Adresse ein und erhalten einen Login-Link. Es gibt noch keine Rollen, keine Teams und keine bezahlten Auth-Funktionen.
+
+Nach erfolgreichem Login:
+
+1. `getCurrentUser()` liest den aktuellen Supabase Nutzer.
+2. `getCurrentFarm()` sucht den Betrieb des Nutzers.
+3. Wenn noch kein Betrieb existiert, legt `getOrCreateDefaultFarmForUser(userId, email)` einen einfachen Standardbetrieb an.
+4. Maschinen und Wartungen werden bei Supabase-Zugriffen ueber `farm_id` auf diesen Betrieb begrenzt.
+
+Wenn Supabase oder Auth nicht verfuegbar ist, bleibt die App im Demo-Modus:
+
+- Login-Seite zeigt `Demo-Modus aktiv`.
+- `Demo fortsetzen` fuehrt zur App.
+- Maschinen und Wartungen nutzen weiter Platzhalterdaten.
+- Technische Supabase-Fehler werden Landwirten nicht angezeigt.
+
+Fuer Vercel muessen weiterhin diese Variablen gesetzt sein:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Die Supabase Redirect URL sollte auf die deployte App zeigen, zum Beispiel `https://dein-projekt.vercel.app/de/dashboard`.
 
 ## Betriebsanpassung / Kundenprofil
 

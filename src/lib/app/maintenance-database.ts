@@ -1,5 +1,6 @@
 import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getMachineById } from "./machines-database";
+import { getCurrentFarm, type Farm } from "./farms-database";
 import {
   createNextRecurringMaintenanceTask,
   placeholderMaintenanceTasks,
@@ -8,6 +9,7 @@ import {
   type MaintenanceTask,
   type UpdateMaintenanceTaskInput
 } from "./maintenance";
+import { placeholderFarmId } from "./machines";
 
 export type CompleteMaintenanceTaskResult = {
   completedTask: MaintenanceTask | null;
@@ -37,7 +39,9 @@ type MaintenanceTaskRow = {
 };
 
 type SupabaseTableApi<T> = {
-  select: (columns?: string) => Promise<{ data: T[] | null; error: Error | null }>;
+  select: (columns?: string) => {
+    eq: (column: string, value: string) => Promise<{ data: T[] | null; error: Error | null }>;
+  };
   insert: (input: Partial<T>) => {
     select: (columns?: string) => {
       single: () => Promise<{ data: T | null; error: Error | null }>;
@@ -45,23 +49,33 @@ type SupabaseTableApi<T> = {
   };
   update: (input: Partial<T>) => {
     eq: (column: string, value: string) => {
-      select: (columns?: string) => {
-        single: () => Promise<{ data: T | null; error: Error | null }>;
+      eq: (column: string, value: string) => {
+        select: (columns?: string) => {
+          single: () => Promise<{ data: T | null; error: Error | null }>;
+        };
       };
     };
   };
 };
 
+type MaintenanceDataSource = {
+  farm: Farm;
+  table: SupabaseTableApi<MaintenanceTaskRow>;
+};
+
 let fallbackMaintenanceTasks = [...placeholderMaintenanceTasks];
 
 export async function getMaintenanceTasks(): Promise<MaintenanceTask[]> {
-  const table = await getMaintenanceTasksTable();
+  const source = await getMaintenanceDataSource();
 
-  if (!table) {
+  if (!source) {
     return fallbackMaintenanceTasks;
   }
 
-  const result = await runSupabaseQuery(() => table.select("*"), "Wartungen konnten nicht geladen werden.");
+  const result = await runSupabaseQuery(
+    () => source.table.select("*").eq("farm_id", source.farm.id),
+    "Wartungen konnten nicht geladen werden."
+  );
 
   if (!result?.data) {
     return fallbackMaintenanceTasks;
@@ -77,23 +91,25 @@ export async function getMaintenanceTasksByMachine(machineId: string): Promise<M
 }
 
 export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): Promise<MaintenanceTask> {
+  const source = await getMaintenanceDataSource();
+  const farmId = source?.farm.id ?? input.farmId;
   const now = new Date().toISOString();
   const fallbackTask: MaintenanceTask = {
     ...input,
+    farmId,
     id: crypto.randomUUID(),
     completedAt: null,
     createdAt: now,
     updatedAt: now
   };
-  const table = await getMaintenanceTasksTable();
 
-  if (!table) {
+  if (!source) {
     fallbackMaintenanceTasks = [fallbackTask, ...fallbackMaintenanceTasks];
     return fallbackTask;
   }
 
   const result = await runSupabaseQuery(
-    () => table.insert(mapMaintenanceTaskToRow(fallbackTask)).select("*").single(),
+    () => source.table.insert(mapMaintenanceTaskToRow(fallbackTask)).select("*").single(),
     "Wartung konnte nicht angelegt werden."
   );
 
@@ -111,9 +127,9 @@ export async function updateMaintenanceTask(id: string, input: UpdateMaintenance
   const existing = fallbackMaintenanceTasks.find((task) => task.id === id);
   const now = new Date().toISOString();
   const fallbackTask = existing ? { ...existing, ...input, updatedAt: now } : null;
-  const table = await getMaintenanceTasksTable();
+  const source = await getMaintenanceDataSource();
 
-  if (!table) {
+  if (!source) {
     if (fallbackTask) {
       fallbackMaintenanceTasks = fallbackMaintenanceTasks.map((task) => (task.id === id ? fallbackTask : task));
     }
@@ -122,7 +138,13 @@ export async function updateMaintenanceTask(id: string, input: UpdateMaintenance
   }
 
   const result = await runSupabaseQuery(
-    () => table.update(mapMaintenanceTaskInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single(),
+    () =>
+      source.table
+        .update(mapMaintenanceTaskInputToRow({ ...input, updatedAt: now }))
+        .eq("id", id)
+        .eq("farm_id", source.farm.id)
+        .select("*")
+        .single(),
     "Wartung konnte nicht aktualisiert werden."
   );
 
@@ -209,6 +231,16 @@ function hasDuplicateRecurringTask(input: CreateMaintenanceTaskInput, tasks: Mai
       task.dueOperatingHours === input.dueOperatingHours &&
       task.dueKilometers === input.dueKilometers
   );
+}
+
+async function getMaintenanceDataSource(): Promise<MaintenanceDataSource | null> {
+  const [farm, table] = await Promise.all([getCurrentFarm(), getMaintenanceTasksTable()]);
+
+  if (!table || farm.id === placeholderFarmId) {
+    return null;
+  }
+
+  return { farm, table };
 }
 
 async function getMaintenanceTasksTable(): Promise<SupabaseTableApi<MaintenanceTaskRow> | null> {

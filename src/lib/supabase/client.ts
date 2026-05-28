@@ -3,12 +3,18 @@ type SupabaseQueryResult<T = unknown> = {
   error: Error | null;
 };
 
+export type SupabaseUser = {
+  id: string;
+  email?: string;
+};
+
 export type SupabaseClientLike = {
   from: (table: string) => {
     select: (columns?: string) => Promise<SupabaseQueryResult>;
   };
   auth: {
-    getUser: () => Promise<{ data: { user: unknown | null } }>;
+    getUser: () => Promise<{ data: { user: SupabaseUser | null } }>;
+    signInWithOtp: (options: { email: string; options?: { emailRedirectTo?: string } }) => Promise<{ error: Error | null }>;
     signInWithPassword: (credentials: { email: string; password: string }) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
   };

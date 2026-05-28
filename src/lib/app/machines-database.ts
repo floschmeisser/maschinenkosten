@@ -1,10 +1,12 @@
 import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import {
+  placeholderFarmId,
   placeholderMachines,
   type CreateMachineInput,
   type Machine,
   type UpdateMachineInput
 } from "./machines";
+import { getCurrentFarm, type Farm } from "./farms-database";
 
 type MachineRow = {
   id: string;
@@ -42,7 +44,9 @@ type MachineRow = {
 };
 
 type SupabaseTableApi<T> = {
-  select: (columns?: string) => Promise<{ data: T[] | null; error: Error | null }>;
+  select: (columns?: string) => {
+    eq: (column: string, value: string) => Promise<{ data: T[] | null; error: Error | null }>;
+  };
   insert: (input: Partial<T>) => {
     select: (columns?: string) => {
       single: () => Promise<{ data: T | null; error: Error | null }>;
@@ -50,26 +54,38 @@ type SupabaseTableApi<T> = {
   };
   update: (input: Partial<T>) => {
     eq: (column: string, value: string) => {
-      select: (columns?: string) => {
-        single: () => Promise<{ data: T | null; error: Error | null }>;
+      eq: (column: string, value: string) => {
+        select: (columns?: string) => {
+          single: () => Promise<{ data: T | null; error: Error | null }>;
+        };
       };
     };
   };
   delete: () => {
-    eq: (column: string, value: string) => Promise<{ error: Error | null }>;
+    eq: (column: string, value: string) => {
+      eq: (column: string, value: string) => Promise<{ error: Error | null }>;
+    };
   };
+};
+
+type MachinesDataSource = {
+  farm: Farm;
+  table: SupabaseTableApi<MachineRow>;
 };
 
 let fallbackMachines = [...placeholderMachines];
 
 export async function getMachines(): Promise<Machine[]> {
-  const table = await getMachinesTable();
+  const source = await getMachinesDataSource();
 
-  if (!table) {
+  if (!source) {
     return fallbackMachines;
   }
 
-  const result = await runSupabaseQuery(() => table.select("*"), "Maschinen konnten nicht geladen werden.");
+  const result = await runSupabaseQuery(
+    () => source.table.select("*").eq("farm_id", source.farm.id),
+    "Maschinen konnten nicht geladen werden."
+  );
 
   if (!result?.data) {
     return fallbackMachines;
@@ -85,22 +101,24 @@ export async function getMachineById(id: string): Promise<Machine | null> {
 }
 
 export async function createMachine(input: CreateMachineInput): Promise<Machine> {
+  const source = await getMachinesDataSource();
+  const farmId = source?.farm.id ?? input.farmId;
   const now = new Date().toISOString();
   const fallbackMachine: Machine = {
     ...input,
+    farmId,
     id: crypto.randomUUID(),
     createdAt: now,
     updatedAt: now
   };
-  const table = await getMachinesTable();
 
-  if (!table) {
+  if (!source) {
     fallbackMachines = [fallbackMachine, ...fallbackMachines];
     return fallbackMachine;
   }
 
   const result = await runSupabaseQuery(
-    () => table.insert(mapMachineToRow(fallbackMachine)).select("*").single(),
+    () => source.table.insert(mapMachineToRow(fallbackMachine)).select("*").single(),
     "Maschine konnte nicht angelegt werden."
   );
 
@@ -118,9 +136,9 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
   const existing = fallbackMachines.find((machine) => machine.id === id);
   const now = new Date().toISOString();
   const fallbackMachine = existing ? { ...existing, ...input, updatedAt: now } : null;
-  const table = await getMachinesTable();
+  const source = await getMachinesDataSource();
 
-  if (!table) {
+  if (!source) {
     if (fallbackMachine) {
       fallbackMachines = fallbackMachines.map((machine) => (machine.id === id ? fallbackMachine : machine));
     }
@@ -129,7 +147,7 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
   }
 
   const result = await runSupabaseQuery(
-    () => table.update(mapMachineInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single(),
+    () => source.table.update(mapMachineInputToRow({ ...input, updatedAt: now })).eq("id", id).eq("farm_id", source.farm.id).select("*").single(),
     "Maschine konnte nicht aktualisiert werden."
   );
 
@@ -143,15 +161,18 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
 }
 
 export async function deleteMachine(id: string): Promise<boolean> {
-  const table = await getMachinesTable();
+  const source = await getMachinesDataSource();
 
-  if (!table) {
+  if (!source) {
     const hadMachine = fallbackMachines.some((machine) => machine.id === id);
     fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
     return hadMachine;
   }
 
-  const result = await runSupabaseQuery(() => table.delete().eq("id", id), "Maschine konnte nicht geloescht werden.");
+  const result = await runSupabaseQuery(
+    () => source.table.delete().eq("id", id).eq("farm_id", source.farm.id),
+    "Maschine konnte nicht geloescht werden."
+  );
 
   if (!result) {
     const hadMachine = fallbackMachines.some((machine) => machine.id === id);
@@ -161,6 +182,16 @@ export async function deleteMachine(id: string): Promise<boolean> {
 
   fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
   return true;
+}
+
+async function getMachinesDataSource(): Promise<MachinesDataSource | null> {
+  const [farm, table] = await Promise.all([getCurrentFarm(), getMachinesTable()]);
+
+  if (!table || farm.id === placeholderFarmId) {
+    return null;
+  }
+
+  return { farm, table };
 }
 
 async function getMachinesTable(): Promise<SupabaseTableApi<MachineRow> | null> {

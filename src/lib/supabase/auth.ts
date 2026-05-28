@@ -1,4 +1,12 @@
-import { createSupabaseBrowserClient, warnSupabaseFallback } from "./client";
+import { createSupabaseBrowserClient, isSupabaseConfigured, warnSupabaseFallback } from "./client";
+
+export async function isSupabaseAuthAvailable(): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    return false;
+  }
+
+  return (await createSupabaseBrowserClient()) !== null;
+}
 
 export async function getCurrentUser() {
   const supabase = await createSupabaseBrowserClient();
@@ -16,7 +24,7 @@ export async function getCurrentUser() {
   }
 }
 
-export async function signInWithEmail(email: string, password: string) {
+export async function signInWithEmail(email: string, redirectPath = "/de/dashboard") {
   const supabase = await createSupabaseBrowserClient();
 
   if (!supabase) {
@@ -24,7 +32,13 @@ export async function signInWithEmail(email: string, password: string) {
   }
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const emailRedirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}${redirectPath}`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo
+      }
+    });
     return { error: error?.message ?? null };
   } catch (error) {
     warnSupabaseFallback("Anmeldung konnte nicht ausgefuehrt werden.", error);

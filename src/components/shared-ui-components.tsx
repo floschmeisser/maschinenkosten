@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   getAppSettingsPreferences,
@@ -10,8 +11,10 @@ import {
   type FarmProfilePreference
 } from "@/lib/app/preferences";
 import { getActiveFarmConfig } from "@/lib/app/farm-config";
+import { isSupabaseAuthAvailable, signInWithEmail } from "@/lib/supabase/auth";
 import type { StatusTone } from "@/lib/app/status";
 import { getStatusLabel } from "@/lib/app/status";
+import type { Locale } from "@/i18n/routing";
 
 type StatCardProps = {
   label: string;
@@ -37,26 +40,103 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   return <span className={`status ${status}`}>{getStatusLabel(status)}</span>;
 }
 
-export function LoginPanel() {
+type LoginPanelProps = {
+  locale?: Locale;
+};
+
+export function LoginPanel({ locale = "de" }: LoginPanelProps) {
+  const [email, setEmail] = useState("");
+  const [isAuthAvailable, setIsAuthAvailable] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAuth() {
+      const available = await isSupabaseAuthAvailable();
+
+      if (isMounted) {
+        setIsAuthAvailable(available);
+        setIsCheckingAuth(false);
+      }
+    }
+
+    checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage(null);
+    setError(null);
+
+    if (!email.trim()) {
+      setError("E-Mail eintragen.");
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const result = await signInWithEmail(email.trim(), `/${locale}/dashboard`);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setMessage("Pruefe dein E-Mail-Postfach.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   return (
     <section className="panel form-panel info-panel">
       <div>
-        <h2>Anmeldung kommt spaeter</h2>
-        <p className="muted">Noch nicht aktiv.</p>
+        <h2>Einloggen</h2>
+        {!isCheckingAuth && !isAuthAvailable ? <p className="muted">Demo-Modus aktiv.</p> : null}
       </div>
-      <form className="form-grid" aria-disabled="true">
-        <label>
-          E-Mail
-          <input disabled placeholder="name@betrieb.at" type="email" />
-        </label>
-        <label>
-          Passwort
-          <input disabled placeholder="Passwort" type="password" />
-        </label>
-        <button className="button primary" type="button" disabled>
-          Noch nicht verfuegbar
-        </button>
-      </form>
+      {isCheckingAuth ? <p className="preference-hint">Laden...</p> : null}
+      {isAuthAvailable ? (
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label>
+            E-Mail
+            <input
+              autoComplete="email"
+              inputMode="email"
+              placeholder="name@betrieb.at"
+              type="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError(null);
+                setMessage(null);
+              }}
+            />
+          </label>
+          {error ? <p className="form-error">{error}</p> : null}
+          {message ? <p className="form-success">{message}</p> : null}
+          <div className="form-actions">
+            <button className="button primary" type="submit" disabled={isSending}>
+              {isSending ? "Senden..." : "Link senden"}
+            </button>
+          </div>
+        </form>
+      ) : null}
+      {!isCheckingAuth && !isAuthAvailable ? (
+        <div className="form-actions">
+          <Link className="button primary" href={`/${locale}/dashboard`}>
+            Demo fortsetzen
+          </Link>
+        </div>
+      ) : null}
     </section>
   );
 }

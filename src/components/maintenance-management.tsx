@@ -5,7 +5,11 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import type { Locale } from "@/i18n/routing";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSparePart } from "@/lib/app/machines";
-import { getMachines as getPlaceholderMachines } from "@/lib/app/machines";
+import {
+  getMachineSparePartStockStatus,
+  getMachineSparePartStockStatusLabel,
+  getMachines as getPlaceholderMachines
+} from "@/lib/app/machines";
 import { getMachines } from "@/lib/app/machines-database";
 import { getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
 import { getMaintenanceViewPreference, setMaintenanceViewPreference } from "@/lib/app/preferences";
@@ -802,9 +806,14 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
                 const quantityUsed = toOptionalNumber(row.quantityUsed) ?? 0;
                 const stockAfterUse = selectedPart ? Math.max(0, selectedPart.stockQuantity - quantityUsed) : 0;
                 const hasStockWarning = Boolean(selectedPart && quantityUsed > selectedPart.stockQuantity);
+                const stockStatus = selectedPart ? getMachineSparePartStockStatus(selectedPart) : "ok";
+                const stockAfterUseStatus = selectedPart
+                  ? getProjectedStockStatus(selectedPart, stockAfterUse)
+                  : "ok";
+                const shouldReorderAfterUse = selectedPart ? stockAfterUse <= selectedPart.minimumStockQuantity : false;
 
                 return (
-                  <div className={hasStockWarning ? "used-part-row warning" : "used-part-row"} key={row.id}>
+                  <div className={hasStockWarning || shouldReorderAfterUse ? "used-part-row warning" : "used-part-row"} key={row.id}>
                     <label>
                       Ersatzteil
                       <select
@@ -813,7 +822,7 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
                       >
                         {spareParts.map((part) => (
                           <option key={part.id} value={part.id}>
-                            {part.name}{part.partNumber ? ` / ${part.partNumber}` : ""}
+                            {part.name}{part.partNumber ? ` / ${part.partNumber}` : ""} / {formatNumber(part.stockQuantity)} {part.unit}
                           </option>
                         ))}
                       </select>
@@ -833,10 +842,18 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
                       <input value={row.notes} onChange={(event) => handleUpdateUsedPart(row.id, { notes: event.target.value })} />
                     </label>
                     {selectedPart ? (
-                      <p className={hasStockWarning ? "stock-preview warning-text" : "stock-preview"}>
-                        Lager: {formatNumber(selectedPart.stockQuantity)} {selectedPart.unit} / danach {formatNumber(stockAfterUse)}{" "}
-                        {selectedPart.unit}
-                      </p>
+                      <div className="maintenance-part-stock-impact">
+                        <span className={`reorder-badge ${stockStatus}`}>{getMachineSparePartStockStatusLabel(stockStatus)}</span>
+                        <p className={hasStockWarning || shouldReorderAfterUse ? "stock-preview warning-text" : "stock-preview"}>
+                          Jetzt {formatNumber(selectedPart.stockQuantity)} {selectedPart.unit} / danach {formatNumber(stockAfterUse)}{" "}
+                          {selectedPart.unit}
+                        </p>
+                        {shouldReorderAfterUse ? (
+                          <span className={`reorder-badge ${stockAfterUseStatus}`}>
+                            {stockAfterUse <= 0 ? "Nachbestellen" : "Nach Nutzung niedrig"}
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                     {hasStockWarning ? <p className="field-error">Nicht genug auf Lager</p> : null}
                     <button
@@ -995,4 +1012,8 @@ function toOptionalNumber(value: string): number | null {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getProjectedStockStatus(part: MachineSparePart, stockQuantity: number): ReturnType<typeof getMachineSparePartStockStatus> {
+  return getMachineSparePartStockStatus({ ...part, stockQuantity });
 }

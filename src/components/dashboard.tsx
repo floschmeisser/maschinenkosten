@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
 import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
-import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
+import { getMachineSparePartStockStatus, getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
 import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
@@ -80,6 +80,7 @@ export function Dashboard({ locale }: DashboardProps) {
   }).length;
   const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
   const urgentMachineCount = machines.filter((machine) => machine.status === "maintenance" || machine.serviceStatus === "danger").length;
+  const criticalLowStockCount = lowStockSpareParts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
   const importantItems = createImportantItems({
     farmConfig,
     locale,
@@ -91,6 +92,7 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     importantCount: importantItems.length,
     lowStockSparePartsCount: lowStockSpareParts.length,
+    criticalLowStockCount,
     urgentMachineCount
   });
   const dashboardCards = createDailyCards({
@@ -98,6 +100,7 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     farmConfig,
     lowStockSparePartsCount: lowStockSpareParts.length,
+    criticalLowStockCount,
     locale,
     todaysWorkCount
   });
@@ -180,6 +183,7 @@ function DashboardFocusCard({ helper, href, label, tone, value }: Omit<Dashboard
 
 type DashboardCardInput = {
   activeMachineCount: number;
+  criticalLowStockCount: number;
   dueMaintenanceCount: number;
   farmConfig: FarmAppConfig;
   lowStockSparePartsCount: number;
@@ -189,6 +193,7 @@ type DashboardCardInput = {
 
 function createDailyCards({
   activeMachineCount,
+  criticalLowStockCount,
   dueMaintenanceCount,
   farmConfig,
   lowStockSparePartsCount,
@@ -222,10 +227,10 @@ function createDailyCards({
     },
     {
       id: "spareParts",
-      tone: "warning",
-      label: "Niedriger Lagerbestand",
+      tone: criticalLowStockCount > 0 ? "danger" : "warning",
+      label: criticalLowStockCount > 0 ? "Teile kritisch" : "Niedriger Lagerbestand",
       value: lowStockSparePartsCount.toString(),
-      helper: "Ersatzteile",
+      helper: criticalLowStockCount > 0 ? "Nachbestellen" : "Ersatzteile",
       href: `/${locale}/machines`
     }
   ];
@@ -309,12 +314,14 @@ function createImportantItems({
   if (farmConfig.enabledModules.machines) {
     for (const part of lowStockSpareParts) {
       const machine = machines.find((item) => item.id === part.machineId);
+      const stockStatus = getMachineSparePartStockStatus(part);
+      const isCritical = stockStatus === "critical" || stockStatus === "empty";
       items.push({
         id: `spare-part-${part.id}`,
-        tone: "warning",
-        label: "Lager niedrig",
+        tone: isCritical ? "danger" : "warning",
+        label: isCritical ? "Nachbestellen" : "Lager niedrig",
         title: part.name,
-        meta: machine?.name ?? part.partNumber ?? "Ersatzteil",
+        meta: machine ? `${machine.name} / ${part.storageLocation || "Lager"}` : part.partNumber ?? "Ersatzteil",
         href: `/${locale}/machines/${part.machineId}`
       });
     }
@@ -339,6 +346,7 @@ function createImportantItems({
 }
 
 function createStatusSummary(input: {
+  criticalLowStockCount: number;
   dueMaintenanceCount: number;
   importantCount: number;
   lowStockSparePartsCount: number;
@@ -353,7 +361,7 @@ function createStatusSummary(input: {
   }
 
   if (input.lowStockSparePartsCount > 0) {
-    return `${input.lowStockSparePartsCount} Lager pruefen`;
+    return input.criticalLowStockCount > 0 ? `${input.criticalLowStockCount} Teil kritisch` : `${input.lowStockSparePartsCount} Lager pruefen`;
   }
 
   return `${input.urgentMachineCount} Maschine pruefen`;

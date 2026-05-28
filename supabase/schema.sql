@@ -110,6 +110,23 @@ create table if not exists public.machine_spare_parts (
   )
 );
 
+-- Machine documents store metadata now; file_path can later point to Supabase Storage.
+create table if not exists public.machine_documents (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  machine_id uuid not null references public.machines(id) on delete cascade,
+  title text not null,
+  type text not null default 'other',
+  file_name text not null,
+  file_path text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint machine_documents_type_check check (
+    type in ('invoice', 'service_report', 'inspection', 'manual', 'warranty', 'photo', 'other')
+  )
+);
+
 -- Used spare parts connect maintenance completion with stock reduction.
 create table if not exists public.maintenance_used_parts (
   id uuid primary key default gen_random_uuid(),
@@ -132,6 +149,9 @@ create index if not exists maintenance_tasks_due_date_idx on public.maintenance_
 create index if not exists machine_spare_parts_farm_id_idx on public.machine_spare_parts(farm_id);
 create index if not exists machine_spare_parts_machine_id_idx on public.machine_spare_parts(machine_id);
 create index if not exists machine_spare_parts_low_stock_idx on public.machine_spare_parts(farm_id, machine_id, stock_quantity, minimum_stock_quantity);
+create index if not exists machine_documents_farm_id_idx on public.machine_documents(farm_id);
+create index if not exists machine_documents_machine_id_idx on public.machine_documents(machine_id);
+create index if not exists machine_documents_type_idx on public.machine_documents(type);
 create index if not exists maintenance_used_parts_farm_id_idx on public.maintenance_used_parts(farm_id);
 create index if not exists maintenance_used_parts_task_id_idx on public.maintenance_used_parts(maintenance_task_id);
 create index if not exists maintenance_used_parts_spare_part_id_idx on public.maintenance_used_parts(spare_part_id);
@@ -168,11 +188,17 @@ create trigger machine_spare_parts_set_updated_at
 before update on public.machine_spare_parts
 for each row execute function public.set_updated_at();
 
+drop trigger if exists machine_documents_set_updated_at on public.machine_documents;
+create trigger machine_documents_set_updated_at
+before update on public.machine_documents
+for each row execute function public.set_updated_at();
+
 -- Row level security: authenticated users can access rows for farms they own.
 alter table public.farms enable row level security;
 alter table public.machines enable row level security;
 alter table public.maintenance_tasks enable row level security;
 alter table public.machine_spare_parts enable row level security;
+alter table public.machine_documents enable row level security;
 alter table public.maintenance_used_parts enable row level security;
 
 create policy "Farm owners can manage farms"
@@ -235,6 +261,25 @@ with check (
   exists (
     select 1 from public.farms
     where farms.id = machine_spare_parts.farm_id
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can manage machine documents"
+on public.machine_documents
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.farms
+    where farms.id = machine_documents.farm_id
+    and farms.owner_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.farms
+    where farms.id = machine_documents.farm_id
     and farms.owner_id = auth.uid()
   )
 );

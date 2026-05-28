@@ -24,6 +24,9 @@ export type MachineSparePartCategory =
   | "fluid"
   | "other";
 
+export type MachineSparePartStockStatus = "ok" | "low" | "critical" | "empty";
+export type MachineDocumentType = "invoice" | "service_report" | "inspection" | "manual" | "warranty" | "photo" | "other";
+
 export type Machine = {
   id: string;
   farmId: string;
@@ -79,10 +82,25 @@ export type MachineSparePart = {
   updatedAt: string;
 };
 
+export type MachineDocument = {
+  id: string;
+  farmId: string;
+  machineId: string;
+  title: string;
+  type: MachineDocumentType;
+  fileName: string;
+  filePath: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CreateMachineInput = Omit<Machine, "id" | "createdAt" | "updatedAt">;
 export type UpdateMachineInput = Partial<CreateMachineInput>;
 export type CreateMachineSparePartInput = Omit<MachineSparePart, "id" | "createdAt" | "updatedAt">;
 export type UpdateMachineSparePartInput = Partial<CreateMachineSparePartInput>;
+export type CreateMachineDocumentInput = Omit<MachineDocument, "id" | "createdAt" | "updatedAt">;
+export type UpdateMachineDocumentInput = Partial<CreateMachineDocumentInput>;
 export type MachineUsageUpdateInput = {
   currentOperatingHours?: number | null;
   currentKilometers?: number | null;
@@ -136,6 +154,33 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     notes: "Vor Schnitt pruefen.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
+  }
+];
+
+export const placeholderMachineDocuments: MachineDocument[] = [
+  {
+    id: "document-1111-4111-8111-111111111111",
+    farmId: placeholderFarmId,
+    machineId: "11111111-1111-4111-8111-111111111111",
+    title: "Kaufrechnung",
+    type: "invoice",
+    fileName: "rechnung-fendt-512.pdf",
+    filePath: null,
+    notes: "Metadaten-Beispiel. Datei kann spaeter in Supabase Storage liegen.",
+    createdAt: "2026-05-01T08:00:00.000Z",
+    updatedAt: "2026-05-01T08:00:00.000Z"
+  },
+  {
+    id: "document-2222-4222-8222-222222222222",
+    farmId: placeholderFarmId,
+    machineId: "11111111-1111-4111-8111-111111111111",
+    title: "Servicezettel 2500 h",
+    type: "service_report",
+    fileName: "service-2500h-foto.jpg",
+    filePath: null,
+    notes: null,
+    createdAt: "2026-05-10T08:00:00.000Z",
+    updatedAt: "2026-05-10T08:00:00.000Z"
   }
 ];
 
@@ -266,6 +311,26 @@ const sparePartCategoryLabels: Record<MachineSparePartCategory, string> = {
   other: "Sonstiges"
 };
 
+const documentTypeLabels: Record<MachineDocumentType, string> = {
+  invoice: "Rechnung",
+  service_report: "Service",
+  inspection: "Pickerl/TUEV",
+  manual: "Anleitung",
+  warranty: "Garantie",
+  photo: "Foto",
+  other: "Sonstiges"
+};
+
+const documentTypePriority: Record<MachineDocumentType, number> = {
+  invoice: 0,
+  service_report: 1,
+  inspection: 2,
+  manual: 3,
+  warranty: 4,
+  photo: 5,
+  other: 6
+};
+
 export function getMachineCategoryLabel(category: MachineCategory): string {
   return categoryLabels[category];
 }
@@ -274,8 +339,51 @@ export function getMachineSparePartCategoryLabel(category: MachineSparePartCateg
   return sparePartCategoryLabels[category];
 }
 
+export function getMachineDocumentTypeLabel(type: MachineDocumentType): string {
+  return documentTypeLabels[type];
+}
+
+export function sortMachineDocumentsByRelevance(documents: MachineDocument[]): MachineDocument[] {
+  return [...documents].sort((first, second) => {
+    const priorityDifference = documentTypePriority[first.type] - documentTypePriority[second.type];
+
+    if (priorityDifference !== 0) {
+      return priorityDifference;
+    }
+
+    return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+  });
+}
+
 export function isMachineSparePartLowStock(part: MachineSparePart): boolean {
   return part.stockQuantity <= part.minimumStockQuantity;
+}
+
+export function getMachineSparePartStockStatus(part: MachineSparePart): MachineSparePartStockStatus {
+  if (part.stockQuantity <= 0) {
+    return "empty";
+  }
+
+  if (part.minimumStockQuantity > 0 && part.stockQuantity <= part.minimumStockQuantity / 2) {
+    return "critical";
+  }
+
+  if (part.stockQuantity <= part.minimumStockQuantity) {
+    return "low";
+  }
+
+  return "ok";
+}
+
+export function getMachineSparePartStockStatusLabel(status: MachineSparePartStockStatus): string {
+  const labels: Record<MachineSparePartStockStatus, string> = {
+    ok: "Lagerbestand ausreichend",
+    low: "Niedriger Bestand",
+    critical: "Kritisch niedrig",
+    empty: "Nachbestellen"
+  };
+
+  return labels[status];
 }
 
 export function toMachineSummary(machine: Machine): MachineSummary {

@@ -1491,7 +1491,72 @@ td span {
   gap: 12px;
 }
 
+.spare-parts-workshop-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.spare-parts-workshop-summary div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.spare-parts-workshop-summary span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.spare-parts-workshop-summary strong {
+  color: var(--primary-dark);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.spare-parts-workshop-summary .danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.spare-parts-workshop-summary .warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.spare-parts-workshop-summary .good {
+  border-color: var(--success);
+  background: var(--primary-soft);
+}
+
+.spare-parts-search {
+  display: grid;
+  gap: 6px;
+  color: var(--primary-dark);
+  font-weight: 900;
+}
+
+.spare-parts-search input {
+  width: 100%;
+  min-height: 54px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+}
+
 .usage-history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.machine-document-list {
   display: grid;
   gap: 12px;
 }
@@ -1516,9 +1581,140 @@ td span {
   box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
+.machine-document-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
+}
+
+.machine-document-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.machine-document-main div {
+  display: grid;
+  gap: 4px;
+}
+
+.machine-document-main span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.document-type-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 2px solid var(--primary);
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.document-type-badge.invoice {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.document-type-badge.inspection,
+.document-type-badge.warranty {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--text);
+}
+
+.document-type-badge.photo {
+  border-color: var(--color-earth);
+  background: var(--earth-soft);
+  color: var(--earth);
+}
+
+.machine-document-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .spare-part-card.low-stock {
   border-color: var(--warning);
   background: var(--warning-soft);
+}
+
+.spare-part-card.low {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.spare-part-card.critical,
+.spare-part-card.empty {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.spare-part-stock-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.spare-part-stock-row div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.spare-part-stock-row span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.spare-part-stock-row strong {
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.reorder-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 2px solid var(--success);
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.reorder-badge.low {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--text);
+}
+
+.reorder-badge.critical,
+.reorder-badge.empty {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .stock-badge {
@@ -1587,6 +1783,14 @@ td span {
   margin: 0;
   color: var(--text);
   font-weight: 800;
+}
+
+.maintenance-part-stock-impact {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .warning-text {
@@ -1894,6 +2098,14 @@ td span {
   }
 
   .machine-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .spare-part-stock-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .machine-document-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

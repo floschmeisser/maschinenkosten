@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   createMachineSparePart,
   deleteMachineSparePart,
@@ -9,6 +9,8 @@ import {
 } from "@/lib/app/machine-spare-parts-database";
 import {
   getMachineSparePartCategoryLabel,
+  getMachineSparePartStockStatus,
+  getMachineSparePartStockStatusLabel,
   isMachineSparePartLowStock,
   type CreateMachineSparePartInput,
   type MachineSparePart,
@@ -39,6 +41,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingPart, setEditingPart] = useState<MachineSparePart | null>(null);
+  const [query, setQuery] = useState("");
 
   const refreshParts = useCallback(async () => {
     setIsLoading(true);
@@ -82,6 +85,33 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
     await refreshParts();
   }
 
+  const visibleParts = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    const sortedParts = [...parts].sort((first, second) => {
+      const firstPriority = getStockPriority(getMachineSparePartStockStatus(first));
+      const secondPriority = getStockPriority(getMachineSparePartStockStatus(second));
+
+      if (firstPriority !== secondPriority) {
+        return firstPriority - secondPriority;
+      }
+
+      return first.name.localeCompare(second.name);
+    });
+
+    if (!cleanQuery) {
+      return sortedParts;
+    }
+
+    return sortedParts.filter((part) =>
+      [part.name, part.partNumber, part.originalPartNumber, part.storageLocation, part.supplier, part.manufacturer]
+        .filter(Boolean)
+        .some((value) => value?.toLowerCase().includes(cleanQuery))
+    );
+  }, [parts, query]);
+
+  const lowStockCount = parts.filter(isMachineSparePartLowStock).length;
+  const criticalStockCount = parts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
+
   if (isCreating || editingPart) {
     return (
       <section className="panel">
@@ -113,46 +143,81 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
         </button>
       </div>
 
+      <div className="spare-parts-workshop-summary">
+        <div className={criticalStockCount > 0 ? "danger" : "good"}>
+          <span>Kritisch</span>
+          <strong>{criticalStockCount}</strong>
+        </div>
+        <div className={lowStockCount > 0 ? "warning" : "good"}>
+          <span>Nachbestellen</span>
+          <strong>{lowStockCount}</strong>
+        </div>
+        <div>
+          <span>Teile</span>
+          <strong>{parts.length}</strong>
+        </div>
+      </div>
+
+      {parts.length > 0 ? (
+        <label className="spare-parts-search">
+          Suchen
+          <input
+            placeholder="Name, Nummer, Lagerort"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+      ) : null}
+
       {parts.length === 0 ? (
         <div className="empty-state">
-          <strong>Keine Ersatzteile hinterlegt.</strong>
+          <strong>Keine Ersatzteile vorhanden.</strong>
+        </div>
+      ) : visibleParts.length === 0 ? (
+        <div className="empty-state">
+          <strong>Kein Ersatzteil gefunden.</strong>
         </div>
       ) : (
         <div className="spare-parts-list">
-          {parts.map((part) => {
-            const isLowStock = isMachineSparePartLowStock(part);
+          {visibleParts.map((part) => {
+            const stockStatus = getMachineSparePartStockStatus(part);
+            const statusLabel = getMachineSparePartStockStatusLabel(stockStatus);
 
             return (
-              <article className={isLowStock ? "spare-part-card low-stock" : "spare-part-card"} key={part.id}>
+              <article className={`spare-part-card ${stockStatus}`} key={part.id}>
                 <div className="spare-part-main">
                   <div>
                     <strong>{part.name}</strong>
-                    <span>{getMachineSparePartCategoryLabel(part.category)}</span>
+                    <span>{part.partNumber || getMachineSparePartCategoryLabel(part.category)}</span>
                   </div>
-                  {isLowStock ? <span className="urgency-badge soon">Niedrig</span> : null}
+                  <span className={`reorder-badge ${stockStatus}`}>{statusLabel}</span>
+                </div>
+                <div className="spare-part-stock-row">
+                  <div>
+                    <span>Bestand</span>
+                    <strong>
+                      {formatNumber(part.stockQuantity)} {part.unit}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Minimum</span>
+                    <strong>
+                      {formatNumber(part.minimumStockQuantity)} {part.unit}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Lagerort</span>
+                    <strong>{part.storageLocation || "-"}</strong>
+                  </div>
                 </div>
                 <dl className="detail-list">
                   <div>
-                    <dt>Teilenummer</dt>
-                    <dd>{part.partNumber || "-"}</dd>
+                    <dt>Kategorie</dt>
+                    <dd>{getMachineSparePartCategoryLabel(part.category)}</dd>
                   </div>
                   <div>
-                    <dt>Lager</dt>
-                    <dd>
-                      <span className={isLowStock ? "stock-badge low" : "stock-badge"}>
-                        {formatNumber(part.stockQuantity)} {part.unit}
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Minimum</dt>
-                    <dd>
-                      {formatNumber(part.minimumStockQuantity)} {part.unit}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Ort</dt>
-                    <dd>{part.storageLocation || "-"}</dd>
+                    <dt>Lieferant</dt>
+                    <dd>{part.supplier || "-"}</dd>
                   </div>
                 </dl>
                 <div className="task-actions">
@@ -379,4 +444,15 @@ function toNumber(value: string): number | null {
 
 function toNullableText(value: string): string | null {
   return value.trim() || null;
+}
+
+function getStockPriority(status: ReturnType<typeof getMachineSparePartStockStatus>): number {
+  const priorities: Record<ReturnType<typeof getMachineSparePartStockStatus>, number> = {
+    empty: 0,
+    critical: 1,
+    low: 2,
+    ok: 3
+  };
+
+  return priorities[status];
 }

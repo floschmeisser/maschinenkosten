@@ -25,6 +25,7 @@ import {
   type MaintenanceTask
 } from "@/lib/app/maintenance";
 import { getStatusLabel } from "@/lib/app/status";
+import { MachineDocuments } from "./machine-documents";
 import { MachineFormModal } from "./machine-form-modal";
 import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
@@ -143,6 +144,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdatingUsage, setIsUpdatingUsage] = useState(false);
   const [sparePartCreateKey, setSparePartCreateKey] = useState(0);
+  const [documentCreateKey, setDocumentCreateKey] = useState(0);
   const costInput = createCostInputFromMachine(currentMachine, maintenanceTasks);
   const costResult = calculateMachineCosts(costInput);
   const nextMaintenanceTasks = getNextMaintenanceTasksForMachine(currentMachine.id, maintenanceTasks, 3, [currentMachine]);
@@ -262,8 +264,8 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
           <button className="button large-action" type="button" onClick={() => setSparePartCreateKey((current) => current + 1)}>
             Ersatzteil
           </button>
-          <button className="button large-action" type="button" disabled title="Dokumente kommen spaeter.">
-            Dokument bald
+          <button className="button large-action" type="button" onClick={() => setDocumentCreateKey((current) => current + 1)}>
+            Dokument
           </button>
           <button className="button large-action" type="button" onClick={() => setIsUpdatingUsage((current) => !current)}>
             {isUpdatingUsage ? "Stand schliessen" : "Stand"}
@@ -306,14 +308,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
       <MachineSpareParts createSignal={sparePartCreateKey} machine={currentMachine} />
       <MachineSparePartUsageHistory machineId={currentMachine.id} />
 
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>Dokumente</h2>
-        </div>
-        <div className="empty-state">
-          <strong>Noch keine Dokumente vorhanden.</strong>
-        </div>
-      </section>
+      <MachineDocuments createSignal={documentCreateKey} machine={currentMachine} />
 
       <section className="details-grid machine-lower-details">
         <div className="panel">

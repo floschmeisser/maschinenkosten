@@ -22,6 +22,7 @@ import {
   type MaintenanceTask
 } from "@/lib/app/maintenance";
 import { MachineFormModal } from "./machine-form-modal";
+import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
 import { StatusBadge } from "./shared-ui-components";
 
@@ -350,6 +351,8 @@ export function MachineDetail({ machine }: MachineDetailProps) {
           )}
         </div>
       </section>
+
+      <MachineSpareParts machine={currentMachine} />
     </main>
   );
 }

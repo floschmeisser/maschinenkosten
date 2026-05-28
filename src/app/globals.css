@@ -927,6 +927,44 @@ td span {
   gap: 12px;
 }
 
+.spare-parts-list {
+  display: grid;
+  gap: 12px;
+}
+
+.spare-part-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
+}
+
+.spare-part-card.low-stock {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.spare-part-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.spare-part-main div {
+  display: grid;
+  gap: 4px;
+}
+
+.spare-part-main span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .daily-save-status {
   margin: 0;
   padding: 10px 12px;
@@ -1170,7 +1208,7 @@ td span {
   }
 
   .dashboard-focus-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   }
 
   .dashboard-actions {

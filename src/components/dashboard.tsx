@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/app/format";
 import type { MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
+import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
@@ -28,6 +29,7 @@ export function Dashboard({ locale }: DashboardProps) {
   const farmConfig = getActiveFarmConfig(farmKey);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
+  const [lowStockSparePartsCount, setLowStockSparePartsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -50,12 +52,18 @@ export function Dashboard({ locale }: DashboardProps) {
       setIsLoading(true);
 
       try {
-        const [machineData, taskData] = await Promise.all([loadMachines(), loadMaintenanceTasks()]);
+        const [machineData, taskData, lowStockSpareParts] = await Promise.all([
+          loadMachines(),
+          loadMaintenanceTasks(),
+          getLowStockSpareParts()
+        ]);
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
+        setLowStockSparePartsCount(lowStockSpareParts.length);
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
+        setLowStockSparePartsCount(0);
       } finally {
         setIsLoading(false);
       }
@@ -81,6 +89,7 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     exampleMachineName: exampleMachine?.name ?? "je Stunde",
     farmConfig,
+    lowStockSparePartsCount,
     locale,
     todaysWorkCount
   });
@@ -116,11 +125,12 @@ type DashboardFocusCardProps = {
   href: string;
   id: DashboardCardId;
   label: string;
-  tone: "primary" | "good" | "warning" | "danger" | "earth";
+  tone: DashboardCardTone;
   value: string;
 };
 
-type DashboardCardId = "today" | "maintenance" | "dailyUsage" | "machines" | "costs";
+type DashboardCardId = "today" | "maintenance" | "dailyUsage" | "machines" | "costs" | "spareParts";
+type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
 
 function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
   return (
@@ -138,6 +148,7 @@ type DashboardCardInput = {
   dueMaintenanceCount: number;
   exampleMachineName: string;
   farmConfig: FarmAppConfig;
+  lowStockSparePartsCount: number;
   locale: Locale;
   todaysWorkCount: number;
 };
@@ -148,6 +159,7 @@ function createDashboardCards({
   dueMaintenanceCount,
   exampleMachineName,
   farmConfig,
+  lowStockSparePartsCount,
   locale,
   todaysWorkCount
 }: DashboardCardInput): DashboardFocusCardProps[] {
@@ -178,10 +190,18 @@ function createDashboardCards({
     },
     {
       id: "machines",
-      tone: "earth",
+      tone: activeMachineCount > 0 ? "earth" : "good",
       label: farmConfig.customLabels.machinesLabel,
       value: activeMachineCount.toString(),
       helper: activeMachineCount === 0 ? "Noch keine" : "aktiv",
+      href: `/${locale}/machines`
+    },
+    {
+      id: "spareParts",
+      tone: "warning",
+      label: "Niedriger Lagerbestand",
+      value: lowStockSparePartsCount.toString(),
+      helper: "Ersatzteile",
       href: `/${locale}/machines`
     },
     {
@@ -194,7 +214,7 @@ function createDashboardCards({
     }
   ];
 
-  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig));
+  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig, lowStockSparePartsCount));
 }
 
 type DashboardQuickAction = {
@@ -214,13 +234,14 @@ function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardI
   return actions.filter((action) => farmConfig.enabledModules[action.module]);
 }
 
-function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig): boolean {
+function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig, lowStockSparePartsCount: number): boolean {
   const enabledModules: Record<DashboardCardId, boolean> = {
     today: farmConfig.enabledModules.maintenance,
     maintenance: farmConfig.enabledModules.maintenance,
     dailyUsage: farmConfig.enabledModules.dailyUsage,
     machines: farmConfig.enabledModules.machines,
-    costs: farmConfig.enabledModules.costs
+    costs: farmConfig.enabledModules.costs,
+    spareParts: farmConfig.enabledModules.machines && lowStockSparePartsCount > 0
   };
 
   return enabledModules[id];

@@ -13,6 +13,17 @@ export type MachineStatus = "active" | "maintenance" | "inactive" | "sold";
 
 export type UsageUnit = "operating_hours" | "kilometers" | "hectares";
 
+export type MachineSparePartCategory =
+  | "filter"
+  | "belt"
+  | "bearing"
+  | "blade"
+  | "hydraulic"
+  | "electrical"
+  | "wear_part"
+  | "fluid"
+  | "other";
+
 export type Machine = {
   id: string;
   farmId: string;
@@ -48,8 +59,30 @@ export type Machine = {
   updatedAt: string;
 };
 
+export type MachineSparePart = {
+  id: string;
+  farmId: string;
+  machineId: string;
+  name: string;
+  category: MachineSparePartCategory;
+  partNumber: string | null;
+  originalPartNumber: string | null;
+  manufacturer: string | null;
+  supplier: string | null;
+  stockQuantity: number;
+  minimumStockQuantity: number;
+  unit: string;
+  storageLocation: string | null;
+  purchasePrice: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CreateMachineInput = Omit<Machine, "id" | "createdAt" | "updatedAt">;
 export type UpdateMachineInput = Partial<CreateMachineInput>;
+export type CreateMachineSparePartInput = Omit<MachineSparePart, "id" | "createdAt" | "updatedAt">;
+export type UpdateMachineSparePartInput = Partial<CreateMachineSparePartInput>;
 export type MachineUsageUpdateInput = {
   currentOperatingHours?: number | null;
   currentKilometers?: number | null;
@@ -64,6 +97,47 @@ export type MachineSummary = Machine & {
 };
 
 export const placeholderFarmId = "00000000-0000-4000-8000-000000000001";
+
+export const placeholderMachineSpareParts: MachineSparePart[] = [
+  {
+    id: "spare-1111-4111-8111-111111111111",
+    farmId: placeholderFarmId,
+    machineId: "11111111-1111-4111-8111-111111111111",
+    name: "Oelfilter",
+    category: "filter",
+    partNumber: "OF-120",
+    originalPartNumber: "FDT-742120",
+    manufacturer: "Mann",
+    supplier: "Lagerhaus",
+    stockQuantity: 2,
+    minimumStockQuantity: 1,
+    unit: "Stk.",
+    storageLocation: "Regal A2",
+    purchasePrice: 18.9,
+    notes: null,
+    createdAt: "2026-05-01T08:00:00.000Z",
+    updatedAt: "2026-05-01T08:00:00.000Z"
+  },
+  {
+    id: "spare-2222-4222-8222-222222222222",
+    farmId: placeholderFarmId,
+    machineId: "33333333-3333-4333-8333-333333333333",
+    name: "Maehklinge links",
+    category: "blade",
+    partNumber: "MK-L-301",
+    originalPartNumber: null,
+    manufacturer: "Poettinger",
+    supplier: "Landtechnik",
+    stockQuantity: 4,
+    minimumStockQuantity: 4,
+    unit: "Stk.",
+    storageLocation: "Werkstatt Kiste 3",
+    purchasePrice: 7.5,
+    notes: "Vor Schnitt pruefen.",
+    createdAt: "2026-05-01T08:00:00.000Z",
+    updatedAt: "2026-05-01T08:00:00.000Z"
+  }
+];
 
 export const placeholderMachines: Machine[] = [
   {
@@ -180,8 +254,28 @@ const categoryLabels: Record<MachineCategory, string> = {
   other: "Sonstige"
 };
 
+const sparePartCategoryLabels: Record<MachineSparePartCategory, string> = {
+  filter: "Filter",
+  belt: "Riemen",
+  bearing: "Lager",
+  blade: "Klinge",
+  hydraulic: "Hydraulik",
+  electrical: "Elektrik",
+  wear_part: "Verschleissteil",
+  fluid: "Fluessigkeit",
+  other: "Sonstiges"
+};
+
 export function getMachineCategoryLabel(category: MachineCategory): string {
   return categoryLabels[category];
+}
+
+export function getMachineSparePartCategoryLabel(category: MachineSparePartCategory): string {
+  return sparePartCategoryLabels[category];
+}
+
+export function isMachineSparePartLowStock(part: MachineSparePart): boolean {
+  return part.stockQuantity <= part.minimumStockQuantity;
 }
 
 export function toMachineSummary(machine: Machine): MachineSummary {

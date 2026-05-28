@@ -8,19 +8,26 @@ export * from "./status";
 
 export {
   getMachineCategoryLabel,
+  getMachineSparePartCategoryLabel,
+  isMachineSparePartLowStock,
   mergeMachineNotes,
   placeholderFarmId,
+  placeholderMachineSpareParts,
   placeholderMachines,
   toMachineSummary,
   validateMachineUsageUpdate
 } from "./machines";
 export type {
   CreateMachineInput,
+  CreateMachineSparePartInput,
   Machine,
   MachineCategory,
+  MachineSparePart,
+  MachineSparePartCategory,
   MachineStatus,
   MachineUsageUpdateInput,
   MachineSummary,
+  UpdateMachineSparePartInput,
   UpdateMachineInput,
   UsageUnit
 } from "./machines";
@@ -73,6 +80,14 @@ export {
   getMachines,
   updateMachine
 } from "./machines-database";
+
+export {
+  createMachineSparePart,
+  deleteMachineSparePart,
+  getLowStockSpareParts,
+  getMachineSpareParts,
+  updateMachineSparePart
+} from "./machine-spare-parts-database";
 
 export {
   completeMaintenanceTask,

@@ -86,6 +86,30 @@ create table if not exists public.maintenance_tasks (
   )
 );
 
+-- Machine spare parts track farm stock, part numbers and storage location.
+create table if not exists public.machine_spare_parts (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  machine_id uuid not null references public.machines(id) on delete cascade,
+  name text not null,
+  category text not null default 'other',
+  part_number text,
+  original_part_number text,
+  manufacturer text,
+  supplier text,
+  stock_quantity numeric(12, 2) not null default 0,
+  minimum_stock_quantity numeric(12, 2) not null default 0,
+  unit text not null default 'Stk.',
+  storage_location text,
+  purchase_price numeric(12, 2),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint machine_spare_parts_category_check check (
+    category in ('filter', 'belt', 'bearing', 'blade', 'hydraulic', 'electrical', 'wear_part', 'fluid', 'other')
+  )
+);
+
 create index if not exists machines_farm_id_idx on public.machines(farm_id);
 create index if not exists farms_owner_id_idx on public.farms(owner_id);
 create index if not exists machines_status_idx on public.machines(status);
@@ -93,6 +117,9 @@ create index if not exists maintenance_tasks_farm_id_idx on public.maintenance_t
 create index if not exists maintenance_tasks_machine_id_idx on public.maintenance_tasks(machine_id);
 create index if not exists maintenance_tasks_status_idx on public.maintenance_tasks(status);
 create index if not exists maintenance_tasks_due_date_idx on public.maintenance_tasks(due_date);
+create index if not exists machine_spare_parts_farm_id_idx on public.machine_spare_parts(farm_id);
+create index if not exists machine_spare_parts_machine_id_idx on public.machine_spare_parts(machine_id);
+create index if not exists machine_spare_parts_low_stock_idx on public.machine_spare_parts(farm_id, machine_id, stock_quantity, minimum_stock_quantity);
 
 -- Keep updated_at current for simple updates.
 create or replace function public.set_updated_at()
@@ -120,10 +147,16 @@ create trigger maintenance_tasks_set_updated_at
 before update on public.maintenance_tasks
 for each row execute function public.set_updated_at();
 
+drop trigger if exists machine_spare_parts_set_updated_at on public.machine_spare_parts;
+create trigger machine_spare_parts_set_updated_at
+before update on public.machine_spare_parts
+for each row execute function public.set_updated_at();
+
 -- Row level security: authenticated users can access rows for farms they own.
 alter table public.farms enable row level security;
 alter table public.machines enable row level security;
 alter table public.maintenance_tasks enable row level security;
+alter table public.machine_spare_parts enable row level security;
 
 create policy "Farm owners can manage farms"
 on public.farms
@@ -166,6 +199,25 @@ with check (
   exists (
     select 1 from public.farms
     where farms.id = maintenance_tasks.farm_id
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can manage machine spare parts"
+on public.machine_spare_parts
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.farms
+    where farms.id = machine_spare_parts.farm_id
+    and farms.owner_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.farms
+    where farms.id = machine_spare_parts.farm_id
     and farms.owner_id = auth.uid()
   )
 );

@@ -204,12 +204,14 @@ type DashboardQuickAction = {
 };
 
 function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardInput, "farmConfig" | "locale">): DashboardQuickAction[] {
-  return [
+  const actions: DashboardQuickAction[] = [
     { label: "Tagesstand erfassen", href: `/${locale}/daily-usage`, module: "dailyUsage" },
     { label: "Wartung oeffnen", href: `/${locale}/maintenance`, module: "maintenance" },
     { label: "Maschine anlegen", href: `/${locale}/machines`, module: "machines" },
     { label: "Kosten ansehen", href: `/${locale}/costs`, module: "costs" }
-  ].filter((action) => farmConfig.enabledModules[action.module]);
+  ];
+
+  return actions.filter((action) => farmConfig.enabledModules[action.module]);
 }
 
 function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig): boolean {

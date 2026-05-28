@@ -949,7 +949,22 @@ td span {
   gap: 12px;
 }
 
+.usage-history-list {
+  display: grid;
+  gap: 12px;
+}
+
 .spare-part-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
+}
+
+.usage-history-card {
   display: grid;
   gap: 12px;
   padding: 14px;

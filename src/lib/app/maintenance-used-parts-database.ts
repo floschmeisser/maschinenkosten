@@ -1,6 +1,7 @@
 import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import { getMachineSpareParts, updateMachineSparePart } from "./machine-spare-parts-database";
+import { getMaintenanceTasksByMachine } from "./maintenance-database";
 import { placeholderFarmId, type MachineSparePart } from "./machines";
 import {
   placeholderMaintenanceUsedParts,
@@ -46,6 +47,13 @@ export type ApplyUsedPartsToStockResult = {
   updatedParts: MachineSparePart[];
 };
 
+export type MachineUsedPartHistoryItem = MaintenanceUsedPart & {
+  sparePartName: string | null;
+  sparePartNumber: string | null;
+  sparePartUnit: string | null;
+  maintenanceTaskTitle: string | null;
+};
+
 let fallbackUsedParts = [...placeholderMaintenanceUsedParts];
 
 export async function getUsedPartsForMaintenanceTask(taskId: string): Promise<MaintenanceUsedPart[]> {
@@ -66,6 +74,29 @@ export async function getUsedPartsForMaintenanceTask(taskId: string): Promise<Ma
 
   fallbackUsedParts = result.data.map(mapUsedPartRowToUsedPart);
   return fallbackUsedParts.filter((part) => part.maintenanceTaskId === taskId);
+}
+
+export async function getUsedPartsForMachine(machineId: string): Promise<MachineUsedPartHistoryItem[]> {
+  const [usedParts, spareParts, maintenanceTasks] = await Promise.all([
+    getAllUsedPartsForMachine(machineId),
+    getMachineSpareParts(machineId),
+    getMaintenanceTasksByMachine(machineId)
+  ]);
+
+  return usedParts
+    .map((usedPart) => {
+      const sparePart = spareParts.find((part) => part.id === usedPart.sparePartId);
+      const task = maintenanceTasks.find((item) => item.id === usedPart.maintenanceTaskId);
+
+      return {
+        ...usedPart,
+        sparePartName: sparePart?.name ?? null,
+        sparePartNumber: sparePart?.partNumber ?? null,
+        sparePartUnit: sparePart?.unit ?? null,
+        maintenanceTaskTitle: task?.title ?? null
+      };
+    })
+    .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime());
 }
 
 export async function createMaintenanceUsedPart(input: CreateMaintenanceUsedPartInput): Promise<MaintenanceUsedPart> {
@@ -158,6 +189,26 @@ export async function applyUsedPartsToStock(taskId: string): Promise<ApplyUsedPa
     warnings,
     updatedParts
   };
+}
+
+async function getAllUsedPartsForMachine(machineId: string): Promise<MaintenanceUsedPart[]> {
+  const source = await getUsedPartsDataSource();
+
+  if (!source) {
+    return fallbackUsedParts.filter((part) => part.machineId === machineId);
+  }
+
+  const result = await runSupabaseQuery(
+    () => source.table.select("*").eq("farm_id", source.farm.id),
+    "Ersatzteil-Verbrauch konnte nicht geladen werden."
+  );
+
+  if (!result?.data) {
+    return fallbackUsedParts.filter((part) => part.machineId === machineId);
+  }
+
+  fallbackUsedParts = result.data.map(mapUsedPartRowToUsedPart);
+  return fallbackUsedParts.filter((part) => part.machineId === machineId);
 }
 
 async function getUsedPartsDataSource(): Promise<UsedPartsDataSource | null> {

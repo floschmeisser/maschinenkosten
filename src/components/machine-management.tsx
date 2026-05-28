@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { formatCurrency, formatNumber } from "@/lib/app/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Locale } from "@/i18n/routing";
 import type { CreateMachineInput, MachineSummary, MachineUsageUpdateInput } from "@/lib/app/machines";
 import {
@@ -14,6 +14,7 @@ import {
 import { createMachine, getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
 import { calculateMachineCosts, createCostInputFromMachine } from "@/lib/app/cost-calculation";
 import { getMaintenanceTasksByMachine } from "@/lib/app/maintenance-database";
+import { getUsedPartsForMachine, type MachineUsedPartHistoryItem } from "@/lib/app/maintenance-used-parts-database";
 import {
   getNextMaintenanceTasksForMachine,
   getMaintenanceRecurrenceLabel,
@@ -353,7 +354,80 @@ export function MachineDetail({ machine }: MachineDetailProps) {
       </section>
 
       <MachineSpareParts machine={currentMachine} />
+      <MachineSparePartUsageHistory machineId={currentMachine.id} />
     </main>
+  );
+}
+
+type MachineSparePartUsageHistoryProps = {
+  machineId: string;
+};
+
+function MachineSparePartUsageHistory({ machineId }: MachineSparePartUsageHistoryProps) {
+  const [historyItems, setHistoryItems] = useState<MachineUsedPartHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refreshHistory = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      setHistoryItems(await getUsedPartsForMachine(machineId));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [machineId]);
+
+  useEffect(() => {
+    refreshHistory();
+  }, [refreshHistory]);
+
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <h2>Ersatzteil-Verbrauch</h2>
+          {isLoading ? <p className="preference-hint">Laden...</p> : null}
+        </div>
+      </div>
+
+      {historyItems.length === 0 ? (
+        <div className="empty-state">
+          <strong>Noch kein Verbrauch erfasst.</strong>
+        </div>
+      ) : (
+        <div className="usage-history-list">
+          {historyItems.map((item) => (
+            <article className="usage-history-card" key={item.id}>
+              <div className="spare-part-main">
+                <div>
+                  <strong>{item.sparePartName ?? "Ersatzteil"}</strong>
+                  <span>{formatDate(item.createdAt)}</span>
+                </div>
+                <strong>
+                  {formatNumber(item.quantityUsed)} {item.sparePartUnit ?? ""}
+                </strong>
+              </div>
+              <dl className="detail-list">
+                <div>
+                  <dt>Teilenummer</dt>
+                  <dd>{item.sparePartNumber || "-"}</dd>
+                </div>
+                <div>
+                  <dt>Wartung</dt>
+                  <dd>{item.maintenanceTaskTitle || "-"}</dd>
+                </div>
+                {item.notes ? (
+                  <div>
+                    <dt>Notiz</dt>
+                    <dd>{item.notes}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

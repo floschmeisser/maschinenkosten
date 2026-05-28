@@ -60,7 +60,7 @@ textarea {
 
 .page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .page-header {
@@ -122,8 +122,8 @@ textarea {
 
 .layout {
   display: grid;
-  gap: 18px;
-  padding: 16px;
+  gap: 16px;
+  padding: 14px;
 }
 
 .nav {
@@ -137,8 +137,8 @@ textarea {
 .nav-link {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 46px;
+  padding: 0 16px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -168,8 +168,8 @@ textarea {
 .form-grid input,
 .form-grid select {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 52px;
+  padding: 12px 14px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -231,7 +231,7 @@ textarea {
 
 .panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   padding: 16px;
 }
 
@@ -246,6 +246,10 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.panel-heading .task-actions {
+  width: 100%;
 }
 
 .muted {
@@ -278,8 +282,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 16px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
   border: 2px solid var(--primary-dark);
   border-radius: 8px;
   background: var(--surface);
@@ -332,13 +337,13 @@ textarea:disabled {
 }
 
 .dashboard-page {
-  gap: 14px;
+  gap: 12px;
 }
 
 .dashboard-hero {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 4px;
+  padding: 14px 16px;
   border: 2px solid var(--primary);
   border-radius: 8px;
   background: var(--primary-soft);
@@ -353,7 +358,7 @@ textarea:disabled {
 
 .dashboard-hero h1 {
   margin: 0;
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.05;
 }
 
@@ -367,14 +372,15 @@ textarea:disabled {
 
 .dashboard-focus-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dashboard-focus-card {
   display: grid;
-  gap: 8px;
-  min-height: 178px;
-  padding: 18px;
+  align-content: space-between;
+  gap: 7px;
+  min-height: 124px;
+  padding: 16px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -388,7 +394,7 @@ textarea:disabled {
 }
 
 .dashboard-focus-card strong {
-  font-size: 44px;
+  font-size: 42px;
   line-height: 1;
   color: var(--primary-dark);
 }
@@ -399,17 +405,13 @@ textarea:disabled {
   font-weight: 700;
 }
 
-.dashboard-focus-card b {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 50px;
-  margin-top: 4px;
-  padding: 0 16px;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #ffffff;
-  font-size: 17px;
+.dashboard-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-actions .button {
+  width: 100%;
 }
 
 .dashboard-focus-card.good {
@@ -432,23 +434,10 @@ textarea:disabled {
   background: var(--earth-soft);
 }
 
-.dashboard-focus-card.warning b {
-  background: var(--warning);
-  color: var(--text);
-}
-
-.dashboard-focus-card.danger b {
-  background: var(--danger);
-}
-
-.dashboard-focus-card.earth b {
-  background: var(--color-earth);
-}
-
 .empty-state {
   display: grid;
   gap: 8px;
-  padding: 14px;
+  padding: 16px;
   border: 2px dashed var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -610,7 +599,7 @@ td span {
 .form-actions {
   display: grid;
   grid-column: 1 / -1;
-  gap: 10px;
+  gap: 12px;
 }
 
 .form-error {
@@ -635,8 +624,8 @@ td span {
 }
 
 .filter-button {
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 48px;
+  padding: 0 14px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -699,11 +688,11 @@ td span {
 
 .today-actions {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .large-action {
-  min-height: 52px;
+  min-height: 56px;
   padding-inline: 18px;
   font-size: 16px;
 }
@@ -800,7 +789,7 @@ td span {
 
 .task-actions {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .task-details {
@@ -817,8 +806,8 @@ td span {
 
 .quick-cost-form {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: 14px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -834,7 +823,8 @@ td span {
 .quick-cost-form input,
 .quick-cost-form textarea {
   width: 100%;
-  padding: 10px 12px;
+  min-height: 52px;
+  padding: 12px 14px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -920,12 +910,12 @@ td span {
 
 .daily-attention-filter {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .daily-attention-filter .button {
-  min-height: 48px;
+  min-height: 54px;
 }
 
 .daily-draft-panel {
@@ -959,7 +949,7 @@ td span {
 
 .daily-draft-panel-actions {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .daily-attention-group {
@@ -975,8 +965,8 @@ td span {
 
 .daily-usage-card {
   display: grid;
-  gap: 14px;
-  padding: 14px;
+  gap: 16px;
+  padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -1106,8 +1096,8 @@ td span {
 .daily-usage-fields input,
 .daily-usage-fields textarea {
   width: 100%;
-  min-height: 50px;
-  padding: 12px;
+  min-height: 54px;
+  padding: 12px 14px;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1150,8 +1140,12 @@ td span {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
+  .dashboard-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .dashboard-focus-card {
-    min-height: 210px;
+    min-height: 156px;
   }
 
   .dashboard-focus-card strong {
@@ -1169,6 +1163,11 @@ td span {
 
   .form-grid .button {
     align-self: end;
+  }
+
+  .button,
+  .panel-heading .task-actions {
+    width: auto;
   }
 
   .form-actions,

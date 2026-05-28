@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
 import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
-import { formatCurrency, formatNumber } from "@/lib/app/format";
+import { formatCurrency } from "@/lib/app/format";
 import type { MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
@@ -74,10 +74,6 @@ export function Dashboard({ locale }: DashboardProps) {
   const exampleMachine = machines[0];
   const costInput = exampleMachine ? createCostInputFromMachine(exampleMachine, maintenanceTasks) : defaultCostInputs;
   const costs = calculateMachineCosts(costInput);
-  const hectaresLabel =
-    exampleMachine?.hectaresPerHour === null || exampleMachine?.hectaresPerHour === undefined
-      ? "-"
-      : `${formatNumber(exampleMachine.hectaresPerHour)} ha/h`;
 
   const dashboardCards = createDashboardCards({
     activeMachineCount,
@@ -85,17 +81,16 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     exampleMachineName: exampleMachine?.name ?? "je Stunde",
     farmConfig,
-    hectaresLabel,
     locale,
     todaysWorkCount
   });
+  const quickActions = createDashboardQuickActions({ farmConfig, locale });
 
   return (
     <main className="page dashboard-page">
       <section className="dashboard-hero">
         <span>{farmConfig.branding.farmName}</span>
         <h1>{farmConfig.branding.welcomeTitle}</h1>
-        <p>{farmConfig.branding.welcomeSubtitle}</p>
         {isLoading ? <small>Laden...</small> : null}
       </section>
 
@@ -104,27 +99,35 @@ export function Dashboard({ locale }: DashboardProps) {
           <DashboardFocusCard {...card} key={card.id} />
         ))}
       </section>
+
+      <section className="dashboard-actions" aria-label="Schnellaktionen">
+        {quickActions.map((action, index) => (
+          <Link className={index === 0 ? "button primary large-action" : "button large-action"} href={action.href} key={action.href}>
+            {action.label}
+          </Link>
+        ))}
+      </section>
     </main>
   );
 }
 
 type DashboardFocusCardProps = {
-  action: string;
   helper: string;
   href: string;
-  id: string;
+  id: DashboardCardId;
   label: string;
   tone: "primary" | "good" | "warning" | "danger" | "earth";
   value: string;
 };
 
-function DashboardFocusCard({ action, helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
+type DashboardCardId = "today" | "maintenance" | "dailyUsage" | "machines" | "costs";
+
+function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
   return (
     <Link className={`dashboard-focus-card ${tone}`} href={href}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{helper}</small>
-      <b>{action}</b>
     </Link>
   );
 }
@@ -135,7 +138,6 @@ type DashboardCardInput = {
   dueMaintenanceCount: number;
   exampleMachineName: string;
   farmConfig: FarmAppConfig;
-  hectaresLabel: string;
   locale: Locale;
   todaysWorkCount: number;
 };
@@ -146,78 +148,78 @@ function createDashboardCards({
   dueMaintenanceCount,
   exampleMachineName,
   farmConfig,
-  hectaresLabel,
   locale,
   todaysWorkCount
 }: DashboardCardInput): DashboardFocusCardProps[] {
-  const cards: Record<FarmAppConfig["dashboardFocus"][number], DashboardFocusCardProps | null> = {
-    today: farmConfig.enabledModules.maintenance
-      ? {
-          id: "today",
-          tone: todaysWorkCount > 0 ? "warning" : "good",
-          label: "Heute",
-          value: todaysWorkCount.toString(),
-          helper: todaysWorkCount === 1 ? "Aufgabe" : "offen",
-          href: `/${locale}/maintenance`,
-          action: "Heute"
-        }
-      : null,
-    maintenance: farmConfig.enabledModules.maintenance
-      ? {
-          id: "maintenance",
-          tone: dueMaintenanceCount > 0 ? "danger" : "good",
-          label: "Faellig",
-          value: dueMaintenanceCount.toString(),
-          helper: "faellig",
-          href: `/${locale}/maintenance?filter=due`,
-          action: "Pruefen"
-        }
-      : null,
-    dailyUsage: farmConfig.enabledModules.dailyUsage
-      ? {
-          id: "dailyUsage",
-          tone: "primary",
-          label: farmConfig.customLabels.dailyUsageLabel,
-          value: "Jetzt",
-          helper: "Stand",
-          href: `/${locale}/daily-usage`,
-          action: "Erfassen"
-        }
-      : null,
-    machines: farmConfig.enabledModules.machines
-      ? {
-          id: "machines",
-          tone: "earth",
-          label: farmConfig.customLabels.machinesLabel,
-          value: activeMachineCount.toString(),
-          helper: "aktiv",
-          href: `/${locale}/machines`,
-          action: "Oeffnen"
-        }
-      : null,
+  const cards: DashboardFocusCardProps[] = [
+    {
+      id: "today",
+      tone: todaysWorkCount > 0 ? "warning" : "good",
+      label: "Heute",
+      value: todaysWorkCount.toString(),
+      helper: todaysWorkCount === 0 ? "Alles erledigt" : "offen",
+      href: `/${locale}/maintenance`
+    },
+    {
+      id: "maintenance",
+      tone: dueMaintenanceCount > 0 ? "danger" : "good",
+      label: "Faellig",
+      value: dueMaintenanceCount.toString(),
+      helper: dueMaintenanceCount === 0 ? "Keine Wartung" : "Wartung",
+      href: `/${locale}/maintenance?filter=due`
+    },
+    {
+      id: "dailyUsage",
+      tone: "primary",
+      label: farmConfig.customLabels.dailyUsageLabel,
+      value: "Jetzt",
+      helper: "Tagesstand",
+      href: `/${locale}/daily-usage`
+    },
+    {
+      id: "machines",
+      tone: "earth",
+      label: farmConfig.customLabels.machinesLabel,
+      value: activeMachineCount.toString(),
+      helper: activeMachineCount === 0 ? "Noch keine" : "aktiv",
+      href: `/${locale}/machines`
+    },
+    {
+      id: "costs",
+      tone: "primary",
+      label: farmConfig.customLabels.costsLabel,
+      value: costLabel,
+      helper: exampleMachineName,
+      href: `/${locale}/costs`
+    }
+  ];
+
+  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig));
+}
+
+type DashboardQuickAction = {
+  href: string;
+  label: string;
+  module: keyof FarmAppConfig["enabledModules"];
+};
+
+function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardInput, "farmConfig" | "locale">): DashboardQuickAction[] {
+  return [
+    { label: "Tagesstand erfassen", href: `/${locale}/daily-usage`, module: "dailyUsage" },
+    { label: "Wartung oeffnen", href: `/${locale}/maintenance`, module: "maintenance" },
+    { label: "Maschine anlegen", href: `/${locale}/machines`, module: "machines" },
+    { label: "Kosten ansehen", href: `/${locale}/costs`, module: "costs" }
+  ].filter((action) => farmConfig.enabledModules[action.module]);
+}
+
+function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig): boolean {
+  const enabledModules: Record<DashboardCardId, boolean> = {
+    today: farmConfig.enabledModules.maintenance,
+    maintenance: farmConfig.enabledModules.maintenance,
+    dailyUsage: farmConfig.enabledModules.dailyUsage,
+    machines: farmConfig.enabledModules.machines,
     costs: farmConfig.enabledModules.costs
-      ? {
-          id: "costs",
-          tone: "primary",
-          label: farmConfig.customLabels.costsLabel,
-          value: costLabel,
-          helper: exampleMachineName,
-          href: `/${locale}/costs`,
-          action: "Oeffnen"
-        }
-      : null,
-    hectares: farmConfig.enabledModules.machines
-      ? {
-          id: "hectares",
-          tone: "earth",
-          label: "Hektar",
-          value: hectaresLabel,
-          helper: exampleMachineName,
-          href: `/${locale}/machines`,
-          action: "Oeffnen"
-        }
-      : null
   };
 
-  return farmConfig.dashboardFocus.map((focus) => cards[focus]).filter((card): card is DashboardFocusCardProps => card !== null);
+  return enabledModules[id];
 }

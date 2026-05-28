@@ -104,7 +104,12 @@ export {
   applyUsedPartsToStock,
   createMaintenanceUsedPart,
   deleteMaintenanceUsedPart,
+  getUsedPartHistoryForMaintenanceTask,
   getUsedPartsForMachine,
   getUsedPartsForMaintenanceTask
 } from "./maintenance-used-parts-database";
-export type { ApplyUsedPartsToStockResult, MachineUsedPartHistoryItem } from "./maintenance-used-parts-database";
+export type {
+  ApplyUsedPartsToStockResult,
+  MachineUsedPartHistoryItem,
+  MaintenanceTaskUsedPartHistoryItem
+} from "./maintenance-used-parts-database";

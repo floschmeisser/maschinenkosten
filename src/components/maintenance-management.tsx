@@ -15,7 +15,12 @@ import {
   getMaintenanceTasks,
   updateMaintenanceTask
 } from "@/lib/app/maintenance-database";
-import { applyUsedPartsToStock, createMaintenanceUsedPart } from "@/lib/app/maintenance-used-parts-database";
+import {
+  applyUsedPartsToStock,
+  createMaintenanceUsedPart,
+  getUsedPartHistoryForMaintenanceTask,
+  type MaintenanceTaskUsedPartHistoryItem
+} from "@/lib/app/maintenance-used-parts-database";
 import {
   filterMaintenanceTasks,
   getMaintenanceDisplayStatus,
@@ -102,6 +107,15 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
   const filteredTasks = useMemo(() => filterMaintenanceTasks(tasks, machines, selectedFilter), [tasks, machines, selectedFilter]);
   const todaysWorkTasks = useMemo(() => getTodaysWorkTasks(tasks, machines), [tasks, machines]);
   const taskGroups = useMemo(() => groupTasks(filteredTasks, machines), [filteredTasks, machines]);
+  const dueTaskCount = useMemo(
+    () => tasks.filter((task) => getMaintenanceDisplayStatus(task, machines.find((machine) => machine.id === task.machineId)) === "due").length,
+    [machines, tasks]
+  );
+  const soonTaskCount = useMemo(
+    () => tasks.filter((task) => getMaintenanceDisplayStatus(task, machines.find((machine) => machine.id === task.machineId)) === "soon").length,
+    [machines, tasks]
+  );
+  const completedTaskCount = useMemo(() => tasks.filter((task) => task.status === "completed").length, [tasks]);
   const focusedTask = useMemo(
     () => (focusedTaskId ? tasks.find((task) => task.id === focusedTaskId) ?? null : null),
     [focusedTaskId, tasks]
@@ -201,10 +215,27 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
 
   return (
     <main className="page">
-      <section className="page-header">
-        <h1>Wartung</h1>
+      <section className="maintenance-hero">
+        <div>
+          <span>Werkstatt</span>
+          <h1>Wartung</h1>
+          <p>{isLoadingData ? "Laden..." : dueTaskCount > 0 ? `${dueTaskCount} faellig` : "Keine dringenden Arbeiten"}</p>
+        </div>
+        <div className="maintenance-hero-stats">
+          <div className={dueTaskCount > 0 ? "danger" : "good"}>
+            <span>Faellig</span>
+            <strong>{dueTaskCount}</strong>
+          </div>
+          <div className={todaysWorkTasks.length > 0 ? "warning" : "good"}>
+            <span>Heute</span>
+            <strong>{todaysWorkTasks.length}</strong>
+          </div>
+          <div>
+            <span>Bald</span>
+            <strong>{soonTaskCount}</strong>
+          </div>
+        </div>
       </section>
-      {isLoadingData ? <p className="preference-hint">Laden...</p> : null}
 
       {isCreating ? (
         <MaintenanceFormModal
@@ -222,14 +253,13 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
           onCancel={() => setEditingTask(null)}
         />
       ) : (
-        <section className="panel">
+        <section className="panel maintenance-create-panel">
           <div className="panel-heading">
             <h2>Wartung anlegen</h2>
             <button className="button primary" type="button" onClick={() => setIsCreating(true)}>
               Wartung anlegen
             </button>
           </div>
-          <p className="muted">Service. Reparatur. Kontrolle.</p>
         </section>
       )}
 
@@ -247,8 +277,9 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
 
       <section className={isTodayMode ? "today-mode-panel active" : "today-mode-panel"}>
         <div>
-          <h2>Heute</h2>
-          <p>{todaysWorkTasks.length} offen</p>
+          <span>Meine Arbeit heute</span>
+          <h2>{todaysWorkTasks.length === 0 ? "Alles erledigt" : `${todaysWorkTasks.length} offen`}</h2>
+          <p>{todaysWorkTasks.length === 0 ? "Heute keine Wartung offen" : "Jetzt abarbeiten"}</p>
         </div>
         <button
           className={isTodayMode ? "button primary large-action" : "button large-action"}
@@ -306,6 +337,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
           onToggle={(taskId) => setExpandedTaskId((current) => (current === taskId ? null : taskId))}
         />
       ))}
+      {completedTaskCount > 0 ? <p className="preference-hint maintenance-history-note">{completedTaskCount} erledigte Arbeiten in der Historie.</p> : null}
         </>
       )}
     </main>
@@ -338,9 +370,9 @@ function TodayWorkList({
   return (
     <section className="today-work-list">
       {tasks.length === 0 ? (
-        <section className="panel empty-state">
-          <h2>Alles erledigt</h2>
-          <p className="muted">Keine Wartung faellig.</p>
+        <section className="panel empty-state maintenance-empty">
+          <h2>Heute keine Wartung offen</h2>
+          <p className="muted">Alle Maschinen sind einsatzbereit.</p>
         </section>
       ) : null}
 
@@ -354,11 +386,11 @@ function TodayWorkList({
             id={getTaskElementId(task.id)}
             key={task.id}
           >
-            <button className="task-summary" type="button" onClick={() => onToggle(task.id)}>
+            <button className="task-summary workshop-task-summary" type="button" onClick={() => onToggle(task.id)}>
               <span>
                 <strong>{task.title}</strong>
                 <small>
-                  {machine?.name ?? "Unbekannte Maschine"} / {getMaintenanceTypeLabel(task.type)}
+                  {machine?.name ?? "Unbekannte Maschine"}
                 </small>
               </span>
               <span className="task-side">
@@ -374,7 +406,7 @@ function TodayWorkList({
                 Erledigen
               </button>
               <button className="button large-action" type="button" onClick={() => onCostEdit(costEditTaskId === task.id ? null : task.id)}>
-                Kosten eintragen
+                Kosten
               </button>
               <button className="button large-action" type="button" onClick={() => onToggle(task.id)}>
                 Details
@@ -417,7 +449,7 @@ function MaintenanceGroup({
   onToggle
 }: MaintenanceGroupProps) {
   return (
-    <section className="panel">
+    <section className={`panel maintenance-group ${group.key}`}>
       <div className="panel-heading">
         <h2>{group.title}</h2>
         <span className="muted">{group.tasks.length} Aufgaben</span>
@@ -425,8 +457,7 @@ function MaintenanceGroup({
 
       {group.tasks.length === 0 ? (
         <div className="empty-state">
-          <strong>Alles erledigt</strong>
-          <p>Alles erledigt.</p>
+          <strong>{group.key === "completed" ? "Noch keine Historie" : "Keine dringenden Arbeiten"}</strong>
         </div>
       ) : (
         <div className="task-list">
@@ -438,7 +469,7 @@ function MaintenanceGroup({
 
             return (
               <article
-                className={focusedTaskId === task.id ? "task-item focused-task" : "task-item"}
+                className={focusedTaskId === task.id ? `task-item ${urgency} focused-task` : `task-item ${urgency}`}
                 id={getTaskElementId(task.id)}
                 key={task.id}
               >
@@ -446,17 +477,28 @@ function MaintenanceGroup({
                   <span>
                     <strong>{task.title}</strong>
                     <small>
-                      {machine?.name ?? "Unbekannte Maschine"} / {getMaintenanceTypeLabel(task.type)} /{" "}
-                      {getMostRelevantDueLabel(task, machine)}
+                      {machine?.name ?? "Unbekannte Maschine"}
                     </small>
                   </span>
                   <span className="task-side">
                     <span className={`urgency-badge ${urgency}`}>{getMaintenanceUrgencyLabel(task, machine)}</span>
-                    <strong>{getMaintenanceRecurrenceLabel(task)}</strong>
+                    <strong>{getMostRelevantDueLabel(task, machine)}</strong>
                   </span>
                 </button>
 
-                {isExpanded ? <MaintenanceDetails task={task} machine={machine} /> : null}
+                <div className="maintenance-card-tags">
+                  <span>{getMaintenanceTypeLabel(task.type)}</span>
+                  <span>{getMaintenanceRecurrenceLabel(task)}</span>
+                  {isCompleted && task.completedAt ? <span>{formatDate(task.completedAt)}</span> : null}
+                  {isCompleted && task.actualCost !== null ? <span>{formatCurrency(task.actualCost)}</span> : null}
+                </div>
+
+                {isExpanded ? (
+                  <>
+                    <MaintenanceDetails task={task} machine={machine} />
+                    {isCompleted ? <MaintenanceUsedPartsSummary taskId={task.id} /> : null}
+                  </>
+                ) : null}
 
                 <div className="task-actions">
                   <button className="button" type="button" onClick={() => onEdit(task)}>
@@ -490,12 +532,11 @@ type MaintenanceFiltersProps = {
 };
 
 const filterOptions: Array<{ label: string; value: MaintenanceFilter }> = [
-  { label: "Alle", value: "all" },
   { label: "Heute", value: "today" },
-  { label: "Diese Woche", value: "week" },
   { label: "Faellig", value: "due" },
-  { label: "Bald", value: "soon" },
-  { label: "Erledigt", value: "completed" }
+  { label: "Diese Woche", value: "week" },
+  { label: "Erledigt", value: "completed" },
+  { label: "Alle", value: "all" }
 ];
 
 function MaintenanceFilters({ selectedFilter, onChange }: MaintenanceFiltersProps) {
@@ -551,7 +592,7 @@ type MaintenanceDetailsProps = {
 
 function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
   return (
-    <dl className="detail-list task-details">
+    <dl className="detail-list task-details maintenance-details">
       <div>
         <dt>Maschine</dt>
         <dd>{machine?.name ?? "Unbekannte Maschine"}</dd>
@@ -585,6 +626,54 @@ function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
         <dd>{task.completedAt ? formatDate(task.completedAt) : "-"}</dd>
       </div>
     </dl>
+  );
+}
+
+type MaintenanceUsedPartsSummaryProps = {
+  taskId: string;
+};
+
+function MaintenanceUsedPartsSummary({ taskId }: MaintenanceUsedPartsSummaryProps) {
+  const [usedParts, setUsedParts] = useState<MaintenanceTaskUsedPartHistoryItem[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    getUsedPartHistoryForMaintenanceTask(taskId)
+      .then((items) => {
+        if (isActive) {
+          setUsedParts(items);
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setHasLoaded(true);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [taskId]);
+
+  if (!hasLoaded) {
+    return <p className="preference-hint">Ersatzteile laden...</p>;
+  }
+
+  if (usedParts.length === 0) {
+    return <p className="preference-hint">Keine Ersatzteile verwendet.</p>;
+  }
+
+  return (
+    <div className="used-parts-summary">
+      <strong>Verwendete Teile</strong>
+      {usedParts.map((part) => (
+        <span key={part.id}>
+          {part.sparePartName ?? "Ersatzteil"} / {formatNumber(part.quantityUsed)} {part.sparePartUnit ?? ""}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -677,14 +766,16 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
   }
 
   return (
-    <section className="panel form-panel">
+    <section className="panel form-panel completion-panel">
       <div className="panel-heading">
-        <h2>Wartung abschliessen</h2>
-        <span className="muted">{task.title}</span>
+        <div>
+          <h2>Abschliessen</h2>
+          <span className="muted">{task.title}</span>
+        </div>
       </div>
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
-          Tatsaechliche Kosten
+          Kosten
           <input min="0" type="number" value={actualCost} onChange={(event) => setActualCost(event.target.value)} />
         </label>
         <label>
@@ -699,7 +790,7 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
           <div className="panel-heading compact">
             <h3>Verwendete Ersatzteile</h3>
             <button className="button" type="button" onClick={handleAddUsedPart} disabled={spareParts.length === 0}>
-              Ersatzteil hinzufuegen
+              Teil dazu
             </button>
           </div>
           {spareParts.length === 0 ? <p className="muted">Keine Ersatzteile erfasst.</p> : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
@@ -16,12 +17,14 @@ import { calculateMachineCosts, createCostInputFromMachine } from "@/lib/app/cos
 import { getMaintenanceTasksByMachine } from "@/lib/app/maintenance-database";
 import { getUsedPartsForMachine, type MachineUsedPartHistoryItem } from "@/lib/app/maintenance-used-parts-database";
 import {
+  getMaintenanceDisplayStatus,
   getNextMaintenanceTasksForMachine,
   getMaintenanceRecurrenceLabel,
   getMaintenanceTypeLabel,
   getMostRelevantDueLabel,
   type MaintenanceTask
 } from "@/lib/app/maintenance";
+import { getStatusLabel } from "@/lib/app/status";
 import { MachineFormModal } from "./machine-form-modal";
 import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
@@ -130,17 +133,20 @@ export function MachineManagement({ locale }: MachineManagementProps) {
 }
 
 type MachineDetailProps = {
+  locale: Locale;
   machine: MachineSummary;
 };
 
-export function MachineDetail({ machine }: MachineDetailProps) {
+export function MachineDetail({ locale, machine }: MachineDetailProps) {
   const [currentMachine, setCurrentMachine] = useState<MachineSummary>(machine);
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isUpdatingUsage, setIsUpdatingUsage] = useState(false);
+  const [sparePartCreateKey, setSparePartCreateKey] = useState(0);
   const costInput = createCostInputFromMachine(currentMachine, maintenanceTasks);
   const costResult = calculateMachineCosts(costInput);
-  const nextMaintenanceTasks = getNextMaintenanceTasksForMachine(currentMachine.id, maintenanceTasks, 4, [currentMachine]);
+  const nextMaintenanceTasks = getNextMaintenanceTasksForMachine(currentMachine.id, maintenanceTasks, 3, [currentMachine]);
+  const nextMaintenanceTask = nextMaintenanceTasks[0] ?? null;
 
   const refreshMaintenanceTasks = useCallback(async () => {
     const taskData = await getMaintenanceTasksByMachine(currentMachine.id);
@@ -201,125 +207,133 @@ export function MachineDetail({ machine }: MachineDetailProps) {
 
   return (
     <main className="page">
-      <section className="page-header">
-        <h1>{currentMachine.name}</h1>
-        <p>
-          {currentMachine.manufacturer} / {currentMachine.displayCategory} / Baujahr {currentMachine.year}
-        </p>
+      <section className={`machine-hero ${currentMachine.serviceStatus}`}>
+        <div className="machine-hero-visual" aria-hidden="true">
+          {currentMachine.name.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="machine-hero-main">
+          <span>{currentMachine.displayCategory}</span>
+          <h1>{currentMachine.name}</h1>
+          <p>
+            {currentMachine.manufacturer} {currentMachine.model}
+          </p>
+          <StatusBadge status={currentMachine.serviceStatus} />
+        </div>
+        <div className="machine-hero-metrics">
+          <div>
+            <span>Stunden</span>
+            <strong>{formatNumber(currentMachine.currentOperatingHours)} h</strong>
+          </div>
+          <div>
+            <span>Kilometer</span>
+            <strong>{currentMachine.currentKilometers === null ? "-" : `${formatNumber(currentMachine.currentKilometers)} km`}</strong>
+          </div>
+          <div>
+            <span>Naechste Wartung</span>
+            <strong>{nextMaintenanceTask ? getMostRelevantDueLabel(nextMaintenanceTask, currentMachine) : "Keine"}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="machine-status-grid">
+        <div className={`machine-status-card ${currentMachine.serviceStatus}`}>
+          <span>Status</span>
+          <strong>{getStatusLabel(currentMachine.serviceStatus)}</strong>
+          <small>{nextMaintenanceTask ? nextMaintenanceTask.title : "Keine Wartung offen"}</small>
+        </div>
+        <div className="machine-status-card">
+          <span>Heute</span>
+          <strong>{nextMaintenanceTasks.length}</strong>
+          <small>{nextMaintenanceTasks.length === 0 ? "Alles ruhig" : "Wartung pruefen"}</small>
+        </div>
       </section>
 
       <section className="panel">
         <div className="panel-heading">
-          <h2>Uebersicht</h2>
-          <div className="task-actions">
-            <button className="button" type="button" onClick={() => setIsUpdatingUsage((current) => !current)}>
-              {isUpdatingUsage ? "Stand schliessen" : "Stand aktualisieren"}
-            </button>
-            <button className="button" type="button" onClick={() => setIsEditing(true)}>
-              Bearbeiten
-            </button>
-          </div>
+          <h2>Schnellaktionen</h2>
         </div>
-        <p className="muted">Stand. Wartung. Kosten.</p>
-        {isUpdatingUsage ? (
-          <UsageUpdateForm machine={currentMachine} onCancel={() => setIsUpdatingUsage(false)} onSave={handleUsageUpdate} />
-        ) : null}
+        <div className="machine-action-grid">
+          <Link className="button large-action" href={`/${locale}/maintenance?filter=due`}>
+            Wartung
+          </Link>
+          <Link className="button primary large-action" href={`/${locale}/daily-usage`}>
+            Tagesstand
+          </Link>
+          <button className="button large-action" type="button" onClick={() => setSparePartCreateKey((current) => current + 1)}>
+            Ersatzteil
+          </button>
+          <button className="button large-action" type="button" disabled title="Dokumente kommen spaeter.">
+            Dokument bald
+          </button>
+          <button className="button large-action" type="button" onClick={() => setIsUpdatingUsage((current) => !current)}>
+            {isUpdatingUsage ? "Stand schliessen" : "Stand"}
+          </button>
+          <button className="button large-action" type="button" onClick={() => setIsEditing(true)}>
+            Bearbeiten
+          </button>
+        </div>
+        {isUpdatingUsage ? <UsageUpdateForm machine={currentMachine} onCancel={() => setIsUpdatingUsage(false)} onSave={handleUsageUpdate} /> : null}
       </section>
 
-      <section className="details-grid">
-        <div className="panel">
-          <h2>Maschinendaten</h2>
-          <dl className="detail-list">
-            <div>
-              <dt>Hersteller</dt>
-              <dd>{currentMachine.manufacturer}</dd>
-            </div>
-            <div>
-              <dt>Modell</dt>
-              <dd>{currentMachine.model}</dd>
-            </div>
-            <div>
-              <dt>Kategorie</dt>
-              <dd>{currentMachine.displayCategory}</dd>
-            </div>
-            <div>
-              <dt>Baujahr</dt>
-              <dd>{currentMachine.yearOfManufacture}</dd>
-            </div>
-            <div>
-              <dt>Anschaffung</dt>
-              <dd>{formatCurrency(currentMachine.purchasePrice)}</dd>
-            </div>
-            <div>
-              <dt>Naechster Service</dt>
-              <dd>{formatNumber(currentMachine.nextServiceHours)} h</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <StatusBadge status={currentMachine.serviceStatus} />
-              </dd>
-            </div>
-          </dl>
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Naechste Wartung</h2>
+          <span className="muted">{maintenanceTasks.length} Aufgaben</span>
         </div>
+        {maintenanceTasks.length === 0 ? (
+          <div className="empty-state">
+            <strong>Keine Wartung offen.</strong>
+          </div>
+        ) : (
+          <div className="maintenance-card-list">
+            {nextMaintenanceTasks.map((task) => {
+              const urgency = getMaintenanceDisplayStatus(task, currentMachine);
 
-        <div className="panel">
-          <h2>Nutzung</h2>
-          <dl className="detail-list">
-            <div>
-              <dt>Betriebsstunden aktuell</dt>
-              <dd>{formatNumber(currentMachine.currentOperatingHours)} h</dd>
-            </div>
-            <div>
-              <dt>Stunden pro Jahr</dt>
-              <dd>{formatNumber(currentMachine.annualOperatingHours)} h</dd>
-            </div>
-            <div>
-              <dt>Kilometer aktuell</dt>
-              <dd>{currentMachine.currentKilometers === null ? "-" : `${formatNumber(currentMachine.currentKilometers)} km`}</dd>
-            </div>
-            <div>
-              <dt>Arbeitsbreite</dt>
-              <dd>{currentMachine.workingWidthMeters === null ? "-" : `${formatNumber(currentMachine.workingWidthMeters)} m`}</dd>
-            </div>
-            <div>
-              <dt>Hektar pro Stunde</dt>
-              <dd>{currentMachine.hectaresPerHour === null ? "-" : `${formatNumber(currentMachine.hectaresPerHour)} ha/h`}</dd>
-            </div>
-          </dl>
+              return (
+                <Link className={`maintenance-compact-card ${urgency}`} href={`/${locale}/maintenance?filter=due&taskId=${task.id}`} key={task.id}>
+                  <span>{getMaintenanceTypeLabel(task.type)}</span>
+                  <strong>{task.title}</strong>
+                  <small>
+                    {getMostRelevantDueLabel(task, currentMachine)} / {getMaintenanceRecurrenceLabel(task)}
+                  </small>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <MachineSpareParts createSignal={sparePartCreateKey} machine={currentMachine} />
+      <MachineSparePartUsageHistory machineId={currentMachine.id} />
+
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Dokumente</h2>
         </div>
+        <div className="empty-state">
+          <strong>Noch keine Dokumente vorhanden.</strong>
+        </div>
+      </section>
 
+      <section className="details-grid machine-lower-details">
         <div className="panel">
-          <h2>Kostenberechnung</h2>
-          <p className="muted">Berechnet.</p>
+          <h2>Kosten</h2>
           <dl className="detail-list">
-            <div>
-              <dt>Abschreibung pro Jahr</dt>
-              <dd>{formatCurrency(costResult.fixedCosts.annualDepreciation)}</dd>
-            </div>
-            <div>
-              <dt>Fixkosten pro Jahr</dt>
-              <dd>{formatCurrency(costResult.fixedCosts.annualFixedCosts)}</dd>
-            </div>
-            <div>
-              <dt>Variable Kosten pro Jahr</dt>
-              <dd>{formatCurrency(costResult.variableCosts.annualVariableCosts)}</dd>
-            </div>
-            <div>
-              <dt>Gesamtkosten pro Jahr</dt>
-              <dd>{formatCurrency(costResult.totalAnnualCosts)}</dd>
-            </div>
             <div>
               <dt>Kosten je Stunde</dt>
               <dd>{costResult.costPerOperatingHour === null ? "-" : formatCurrency(costResult.costPerOperatingHour)}</dd>
             </div>
             <div>
-              <dt>Kosten je Hektar</dt>
-              <dd>{costResult.costPerHectare === null ? "-" : formatCurrency(costResult.costPerHectare)}</dd>
+              <dt>Gesamt pro Jahr</dt>
+              <dd>{formatCurrency(costResult.totalAnnualCosts)}</dd>
             </div>
             <div>
-              <dt>Kosten je Kilometer</dt>
-              <dd>{costResult.costPerKilometer === null ? "-" : formatCurrency(costResult.costPerKilometer)}</dd>
+              <dt>Fixkosten</dt>
+              <dd>{formatCurrency(costResult.fixedCosts.annualFixedCosts)}</dd>
+            </div>
+            <div>
+              <dt>Variabel</dt>
+              <dd>{formatCurrency(costResult.variableCosts.annualVariableCosts)}</dd>
             </div>
           </dl>
           {costResult.warnings.length > 0 ? (
@@ -332,29 +346,31 @@ export function MachineDetail({ machine }: MachineDetailProps) {
         </div>
 
         <div className="panel">
-          <div className="panel-heading">
-            <h2>Naechste Wartung</h2>
-            <span className="muted">{maintenanceTasks.length} Aufgaben</span>
-          </div>
-          {maintenanceTasks.length === 0 ? (
-            <p className="muted">Keine Wartung.</p>
-          ) : (
-            <div className="mini-list">
-              {nextMaintenanceTasks.map((task) => (
-                <div className="mini-list-item" key={task.id}>
-                  <span>
-                    {task.title} / {getMaintenanceTypeLabel(task.type)} / {getMaintenanceRecurrenceLabel(task)}
-                  </span>
-                  <strong>{getMostRelevantDueLabel(task, currentMachine)}</strong>
-                </div>
-              ))}
+          <h2>Technik</h2>
+          <dl className="detail-list">
+            <div>
+              <dt>Hersteller</dt>
+              <dd>{currentMachine.manufacturer}</dd>
             </div>
-          )}
+            <div>
+              <dt>Modell</dt>
+              <dd>{currentMachine.model}</dd>
+            </div>
+            <div>
+              <dt>Baujahr</dt>
+              <dd>{currentMachine.yearOfManufacture}</dd>
+            </div>
+            <div>
+              <dt>Arbeitsbreite</dt>
+              <dd>{currentMachine.workingWidthMeters === null ? "-" : `${formatNumber(currentMachine.workingWidthMeters)} m`}</dd>
+            </div>
+            <div>
+              <dt>Hektar/h</dt>
+              <dd>{currentMachine.hectaresPerHour === null ? "-" : `${formatNumber(currentMachine.hectaresPerHour)} ha/h`}</dd>
+            </div>
+          </dl>
         </div>
       </section>
-
-      <MachineSpareParts machine={currentMachine} />
-      <MachineSparePartUsageHistory machineId={currentMachine.id} />
     </main>
   );
 }

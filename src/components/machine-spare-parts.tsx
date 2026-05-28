@@ -18,6 +18,7 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/app/format";
 
 type MachineSparePartsProps = {
+  createSignal?: number;
   machine: MachineSummary;
 };
 
@@ -33,7 +34,7 @@ const categories: MachineSparePartCategory[] = [
   "other"
 ];
 
-export function MachineSpareParts({ machine }: MachineSparePartsProps) {
+export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePartsProps) {
   const [parts, setParts] = useState<MachineSparePart[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -52,6 +53,13 @@ export function MachineSpareParts({ machine }: MachineSparePartsProps) {
   useEffect(() => {
     refreshParts();
   }, [refreshParts]);
+
+  useEffect(() => {
+    if (createSignal > 0) {
+      setEditingPart(null);
+      setIsCreating(true);
+    }
+  }, [createSignal]);
 
   async function handleCreatePart(input: CreateMachineSparePartInput) {
     await createMachineSparePart(input);
@@ -107,8 +115,7 @@ export function MachineSpareParts({ machine }: MachineSparePartsProps) {
 
       {parts.length === 0 ? (
         <div className="empty-state">
-          <strong>Keine Ersatzteile</strong>
-          <p>Noch nichts auf Lager.</p>
+          <strong>Keine Ersatzteile hinterlegt.</strong>
         </div>
       ) : (
         <div className="spare-parts-list">
@@ -132,7 +139,15 @@ export function MachineSpareParts({ machine }: MachineSparePartsProps) {
                   <div>
                     <dt>Lager</dt>
                     <dd>
-                      {formatNumber(part.stockQuantity)} {part.unit}
+                      <span className={isLowStock ? "stock-badge low" : "stock-badge"}>
+                        {formatNumber(part.stockQuantity)} {part.unit}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Minimum</dt>
+                    <dd>
+                      {formatNumber(part.minimumStockQuantity)} {part.unit}
                     </dd>
                   </div>
                   <div>

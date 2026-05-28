@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { formatCurrency, formatNumber } from "@/lib/app/format";
+import { formatNumber } from "@/lib/app/format";
 import type { Locale } from "@/i18n/routing";
 import type { MachineSummary } from "@/lib/app/machines";
+import { getStatusLabel } from "@/lib/app/status";
 import { StatusBadge } from "./shared-ui-components";
 
 type MachineTableProps = {
@@ -13,72 +14,64 @@ type MachineTableProps = {
 
 export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: MachineTableProps) {
   return (
-    <section className="panel">
+    <section className="panel machine-list-panel">
       <div className="panel-heading">
-        <h2>Maschinenliste</h2>
-        <span className="muted">{machines.length} Eintraege</span>
+        <h2>Maschinen</h2>
+        <span className="muted">{machines.length} aktiv</span>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Maschine</th>
-              <th>Kategorie</th>
-              <th>Stunden</th>
-              <th>Wert</th>
-              <th>Status</th>
-              <th>Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {machines.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <div className="empty-state">
-                    <strong>Noch keine Maschinen</strong>
-                    <p>Noch keine Maschinen.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : null}
-            {machines.map((machine) => (
-              <tr
-                className={onSelect ? "table-row-action" : undefined}
-                key={machine.id}
-                onClick={() => onSelect?.(machine)}
-              >
-                <td>
-                  <Link href={`/${locale}/machines/${machine.id}`}>{machine.name}</Link>
-                  <span>{machine.manufacturer}</span>
-                </td>
-                <td>{machine.displayCategory}</td>
-                <td>{formatNumber(machine.operatingHours)} h</td>
-                <td>{formatCurrency(machine.purchasePrice)}</td>
-                <td>
-                  <StatusBadge status={machine.serviceStatus} />
-                  <span>Wartung</span>
-                </td>
-                <td>
-                  {onUsageUpdate ? (
-                    <button
-                      className="button"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onUsageUpdate(machine);
-                      }}
-                    >
-                      Stand
-                    </button>
-                  ) : (
-                    <span className="muted">-</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {machines.length === 0 ? (
+        <div className="empty-state">
+          <strong>Noch keine Maschinen.</strong>
+        </div>
+      ) : (
+        <div className="machine-card-list">
+          {machines.map((machine) => (
+            <article className={`machine-list-card ${machine.serviceStatus}`} key={machine.id}>
+              <button className="machine-card-hit" type="button" onClick={() => onSelect?.(machine)}>
+                <MachineVisual machine={machine} />
+                <span>
+                  <strong>{machine.name}</strong>
+                  <small>
+                    {machine.manufacturer} / {machine.displayCategory}
+                  </small>
+                </span>
+                <StatusBadge status={machine.serviceStatus} />
+              </button>
+
+              <div className="machine-card-metrics">
+                <div>
+                  <span>Stunden</span>
+                  <strong>{formatNumber(machine.operatingHours)} h</strong>
+                </div>
+                <div>
+                  <span>Service</span>
+                  <strong>{getStatusLabel(machine.serviceStatus)}</strong>
+                </div>
+              </div>
+
+              <div className="machine-card-actions">
+                <Link className="button" href={`/${locale}/machines/${machine.id}`}>
+                  Oeffnen
+                </Link>
+                {onUsageUpdate ? (
+                  <button className="button primary" type="button" onClick={() => onUsageUpdate(machine)}>
+                    Stand
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function MachineVisual({ machine }: { machine: MachineSummary }) {
+  return (
+    <span className={`machine-visual ${machine.serviceStatus}`} aria-hidden="true">
+      {machine.name.slice(0, 2).toUpperCase()}
+    </span>
   );
 }

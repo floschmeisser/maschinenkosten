@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
-import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
 import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
-import { formatCurrency } from "@/lib/app/format";
-import type { MachineSummary } from "@/lib/app/machines";
+import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
 import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
@@ -14,8 +12,8 @@ import {
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
   getTodaysWorkTasks,
-  type MaintenanceTask,
-  sortMaintenanceTasksByUrgency
+  sortMaintenanceTasksByUrgency,
+  type MaintenanceTask
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
@@ -24,12 +22,14 @@ type DashboardProps = {
   locale: Locale;
 };
 
+const maxImportantItems = 5;
+
 export function Dashboard({ locale }: DashboardProps) {
   const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
   const farmConfig = getActiveFarmConfig(farmKey);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
-  const [lowStockSparePartsCount, setLowStockSparePartsCount] = useState(0);
+  const [lowStockSpareParts, setLowStockSpareParts] = useState<MachineSparePart[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -59,11 +59,11 @@ export function Dashboard({ locale }: DashboardProps) {
         ]);
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
-        setLowStockSparePartsCount(lowStockSpareParts.length);
+        setLowStockSpareParts(lowStockSpareParts);
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
-        setLowStockSparePartsCount(0);
+        setLowStockSpareParts([]);
       } finally {
         setIsLoading(false);
       }
@@ -79,17 +79,25 @@ export function Dashboard({ locale }: DashboardProps) {
     return getMaintenanceDisplayStatus(task, machine) === "due";
   }).length;
   const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
-  const exampleMachine = machines[0];
-  const costInput = exampleMachine ? createCostInputFromMachine(exampleMachine, maintenanceTasks) : defaultCostInputs;
-  const costs = calculateMachineCosts(costInput);
-
-  const dashboardCards = createDashboardCards({
-    activeMachineCount,
-    costLabel: costs.costPerOperatingHour === null ? "-" : formatCurrency(costs.costPerOperatingHour),
-    dueMaintenanceCount,
-    exampleMachineName: exampleMachine?.name ?? "je Stunde",
+  const urgentMachineCount = machines.filter((machine) => machine.status === "maintenance" || machine.serviceStatus === "danger").length;
+  const importantItems = createImportantItems({
     farmConfig,
-    lowStockSparePartsCount,
+    locale,
+    lowStockSpareParts,
+    machines,
+    maintenanceTasks: sortedMaintenanceTasks
+  });
+  const statusSummary = createStatusSummary({
+    dueMaintenanceCount,
+    importantCount: importantItems.length,
+    lowStockSparePartsCount: lowStockSpareParts.length,
+    urgentMachineCount
+  });
+  const dashboardCards = createDailyCards({
+    activeMachineCount,
+    dueMaintenanceCount,
+    farmConfig,
+    lowStockSparePartsCount: lowStockSpareParts.length,
     locale,
     todaysWorkCount
   });
@@ -98,9 +106,37 @@ export function Dashboard({ locale }: DashboardProps) {
   return (
     <main className="page dashboard-page">
       <section className="dashboard-hero">
-        <span>{farmConfig.branding.farmName}</span>
-        <h1>{farmConfig.branding.welcomeTitle}</h1>
-        {isLoading ? <small>Laden...</small> : null}
+        <div>
+          <span>{farmConfig.branding.farmName}</span>
+          <h1>{farmConfig.branding.welcomeTitle}</h1>
+        </div>
+        <div className="today-status">
+          <strong>{formatDashboardDate(new Date())}</strong>
+          <small>{isLoading ? "Laden..." : statusSummary}</small>
+        </div>
+      </section>
+
+      <section className="dashboard-important" aria-label="Heute wichtig">
+        <div className="section-title-row">
+          <h2>Heute wichtig</h2>
+          <span>{importantItems.length}</span>
+        </div>
+        {importantItems.length === 0 ? (
+          <div className="dashboard-empty">
+            <strong>Heute keine dringenden Wartungen</strong>
+            <span>Alle wichtigen Maschinen sind einsatzbereit.</span>
+          </div>
+        ) : (
+          <div className="important-list">
+            {importantItems.map((item) => (
+              <Link className={`important-item ${item.tone}`} href={item.href} key={item.id}>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <small>{item.meta}</small>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="dashboard-focus-grid" aria-label="Betriebsuebersicht">
@@ -129,7 +165,7 @@ type DashboardFocusCardProps = {
   value: string;
 };
 
-type DashboardCardId = "today" | "maintenance" | "dailyUsage" | "machines" | "costs" | "spareParts";
+type DashboardCardId = "today" | "maintenance" | "machines" | "spareParts";
 type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
 
 function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
@@ -144,20 +180,16 @@ function DashboardFocusCard({ helper, href, label, tone, value }: Omit<Dashboard
 
 type DashboardCardInput = {
   activeMachineCount: number;
-  costLabel: string;
   dueMaintenanceCount: number;
-  exampleMachineName: string;
   farmConfig: FarmAppConfig;
   lowStockSparePartsCount: number;
   locale: Locale;
   todaysWorkCount: number;
 };
 
-function createDashboardCards({
+function createDailyCards({
   activeMachineCount,
-  costLabel,
   dueMaintenanceCount,
-  exampleMachineName,
   farmConfig,
   lowStockSparePartsCount,
   locale,
@@ -175,18 +207,10 @@ function createDashboardCards({
     {
       id: "maintenance",
       tone: dueMaintenanceCount > 0 ? "danger" : "good",
-      label: "Faellig",
+      label: farmConfig.customLabels.maintenanceLabel,
       value: dueMaintenanceCount.toString(),
-      helper: dueMaintenanceCount === 0 ? "Keine Wartung" : "Wartung",
+      helper: dueMaintenanceCount === 0 ? "ruhig" : "faellig",
       href: `/${locale}/maintenance?filter=due`
-    },
-    {
-      id: "dailyUsage",
-      tone: "primary",
-      label: farmConfig.customLabels.dailyUsageLabel,
-      value: "Jetzt",
-      helper: "Tagesstand",
-      href: `/${locale}/daily-usage`
     },
     {
       id: "machines",
@@ -203,14 +227,6 @@ function createDashboardCards({
       value: lowStockSparePartsCount.toString(),
       helper: "Ersatzteile",
       href: `/${locale}/machines`
-    },
-    {
-      id: "costs",
-      tone: "primary",
-      label: farmConfig.customLabels.costsLabel,
-      value: costLabel,
-      helper: exampleMachineName,
-      href: `/${locale}/costs`
     }
   ];
 
@@ -227,8 +243,7 @@ function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardI
   const actions: DashboardQuickAction[] = [
     { label: "Tagesstand erfassen", href: `/${locale}/daily-usage`, module: "dailyUsage" },
     { label: "Wartung oeffnen", href: `/${locale}/maintenance`, module: "maintenance" },
-    { label: "Maschine anlegen", href: `/${locale}/machines`, module: "machines" },
-    { label: "Kosten ansehen", href: `/${locale}/costs`, module: "costs" }
+    { label: "Maschine hinzufuegen", href: `/${locale}/machines`, module: "machines" }
   ];
 
   return actions.filter((action) => farmConfig.enabledModules[action.module]);
@@ -238,11 +253,150 @@ function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: F
   const enabledModules: Record<DashboardCardId, boolean> = {
     today: farmConfig.enabledModules.maintenance,
     maintenance: farmConfig.enabledModules.maintenance,
-    dailyUsage: farmConfig.enabledModules.dailyUsage,
     machines: farmConfig.enabledModules.machines,
-    costs: farmConfig.enabledModules.costs,
     spareParts: farmConfig.enabledModules.machines && lowStockSparePartsCount > 0
   };
 
   return enabledModules[id];
+}
+
+type ImportantItem = {
+  href: string;
+  id: string;
+  label: string;
+  meta: string;
+  title: string;
+  tone: "danger" | "warning" | "neutral";
+};
+
+type ImportantItemInput = {
+  farmConfig: FarmAppConfig;
+  locale: Locale;
+  lowStockSpareParts: MachineSparePart[];
+  machines: MachineSummary[];
+  maintenanceTasks: MaintenanceTask[];
+};
+
+function createImportantItems({
+  farmConfig,
+  locale,
+  lowStockSpareParts,
+  machines,
+  maintenanceTasks
+}: ImportantItemInput): ImportantItem[] {
+  const items: ImportantItem[] = [];
+
+  if (farmConfig.enabledModules.maintenance) {
+    for (const task of maintenanceTasks) {
+      const machine = machines.find((item) => item.id === task.machineId);
+      const status = getMaintenanceDisplayStatus(task, machine);
+
+      if (status !== "due" && !isDueToday(task)) {
+        continue;
+      }
+
+      items.push({
+        id: `maintenance-${task.id}`,
+        tone: isOverdue(task, machine) ? "danger" : "warning",
+        label: isOverdue(task, machine) ? "Ueberfaellig" : "Heute",
+        title: task.title,
+        meta: machine?.name ?? "Wartung",
+        href: `/${locale}/maintenance?filter=due&taskId=${task.id}`
+      });
+    }
+  }
+
+  if (farmConfig.enabledModules.machines) {
+    for (const part of lowStockSpareParts) {
+      const machine = machines.find((item) => item.id === part.machineId);
+      items.push({
+        id: `spare-part-${part.id}`,
+        tone: "warning",
+        label: "Lager niedrig",
+        title: part.name,
+        meta: machine?.name ?? part.partNumber ?? "Ersatzteil",
+        href: `/${locale}/machines/${part.machineId}`
+      });
+    }
+
+    for (const machine of machines) {
+      if (machine.status !== "maintenance" && machine.serviceStatus !== "danger") {
+        continue;
+      }
+
+      items.push({
+        id: `machine-${machine.id}`,
+        tone: "danger",
+        label: "Maschine pruefen",
+        title: machine.name,
+        meta: machine.status === "maintenance" ? "In Wartung" : "Service faellig",
+        href: `/${locale}/machines/${machine.id}`
+      });
+    }
+  }
+
+  return items.slice(0, maxImportantItems);
+}
+
+function createStatusSummary(input: {
+  dueMaintenanceCount: number;
+  importantCount: number;
+  lowStockSparePartsCount: number;
+  urgentMachineCount: number;
+}): string {
+  if (input.importantCount === 0) {
+    return "Alles ruhig";
+  }
+
+  if (input.dueMaintenanceCount > 0) {
+    return `${input.dueMaintenanceCount} Wartung faellig`;
+  }
+
+  if (input.lowStockSparePartsCount > 0) {
+    return `${input.lowStockSparePartsCount} Lager pruefen`;
+  }
+
+  return `${input.urgentMachineCount} Maschine pruefen`;
+}
+
+function formatDashboardDate(date: Date): string {
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit"
+  }).format(date);
+}
+
+function isDueToday(task: MaintenanceTask): boolean {
+  if (!task.dueDate || task.status === "completed" || task.status === "cancelled") {
+    return false;
+  }
+
+  return startOfDay(task.dueDate).getTime() === startOfDay().getTime();
+}
+
+function isOverdue(task: MaintenanceTask, machine?: MachineSummary): boolean {
+  if (task.status === "completed" || task.status === "cancelled") {
+    return false;
+  }
+
+  if (task.dueDate && startOfDay(task.dueDate).getTime() < startOfDay().getTime()) {
+    return true;
+  }
+
+  if (machine && task.dueOperatingHours !== null && task.dueOperatingHours <= machine.currentOperatingHours) {
+    return true;
+  }
+
+  if (machine && task.dueKilometers !== null && machine.currentKilometers !== null && task.dueKilometers <= machine.currentKilometers) {
+    return true;
+  }
+
+  return false;
+}
+
+function startOfDay(value?: string): Date {
+  const date = value ? new Date(value) : new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
 }

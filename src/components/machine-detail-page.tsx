@@ -5,12 +5,14 @@ import type { MachineSummary } from "@/lib/app/machines";
 import { toMachineSummary } from "@/lib/app/machines";
 import { getMachineById } from "@/lib/app/machines-database";
 import { MachineDetail } from "./machine-management";
+import type { Locale } from "@/i18n/routing";
 
 type MachineDetailPageClientProps = {
+  locale: Locale;
   machineId: string;
 };
 
-export function MachineDetailPageClient({ machineId }: MachineDetailPageClientProps) {
+export function MachineDetailPageClient({ locale, machineId }: MachineDetailPageClientProps) {
   const [machine, setMachine] = useState<MachineSummary | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -46,5 +48,5 @@ export function MachineDetailPageClient({ machineId }: MachineDetailPageClientPr
     );
   }
 
-  return <MachineDetail machine={machine} />;
+  return <MachineDetail locale={locale} machine={machine} />;
 }

@@ -54,6 +54,12 @@ export type MachineUsedPartHistoryItem = MaintenanceUsedPart & {
   maintenanceTaskTitle: string | null;
 };
 
+export type MaintenanceTaskUsedPartHistoryItem = MaintenanceUsedPart & {
+  sparePartName: string | null;
+  sparePartNumber: string | null;
+  sparePartUnit: string | null;
+};
+
 let fallbackUsedParts = [...placeholderMaintenanceUsedParts];
 
 export async function getUsedPartsForMaintenanceTask(taskId: string): Promise<MaintenanceUsedPart[]> {
@@ -97,6 +103,28 @@ export async function getUsedPartsForMachine(machineId: string): Promise<Machine
       };
     })
     .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime());
+}
+
+export async function getUsedPartHistoryForMaintenanceTask(taskId: string): Promise<MaintenanceTaskUsedPartHistoryItem[]> {
+  const usedParts = await getUsedPartsForMaintenanceTask(taskId);
+  const machineId = usedParts[0]?.machineId;
+
+  if (!machineId) {
+    return [];
+  }
+
+  const spareParts = await getMachineSpareParts(machineId);
+
+  return usedParts.map((usedPart) => {
+    const sparePart = spareParts.find((part) => part.id === usedPart.sparePartId);
+
+    return {
+      ...usedPart,
+      sparePartName: sparePart?.name ?? null,
+      sparePartNumber: sparePart?.partNumber ?? null,
+      sparePartUnit: sparePart?.unit ?? null
+    };
+  });
 }
 
 export async function createMaintenanceUsedPart(input: CreateMaintenanceUsedPartInput): Promise<MaintenanceUsedPart> {

@@ -2,30 +2,29 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatCurrency, formatNumber } from "@/lib/app/format";
+import type { Locale } from "@/i18n/routing";
+import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
+import { getFarmConfig } from "@/lib/app/farm-config";
+import type { FarmAppConfig } from "@/lib/app/farm-config";
+import { formatCurrency } from "@/lib/app/format";
 import type { MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
 import {
   getMaintenanceDisplayStatus,
-  getMaintenanceRecurrenceLabel,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
-  getMaintenanceTypeLabel,
-  getMostRelevantDueLabel,
   getTodaysWorkTasks,
   type MaintenanceTask,
   sortMaintenanceTasksByUrgency
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
-import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
-import type { Locale } from "@/i18n/routing";
-import { StatCard } from "./shared-ui-components";
 
 type DashboardProps = {
   locale: Locale;
 };
 
 export function Dashboard({ locale }: DashboardProps) {
+  const farmConfig = getFarmConfig();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [isLoading, setIsLoading] = useState(false);
@@ -50,148 +49,141 @@ export function Dashboard({ locale }: DashboardProps) {
   }, []);
 
   const sortedMaintenanceTasks = sortMaintenanceTasksByUrgency(maintenanceTasks, machines);
-  const openMaintenance = maintenanceTasks.filter((task) => task.status !== "completed" && task.status !== "cancelled").length;
-  const dueMaintenance = sortedMaintenanceTasks.filter((task) => {
+  const todaysWorkCount = getTodaysWorkTasks(maintenanceTasks, machines).length;
+  const dueMaintenanceCount = sortedMaintenanceTasks.filter((task) => {
     const machine = machines.find((item) => item.id === task.machineId);
     return getMaintenanceDisplayStatus(task, machine) === "due";
   }).length;
-  const todaysWorkTasks = getTodaysWorkTasks(maintenanceTasks, machines);
+  const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
   const exampleMachine = machines[0];
   const costInput = exampleMachine ? createCostInputFromMachine(exampleMachine, maintenanceTasks) : defaultCostInputs;
   const costs = calculateMachineCosts(costInput);
-  const activeMachines = machines.filter((machine) => machine.status === "active");
-  const dueTasks = sortedMaintenanceTasks.filter((task) => {
-    const machine = machines.find((item) => item.id === task.machineId);
-    return getMaintenanceDisplayStatus(task, machine) === "due";
+
+  const dashboardCards = createDashboardCards({
+    activeMachineCount,
+    costLabel: costs.costPerOperatingHour === null ? "-" : formatCurrency(costs.costPerOperatingHour),
+    dueMaintenanceCount,
+    exampleMachineName: exampleMachine?.name ?? "je Stunde",
+    farmConfig,
+    locale,
+    todaysWorkCount
   });
 
   return (
-    <main className="page">
-      <section className="page-header">
-        <h1>Dashboard</h1>
-        <p>Der schnelle Blick auf Maschinen, Wartung und Kosten im Betrieb.</p>
-      </section>
-      {isLoading ? <p className="preference-hint">Aktuelle Betriebsdaten werden geladen...</p> : null}
-
-      <section className="stats-grid" aria-label="Uebersicht">
-        <StatCard label="Maschinen" value={machines.length.toString()} helper="angelegt" />
-        <StatCard label="Wartung offen" value={openMaintenance.toString()} helper="Aufgaben" />
-        <StatCard label="Heute zu erledigen" value={todaysWorkTasks.length.toString()} helper="dringend" />
-        <StatCard label="Faellige Wartung" value={dueMaintenance.toString()} helper="heute pruefen" />
-        <StatCard
-          label="Kosten je Stunde"
-          value={costs.costPerOperatingHour === null ? "-" : formatCurrency(costs.costPerOperatingHour)}
-          helper={exampleMachine ? exampleMachine.name : "Beispiel"}
-        />
+    <main className="page dashboard-page">
+      <section className="dashboard-hero">
+        <span>{farmConfig.branding.farmName}</span>
+        <h1>{farmConfig.branding.welcomeTitle}</h1>
+        <p>{farmConfig.branding.welcomeSubtitle}</p>
+        {isLoading ? <small>Aktuelle Daten werden geladen...</small> : null}
       </section>
 
-      <section className="quick-actions panel" aria-label="Schnellaktionen">
-        <div className="panel-heading">
-          <h2>Schnellaktionen</h2>
-          <span className="muted">Fuer den Alltag</span>
-        </div>
-        <div className="action-grid">
-          <Link className="button primary large-action" href={`/${locale}/daily-usage`}>
-            Tagesstand erfassen
-          </Link>
-          <Link className="button large-action" href={`/${locale}/machines/new`}>
-            Maschine anlegen
-          </Link>
-          <Link className="button large-action" href={`/${locale}/maintenance`}>
-            Wartung anlegen
-          </Link>
-        </div>
-      </section>
-
-      <section className="dashboard-grid">
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Heute zu erledigen</h2>
-            <Link className="button" href={`/${locale}/maintenance`}>
-              Wartung oeffnen
-            </Link>
-          </div>
-          <p className="muted">Was heute in der Werkstatt zuerst zaehlt.</p>
-          <DashboardTaskList
-            machines={machines}
-            tasks={todaysWorkTasks.slice(0, 3)}
-            emptyTitle="Heute nichts Dringendes"
-            emptyText="Keine faelligen Arbeiten nach den aktuellen Daten."
-          />
-        </section>
-
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Faellige Wartung</h2>
-            <Link className="button" href={`/${locale}/maintenance?filter=due`}>
-              Faellige zeigen
-            </Link>
-          </div>
-          <p className="muted">Aufgaben, die nach Datum, Stunden oder Kilometern faellig sind.</p>
-          <DashboardTaskList
-            machines={machines}
-            tasks={dueTasks.slice(0, 3)}
-            emptyTitle="Keine faellige Wartung"
-            emptyText="Aktuell ist keine Wartung ueberfaellig."
-          />
-        </section>
-      </section>
-
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>Maschinenuebersicht</h2>
-          <Link className="button" href={`/${locale}/machines`}>
-            Maschinen oeffnen
-          </Link>
-        </div>
-        <p className="muted">Aktive Maschinen und die letzten bekannten Staende.</p>
-        <div className="mini-list">
-          {activeMachines.slice(0, 4).map((machine) => (
-            <Link className="mini-list-item" href={`/${locale}/machines/${machine.id}`} key={machine.id}>
-              <span>{machine.name}</span>
-              <strong>{formatNumber(machine.currentOperatingHours)} h</strong>
-            </Link>
-          ))}
-          {activeMachines.length === 0 ? (
-            <div className="empty-state">
-              <strong>Keine aktiven Maschinen</strong>
-              <p>Lege eine Maschine an, dann erscheinen hier Staende und Kosten.</p>
-            </div>
-          ) : null}
-        </div>
+      <section className="dashboard-focus-grid" aria-label="Betriebsuebersicht">
+        {dashboardCards.map((card) => (
+          <DashboardFocusCard {...card} key={card.id} />
+        ))}
       </section>
     </main>
   );
 }
 
-type DashboardTaskListProps = {
-  emptyText: string;
-  emptyTitle: string;
-  machines: MachineSummary[];
-  tasks: MaintenanceTask[];
+type DashboardFocusCardProps = {
+  action: string;
+  helper: string;
+  href: string;
+  id: string;
+  label: string;
+  tone: "primary" | "good" | "warning" | "danger" | "earth";
+  value: string;
 };
 
-function DashboardTaskList({ emptyText, emptyTitle, machines, tasks }: DashboardTaskListProps) {
+function DashboardFocusCard({ action, helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
   return (
-    <div className="mini-list">
-      {tasks.map((task) => {
-        const machine = machines.find((item) => item.id === task.machineId);
-
-        return (
-          <div className="mini-list-item" key={task.id}>
-            <span>
-              {machine?.name ?? "Unbekannte Maschine"} / {getMaintenanceTypeLabel(task.type)} / {getMaintenanceRecurrenceLabel(task)}
-            </span>
-            <strong>{getMostRelevantDueLabel(task, machine)}</strong>
-          </div>
-        );
-      })}
-      {tasks.length === 0 ? (
-        <div className="empty-state">
-          <strong>{emptyTitle}</strong>
-          <p>{emptyText}</p>
-        </div>
-      ) : null}
-    </div>
+    <Link className={`dashboard-focus-card ${tone}`} href={href}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{helper}</small>
+      <b>{action}</b>
+    </Link>
   );
+}
+
+type DashboardCardInput = {
+  activeMachineCount: number;
+  costLabel: string;
+  dueMaintenanceCount: number;
+  exampleMachineName: string;
+  farmConfig: FarmAppConfig;
+  locale: Locale;
+  todaysWorkCount: number;
+};
+
+function createDashboardCards({
+  activeMachineCount,
+  costLabel,
+  dueMaintenanceCount,
+  exampleMachineName,
+  farmConfig,
+  locale,
+  todaysWorkCount
+}: DashboardCardInput): DashboardFocusCardProps[] {
+  const cards: Record<FarmAppConfig["dashboardFocus"][number], DashboardFocusCardProps | null> = {
+    today: farmConfig.enabledModules.maintenance
+      ? {
+          id: "today",
+          tone: todaysWorkCount > 0 ? "warning" : "good",
+          label: "Heute",
+          value: todaysWorkCount.toString(),
+          helper: todaysWorkCount === 1 ? "Aufgabe" : "Aufgaben",
+          href: `/${locale}/maintenance`,
+          action: "Oeffnen"
+        }
+      : null,
+    maintenance: farmConfig.enabledModules.maintenance
+      ? {
+          id: "maintenance",
+          tone: dueMaintenanceCount > 0 ? "danger" : "good",
+          label: farmConfig.customLabels.maintenanceLabel,
+          value: dueMaintenanceCount.toString(),
+          helper: "faellig",
+          href: `/${locale}/maintenance?filter=due`,
+          action: "Pruefen"
+        }
+      : null,
+    dailyUsage: farmConfig.enabledModules.dailyUsage
+      ? {
+          id: "dailyUsage",
+          tone: "primary",
+          label: farmConfig.customLabels.dailyUsageLabel,
+          value: "Jetzt",
+          helper: "Staende eintragen",
+          href: `/${locale}/daily-usage`,
+          action: "Erfassen"
+        }
+      : null,
+    machines: farmConfig.enabledModules.machines
+      ? {
+          id: "machines",
+          tone: "earth",
+          label: "Maschinenstatus",
+          value: activeMachineCount.toString(),
+          helper: "aktiv",
+          href: `/${locale}/machines`,
+          action: "Ansehen"
+        }
+      : null,
+    costs: farmConfig.enabledModules.costs
+      ? {
+          id: "costs",
+          tone: "primary",
+          label: "Kostenuebersicht",
+          value: costLabel,
+          helper: exampleMachineName,
+          href: `/${locale}/costs`,
+          action: "Rechnen"
+        }
+      : null
+  };
+
+  return farmConfig.dashboardFocus.map((focus) => cards[focus]).filter((card): card is DashboardFocusCardProps => card !== null);
 }

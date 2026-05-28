@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { createNavigation } from "@/i18n/navigation";
 import type { Messages } from "@/i18n/request";
 import type { Locale } from "@/i18n/routing";
+import { getFarmConfig } from "@/lib/app/farm-config";
 import { GlobalSearch } from "./global-search";
 
 type AppShellProps = {
@@ -17,13 +18,23 @@ type AppShellProps = {
 
 export function AppShell({ children, locale, messages }: AppShellProps) {
   const pathname = usePathname();
+  const farmConfig = getFarmConfig();
   const navItems = createNavigation(locale);
+  const shellStyle = {
+    "--color-bg": farmConfig.branding.backgroundColor,
+    "--color-primary": farmConfig.branding.primaryColor,
+    "--color-warning": farmConfig.branding.accentColor
+  } as CSSProperties;
 
   return (
-    <div className="shell">
+    <div className="shell" style={shellStyle}>
       <header className="topbar">
-        <Link href={`/${locale}/dashboard`} className="brand" aria-label={messages.app.name}>
-          <Image src="/assets/logo.svg" alt="" width={160} height={40} priority />
+        <Link href={`/${locale}/dashboard`} className="brand" aria-label={farmConfig.branding.appName || messages.app.name}>
+          <Image src={farmConfig.branding.logoPath} alt="" width={160} height={40} priority />
+          <span>
+            <strong>{farmConfig.branding.appName}</strong>
+            <small>{farmConfig.branding.farmName}</small>
+          </span>
         </Link>
         <GlobalSearch locale={locale} placeholder={messages.search.placeholder} />
       </header>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
-import { getFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
+import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
 import { formatCurrency, formatNumber } from "@/lib/app/format";
 import type { MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
@@ -25,7 +25,7 @@ type DashboardProps = {
 
 export function Dashboard({ locale }: DashboardProps) {
   const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
-  const farmConfig = getFarmConfig(farmKey);
+  const farmConfig = getActiveFarmConfig(farmKey);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [isLoading, setIsLoading] = useState(false);

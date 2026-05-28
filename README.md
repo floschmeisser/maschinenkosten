@@ -41,6 +41,12 @@ Dazu `src/lib/app/farm-config.local.example.ts` kopieren und die Werte fuer Bran
 
 Die Runtime importiert diese lokale Datei aktuell nicht automatisch. Stattdessen ist `getFarmConfig(farmKey, override)` vorbereitet, um einen typisierten Override sauber zu mergen. So bleibt der Vercel-Build stabil, auch wenn keine lokale Kundenkonfiguration existiert.
 
+## Aktive Farm-Konfiguration
+
+Komponenten sollen die aktive Konfiguration ueber `getActiveFarmConfig(farmKey, override)` lesen. Der `farmKey` waehlt eines der Basisprofile (`default`, `dairy`, `arable`). Ein optionaler `override` passt dieses Profil fuer eine konkrete Kunden-App an.
+
+Die Vorschau in den Einstellungen speichert nur den `farmKey` in `localStorage` und ist fuer Entwicklung/Demo gedacht. Sie ist kein Tenant-System und ersetzt keine spaetere Benutzer- oder Datenbankzuordnung.
+
 ## Kostenberechnung v1
 
 Die Kostenberechnung liegt in `src/lib/app/financials.ts` und `src/lib/app/cost-calculation.ts`.

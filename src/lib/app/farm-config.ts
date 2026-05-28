@@ -125,6 +125,10 @@ export function getFarmConfig(farmKey: FarmProfileKey = "default", override?: Fa
   return override ? mergeFarmConfig(baseConfig, override) : baseConfig;
 }
 
+export function getActiveFarmConfig(farmKey: FarmProfileKey = "default", override?: FarmAppConfigOverride): FarmAppConfig {
+  return getFarmConfig(farmKey, override);
+}
+
 export function mergeFarmConfig(baseConfig: FarmAppConfig, override: FarmAppConfigOverride): FarmAppConfig {
   return {
     branding: {

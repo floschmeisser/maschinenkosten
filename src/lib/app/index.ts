@@ -62,6 +62,7 @@ export {
 } from "./maintenance";
 export type {
   CompleteMaintenanceTaskInput,
+  CreateMaintenanceUsedPartInput,
   CreateMaintenanceTaskInput,
   MaintenanceIntervalType,
   MaintenanceDisplayStatus,
@@ -70,6 +71,7 @@ export type {
   MaintenanceTask,
   MaintenanceTaskSummary,
   MaintenanceType,
+  MaintenanceUsedPart,
   UpdateMaintenanceTaskInput
 } from "./maintenance";
 
@@ -97,3 +99,11 @@ export {
   updateMaintenanceTask
 } from "./maintenance-database";
 export type { CompleteMaintenanceTaskResult } from "./maintenance-database";
+
+export {
+  applyUsedPartsToStock,
+  createMaintenanceUsedPart,
+  deleteMaintenanceUsedPart,
+  getUsedPartsForMaintenanceTask
+} from "./maintenance-used-parts-database";
+export type { ApplyUsedPartsToStockResult } from "./maintenance-used-parts-database";

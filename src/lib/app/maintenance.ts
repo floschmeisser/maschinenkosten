@@ -45,6 +45,19 @@ export type CompleteMaintenanceTaskInput = {
   completedAt?: string;
 };
 
+export type MaintenanceUsedPart = {
+  id: string;
+  farmId: string;
+  maintenanceTaskId: string;
+  sparePartId: string;
+  machineId: string;
+  quantityUsed: number;
+  notes: string | null;
+  createdAt: string;
+};
+
+export type CreateMaintenanceUsedPartInput = Omit<MaintenanceUsedPart, "id" | "createdAt">;
+
 export type MaintenanceTaskSummary = MaintenanceTask & {
   machineName: string;
   completed: boolean;
@@ -97,6 +110,8 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     updatedAt: "2026-05-01T08:00:00.000Z"
   }
 ];
+
+export const placeholderMaintenanceUsedParts: MaintenanceUsedPart[] = [];
 
 export function toMaintenanceTaskSummary(task: MaintenanceTask): MaintenanceTaskSummary {
   const machine = placeholderMachines.find((item) => item.id === task.machineId);

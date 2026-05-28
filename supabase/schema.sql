@@ -110,6 +110,18 @@ create table if not exists public.machine_spare_parts (
   )
 );
 
+-- Used spare parts connect maintenance completion with stock reduction.
+create table if not exists public.maintenance_used_parts (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  maintenance_task_id uuid not null references public.maintenance_tasks(id) on delete cascade,
+  spare_part_id uuid not null references public.machine_spare_parts(id) on delete cascade,
+  machine_id uuid not null references public.machines(id) on delete cascade,
+  quantity_used numeric(12, 2) not null default 0,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists machines_farm_id_idx on public.machines(farm_id);
 create index if not exists farms_owner_id_idx on public.farms(owner_id);
 create index if not exists machines_status_idx on public.machines(status);
@@ -120,6 +132,10 @@ create index if not exists maintenance_tasks_due_date_idx on public.maintenance_
 create index if not exists machine_spare_parts_farm_id_idx on public.machine_spare_parts(farm_id);
 create index if not exists machine_spare_parts_machine_id_idx on public.machine_spare_parts(machine_id);
 create index if not exists machine_spare_parts_low_stock_idx on public.machine_spare_parts(farm_id, machine_id, stock_quantity, minimum_stock_quantity);
+create index if not exists maintenance_used_parts_farm_id_idx on public.maintenance_used_parts(farm_id);
+create index if not exists maintenance_used_parts_task_id_idx on public.maintenance_used_parts(maintenance_task_id);
+create index if not exists maintenance_used_parts_spare_part_id_idx on public.maintenance_used_parts(spare_part_id);
+create index if not exists maintenance_used_parts_machine_id_idx on public.maintenance_used_parts(machine_id);
 
 -- Keep updated_at current for simple updates.
 create or replace function public.set_updated_at()
@@ -157,6 +173,7 @@ alter table public.farms enable row level security;
 alter table public.machines enable row level security;
 alter table public.maintenance_tasks enable row level security;
 alter table public.machine_spare_parts enable row level security;
+alter table public.maintenance_used_parts enable row level security;
 
 create policy "Farm owners can manage farms"
 on public.farms
@@ -218,6 +235,25 @@ with check (
   exists (
     select 1 from public.farms
     where farms.id = machine_spare_parts.farm_id
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can manage maintenance used parts"
+on public.maintenance_used_parts
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.farms
+    where farms.id = maintenance_used_parts.farm_id
+    and farms.owner_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.farms
+    where farms.id = maintenance_used_parts.farm_id
     and farms.owner_id = auth.uid()
   )
 );

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
-import type { Machine } from "@/lib/app/machines";
+import type { Machine, MachineSparePart } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines } from "@/lib/app/machines";
 import { getMachines } from "@/lib/app/machines-database";
+import { getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
 import { getMaintenanceViewPreference, setMaintenanceViewPreference } from "@/lib/app/preferences";
 import {
   completeMaintenanceTask,
@@ -14,6 +15,7 @@ import {
   getMaintenanceTasks,
   updateMaintenanceTask
 } from "@/lib/app/maintenance-database";
+import { applyUsedPartsToStock, createMaintenanceUsedPart } from "@/lib/app/maintenance-used-parts-database";
 import {
   filterMaintenanceTasks,
   getMaintenanceDisplayStatus,
@@ -166,15 +168,35 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
     setSuccessMessage("Kosten gespeichert.");
   }
 
-  async function handleCompleteTask(task: MaintenanceTask, completionData: CompleteMaintenanceTaskInput) {
+  async function handleCompleteTask(
+    task: MaintenanceTask,
+    completionData: CompleteMaintenanceTaskInput,
+    usedParts: CompletionUsedPartInput[] = []
+  ) {
     const result = await completeMaintenanceTask(task.id, completionData);
+    const completedTask = result.completedTask;
+
+    if (completedTask && usedParts.length > 0) {
+      await Promise.all(
+        usedParts.map((usedPart) =>
+          createMaintenanceUsedPart({
+            farmId: completedTask.farmId,
+            maintenanceTaskId: task.id,
+            sparePartId: usedPart.sparePartId,
+            machineId: task.machineId,
+            quantityUsed: usedPart.quantityUsed,
+            notes: usedPart.notes
+          })
+        )
+      );
+    }
+
+    const stockResult = completedTask && usedParts.length > 0 ? await applyUsedPartsToStock(task.id) : null;
     await refreshData();
     setCompletionTask(null);
     setExpandedTaskId(task.id);
     setFocusedTaskId(null);
-    setSuccessMessage(
-      result.nextTask ? "Erledigt. Neuer Termin." : "Erledigt."
-    );
+    setSuccessMessage(createCompletionSuccessMessage(Boolean(result.nextTask), stockResult?.warnings ?? []));
   }
 
   return (
@@ -215,7 +237,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         <CompletionForm
           task={completionTask}
           onCancel={() => setCompletionTask(null)}
-          onComplete={(completionData) => handleCompleteTask(completionTask, completionData)}
+          onComplete={(completionData, usedParts) => handleCompleteTask(completionTask, completionData, usedParts)}
         />
       ) : null}
 
@@ -569,17 +591,60 @@ function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
 type CompletionFormProps = {
   task: MaintenanceTask;
   onCancel: () => void;
-  onComplete: (completionData: CompleteMaintenanceTaskInput) => Promise<void> | void;
+  onComplete: (completionData: CompleteMaintenanceTaskInput, usedParts: CompletionUsedPartInput[]) => Promise<void> | void;
+};
+
+type CompletionUsedPartInput = {
+  sparePartId: string;
+  quantityUsed: number;
+  notes: string | null;
+};
+
+type UsedPartFormRow = {
+  id: string;
+  sparePartId: string;
+  quantityUsed: string;
+  notes: string;
 };
 
 function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
   const [actualCost, setActualCost] = useState(String(task.actualCost ?? task.estimatedCost ?? 0));
   const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState(task.notes ?? "");
+  const [spareParts, setSpareParts] = useState<MachineSparePart[]>([]);
+  const [usedPartRows, setUsedPartRows] = useState<UsedPartFormRow[]>([]);
+  const [partsMessage, setPartsMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    getMachineSpareParts(task.machineId)
+      .then((parts) => {
+        if (isActive) {
+          setSpareParts(parts);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setSpareParts([]);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [task.machineId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const usedParts = parseUsedPartRows(usedPartRows);
+
+    if (usedPartRows.length > 0 && usedParts.length !== usedPartRows.length) {
+      setPartsMessage("Ersatzteil und Menge pruefen.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -587,10 +652,28 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
         actualCost: toOptionalNumber(actualCost),
         completedAt,
         notes
-      });
+      }, usedParts);
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleAddUsedPart() {
+    setPartsMessage(null);
+    setUsedPartRows((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        sparePartId: spareParts[0]?.id ?? "",
+        quantityUsed: "1",
+        notes: ""
+      }
+    ]);
+  }
+
+  function handleUpdateUsedPart(rowId: string, input: Partial<UsedPartFormRow>) {
+    setPartsMessage(null);
+    setUsedPartRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...input } : row)));
   }
 
   return (
@@ -612,6 +695,72 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
           Notiz
           <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
         </label>
+        <section className="form-section used-parts-section">
+          <div className="panel-heading compact">
+            <h3>Verwendete Ersatzteile</h3>
+            <button className="button" type="button" onClick={handleAddUsedPart} disabled={spareParts.length === 0}>
+              Ersatzteil hinzufuegen
+            </button>
+          </div>
+          {spareParts.length === 0 ? <p className="muted">Keine Ersatzteile erfasst.</p> : null}
+          {partsMessage ? <p className="field-error">{partsMessage}</p> : null}
+          {usedPartRows.length > 0 ? (
+            <div className="used-parts-list">
+              {usedPartRows.map((row) => {
+                const selectedPart = spareParts.find((part) => part.id === row.sparePartId) ?? null;
+                const quantityUsed = toOptionalNumber(row.quantityUsed) ?? 0;
+                const stockAfterUse = selectedPart ? Math.max(0, selectedPart.stockQuantity - quantityUsed) : 0;
+                const hasStockWarning = Boolean(selectedPart && quantityUsed > selectedPart.stockQuantity);
+
+                return (
+                  <div className={hasStockWarning ? "used-part-row warning" : "used-part-row"} key={row.id}>
+                    <label>
+                      Ersatzteil
+                      <select
+                        value={row.sparePartId}
+                        onChange={(event) => handleUpdateUsedPart(row.id, { sparePartId: event.target.value })}
+                      >
+                        {spareParts.map((part) => (
+                          <option key={part.id} value={part.id}>
+                            {part.name}{part.partNumber ? ` / ${part.partNumber}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Menge
+                      <input
+                        min="0"
+                        step="0.1"
+                        type="number"
+                        value={row.quantityUsed}
+                        onChange={(event) => handleUpdateUsedPart(row.id, { quantityUsed: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Notiz
+                      <input value={row.notes} onChange={(event) => handleUpdateUsedPart(row.id, { notes: event.target.value })} />
+                    </label>
+                    {selectedPart ? (
+                      <p className={hasStockWarning ? "stock-preview warning-text" : "stock-preview"}>
+                        Lager: {formatNumber(selectedPart.stockQuantity)} {selectedPart.unit} / danach {formatNumber(stockAfterUse)}{" "}
+                        {selectedPart.unit}
+                      </p>
+                    ) : null}
+                    {hasStockWarning ? <p className="field-error">Nicht genug auf Lager</p> : null}
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => setUsedPartRows((current) => current.filter((item) => item.id !== row.id))}
+                    >
+                      Entfernen
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </section>
         <div className="form-actions">
           <button className="button" type="button" onClick={onCancel}>
             Abbrechen
@@ -708,6 +857,26 @@ function getFilterForTask(task: MaintenanceTask, machines: Machine[]): Maintenan
 
 function getTaskElementId(taskId: string): string {
   return `maintenance-task-${taskId}`;
+}
+
+function createCompletionSuccessMessage(hasNextTask: boolean, stockWarnings: string[]): string {
+  const baseMessage = hasNextTask ? "Erledigt. Neuer Termin." : "Erledigt.";
+
+  if (stockWarnings.length === 0) {
+    return baseMessage;
+  }
+
+  return `${baseMessage} Lager pruefen.`;
+}
+
+function parseUsedPartRows(rows: UsedPartFormRow[]): CompletionUsedPartInput[] {
+  return rows
+    .map((row) => ({
+      sparePartId: row.sparePartId,
+      quantityUsed: toOptionalNumber(row.quantityUsed),
+      notes: row.notes.trim() || null
+    }))
+    .filter((row): row is CompletionUsedPartInput => Boolean(row.sparePartId) && row.quantityUsed !== null && row.quantityUsed > 0);
 }
 
 function formatDue(task: MaintenanceTask): string {

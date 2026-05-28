@@ -630,11 +630,28 @@ td span {
   font-size: 14px;
 }
 
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .form-success {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--success);
   font-weight: 700;
+}
+
+.panel-heading.compact {
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-heading.compact h3 {
+  margin: 0;
+  font-size: 18px;
 }
 
 .filter-row {
@@ -963,6 +980,42 @@ td span {
   color: var(--muted);
   font-size: 14px;
   font-weight: 700;
+}
+
+.used-parts-section {
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.used-parts-list {
+  display: grid;
+  gap: 12px;
+}
+
+.used-part-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.used-part-row.warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.stock-preview {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.warning-text {
+  color: var(--danger);
 }
 
 .daily-save-status {

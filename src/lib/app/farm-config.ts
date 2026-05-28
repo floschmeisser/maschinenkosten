@@ -121,12 +121,12 @@ export const demoArableFarmConfig: FarmAppConfig = {
 };
 
 export function getFarmConfig(farmKey: FarmProfileKey = "default", override?: FarmAppConfigOverride): FarmAppConfig {
-  const baseConfig = getBaseFarmConfig(farmKey);
-  return override ? mergeFarmConfig(baseConfig, override) : baseConfig;
+  return getActiveFarmConfig(farmKey, override);
 }
 
 export function getActiveFarmConfig(farmKey: FarmProfileKey = "default", override?: FarmAppConfigOverride): FarmAppConfig {
-  return getFarmConfig(farmKey, override);
+  const baseConfig = getBaseFarmConfig(farmKey);
+  return override ? mergeFarmConfig(baseConfig, override) : baseConfig;
 }
 
 export function mergeFarmConfig(baseConfig: FarmAppConfig, override: FarmAppConfigOverride): FarmAppConfig {

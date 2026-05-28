@@ -9,6 +9,7 @@ import {
   type AppSettingsPreferences,
   type FarmProfilePreference
 } from "@/lib/app/preferences";
+import { getActiveFarmConfig } from "@/lib/app/farm-config";
 import type { StatusTone } from "@/lib/app/status";
 import { getStatusLabel } from "@/lib/app/status";
 
@@ -68,6 +69,7 @@ export function SettingsPanel() {
   }));
   const [farmProfile, setFarmProfile] = useState<FarmProfilePreference>("default");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const activeFarmConfig = getActiveFarmConfig(farmProfile);
 
   useEffect(() => {
     setSettings(getAppSettingsPreferences());
@@ -105,6 +107,9 @@ export function SettingsPanel() {
               <option value="arable">Ackerbau</option>
             </select>
           </label>
+          <p className="muted">
+            Aktiv: {activeFarmConfig.branding.appName} / {activeFarmConfig.branding.farmName}
+          </p>
         </fieldset>
         <label>
           Betriebsname

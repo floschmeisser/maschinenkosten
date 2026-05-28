@@ -31,21 +31,38 @@ Dadurch bleiben Dashboard, Maschinen und Wartung nutzbar, ohne eine Live-Datenba
 
 Die Standardprofile liegen in `src/lib/app/farm-config.ts`. Dort bleiben die wiederverwendbaren Basis-Konfigurationen fuer Standard, Milchbetrieb und Ackerbau.
 
-Fuer eine verkaufte Kunden-App kann eine lokale Datei angelegt werden:
+Fuer eine verkaufte Kunden-App wird eine lokale Override-Datei angelegt:
 
 ```text
 src/lib/app/farm-config.local.ts
 ```
 
-Dazu `src/lib/app/farm-config.local.example.ts` kopieren und die Werte fuer Branding, Module, Dashboard-Fokus und Labels anpassen. Die Datei `farm-config.local.ts` ist in `.gitignore` eingetragen, damit echte kundenspezifische Namen, Farben und Modulentscheidungen nicht versehentlich committet werden.
+Dazu `src/lib/app/farm-config.local.example.ts` kopieren und nur kundenspezifische Werte anpassen:
 
-Die Runtime importiert diese lokale Datei aktuell nicht automatisch. Stattdessen ist `getFarmConfig(farmKey, override)` vorbereitet, um einen typisierten Override sauber zu mergen. So bleibt der Vercel-Build stabil, auch wenn keine lokale Kundenkonfiguration existiert.
+- App-Name, Betriebsname und Logo.
+- Primaerfarbe, Akzentfarbe und Hintergrund.
+- Aktivierte Module.
+- Dashboard-Fokus.
+- Begriffe wie `Fuhrpark`, `Service` oder `Tagesstand`.
+
+Die Datei `farm-config.local.ts` ist in `.gitignore` eingetragen. Echte Kundennamen, Logos, Farben und Modulentscheidungen sollen nicht versehentlich im Basisprodukt landen.
+
+Die Runtime importiert diese lokale Datei aktuell nicht automatisch. Fuer ein Kundenprojekt wird der Override bewusst an `getActiveFarmConfig(farmKey, override)` uebergeben. So bleibt der Vercel-Build stabil, auch wenn keine lokale Kundenkonfiguration existiert.
+
+Empfohlener Ablauf fuer eine kundenspezifische App:
+
+1. Basisprojekt fuer den Kunden klonen oder als eigenes Repository duplizieren.
+2. `src/lib/app/farm-config.local.example.ts` nach `src/lib/app/farm-config.local.ts` kopieren.
+3. Branding, Module und Labels fuer diesen Betrieb anpassen.
+4. Kundenlogo nach `public/assets` legen und `logoPath` setzen.
+5. In der Kunden-App den Override an der zentralen Stelle an `getActiveFarmConfig` uebergeben.
+6. Auf Vercel als eigenes Projekt deployen und die normalen Umgebungsvariablen setzen.
 
 ## Aktive Farm-Konfiguration
 
-Komponenten sollen die aktive Konfiguration ueber `getActiveFarmConfig(farmKey, override)` lesen. Der `farmKey` waehlt eines der Basisprofile (`default`, `dairy`, `arable`). Ein optionaler `override` passt dieses Profil fuer eine konkrete Kunden-App an.
+Komponenten sollen die aktive Konfiguration ueber `getActiveFarmConfig(farmKey, override)` lesen. Der `farmKey` waehlt eines der Basisprofile (`default`, `dairy`, `arable`). Ein optionaler `override` wird daruebergelegt und liefert wieder eine vollstaendige `FarmAppConfig`.
 
-Die Vorschau in den Einstellungen speichert nur den `farmKey` in `localStorage` und ist fuer Entwicklung/Demo gedacht. Sie ist kein Tenant-System und ersetzt keine spaetere Benutzer- oder Datenbankzuordnung.
+`getActiveFarmConfig` ist SSR-sicher und greift nicht auf `localStorage`, Supabase oder Browser-APIs zu. Die Vorschau in den Einstellungen speichert nur den `farmKey` in `localStorage` und ist fuer Entwicklung/Demo gedacht. Sie ist kein Tenant-System und ersetzt keine spaetere Benutzer- oder Datenbankzuordnung.
 
 ## Kostenberechnung v1
 

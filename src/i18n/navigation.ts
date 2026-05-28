@@ -1,15 +1,14 @@
 import { type Locale } from "./routing";
-import { getFarmConfig } from "@/lib/app/farm-config";
+import { getFarmConfig, type FarmAppConfig } from "@/lib/app/farm-config";
 
 export type NavItem = {
   href: string;
   label: string;
 };
 
-export function createNavigation(locale: Locale): NavItem[] {
+export function createNavigation(locale: Locale, farmConfig: FarmAppConfig = getFarmConfig()): NavItem[] {
   const base = `/${locale}`;
-  const config = getFarmConfig();
-  const { customLabels, enabledModules } = config;
+  const { customLabels, enabledModules } = farmConfig;
 
   return [
     { href: `${base}/dashboard`, label: "Dashboard" },

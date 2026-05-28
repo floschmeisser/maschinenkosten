@@ -1,4 +1,5 @@
 export type MaintenanceViewPreference = "overview" | "today";
+export type FarmProfilePreference = "default" | "dairy" | "arable";
 export type AppSettingsPreferences = {
   farmName: string;
   locale: "de" | "en" | "it";
@@ -15,6 +16,7 @@ export type DailyUsageDraft = Record<string, DailyUsageDraftRow>;
 const maintenanceViewPreferenceKey = "maschinenkosten.maintenanceView";
 const dailyUsageDraftKey = "maschinenkosten.dailyUsageDraft";
 const appSettingsPreferenceKey = "maschinenkosten.settings";
+const farmProfilePreferenceKey = "maschinenkosten.farmProfile";
 const defaultAppSettingsPreferences: AppSettingsPreferences = {
   farmName: "",
   locale: "de",
@@ -41,6 +43,24 @@ export function setMaintenanceViewPreference(value: MaintenanceViewPreference): 
   }
 
   window.localStorage.setItem(maintenanceViewPreferenceKey, value);
+}
+
+export function getFarmProfilePreference(): FarmProfilePreference {
+  if (!isBrowser()) {
+    return "default";
+  }
+
+  const storedValue = window.localStorage.getItem(farmProfilePreferenceKey);
+  return isFarmProfilePreference(storedValue) ? storedValue : "default";
+}
+
+export function setFarmProfilePreference(value: FarmProfilePreference): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.localStorage.setItem(farmProfilePreferenceKey, value);
+  window.dispatchEvent(new Event("maschinenkosten.farmProfileChanged"));
 }
 
 export function getDailyUsageDraft(): DailyUsageDraft {
@@ -163,6 +183,10 @@ function isAppSettingsPreferences(value: unknown): value is AppSettingsPreferenc
     (settings.locale === "de" || settings.locale === "en" || settings.locale === "it") &&
     settings.currency === "EUR"
   );
+}
+
+function isFarmProfilePreference(value: unknown): value is FarmProfilePreference {
+  return value === "default" || value === "dairy" || value === "arable";
 }
 
 function isSameLocalDate(left: Date, right: Date): boolean {

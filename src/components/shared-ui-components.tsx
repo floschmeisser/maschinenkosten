@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { getAppSettingsPreferences, setAppSettingsPreferences, type AppSettingsPreferences } from "@/lib/app/preferences";
+import {
+  getAppSettingsPreferences,
+  getFarmProfilePreference,
+  setAppSettingsPreferences,
+  setFarmProfilePreference,
+  type AppSettingsPreferences,
+  type FarmProfilePreference
+} from "@/lib/app/preferences";
 import type { StatusTone } from "@/lib/app/status";
 import { getStatusLabel } from "@/lib/app/status";
 
@@ -59,10 +66,12 @@ export function SettingsPanel() {
     locale: "de",
     currency: "EUR"
   }));
+  const [farmProfile, setFarmProfile] = useState<FarmProfilePreference>("default");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setSettings(getAppSettingsPreferences());
+    setFarmProfile(getFarmProfilePreference());
   }, []);
 
   function updateField<Key extends keyof AppSettingsPreferences>(key: Key, value: AppSettingsPreferences[Key]) {
@@ -76,9 +85,27 @@ export function SettingsPanel() {
     setStatusMessage("Einstellungen gespeichert.");
   }
 
+  function updateFarmProfile(value: FarmProfilePreference) {
+    setFarmProfile(value);
+    setFarmProfilePreference(value);
+    setStatusMessage("Betriebsprofil Vorschau aktiviert.");
+  }
+
   return (
     <section className="panel form-panel">
       <form className="form-grid" onSubmit={handleSubmit}>
+        <fieldset className="form-section">
+          <legend>Betriebsprofil Vorschau</legend>
+          <p className="muted">Nur zur Vorschau fuer Anpassungen. Keine Datenbank- oder Benutzerverwaltung.</p>
+          <label>
+            Profil
+            <select value={farmProfile} onChange={(event) => updateFarmProfile(event.target.value as FarmProfilePreference)}>
+              <option value="default">Standard</option>
+              <option value="dairy">Milchbetrieb</option>
+              <option value="arable">Ackerbau</option>
+            </select>
+          </label>
+        </fieldset>
         <label>
           Betriebsname
           <input

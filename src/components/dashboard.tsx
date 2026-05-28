@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import { calculateMachineCosts, createCostInputFromMachine, defaultCostInputs } from "@/lib/app/cost-calculation";
-import { getFarmConfig } from "@/lib/app/farm-config";
-import type { FarmAppConfig } from "@/lib/app/farm-config";
-import { formatCurrency } from "@/lib/app/format";
+import { getFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
+import { formatCurrency, formatNumber } from "@/lib/app/format";
 import type { MachineSummary } from "@/lib/app/machines";
 import { getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
@@ -18,16 +17,33 @@ import {
   sortMaintenanceTasksByUrgency
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
+import { getFarmProfilePreference } from "@/lib/app/preferences";
 
 type DashboardProps = {
   locale: Locale;
 };
 
 export function Dashboard({ locale }: DashboardProps) {
-  const farmConfig = getFarmConfig();
+  const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
+  const farmConfig = getFarmConfig(farmKey);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    function syncFarmProfile() {
+      setFarmKey(getFarmProfilePreference());
+    }
+
+    syncFarmProfile();
+    window.addEventListener("maschinenkosten.farmProfileChanged", syncFarmProfile);
+    window.addEventListener("storage", syncFarmProfile);
+
+    return () => {
+      window.removeEventListener("maschinenkosten.farmProfileChanged", syncFarmProfile);
+      window.removeEventListener("storage", syncFarmProfile);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -58,6 +74,10 @@ export function Dashboard({ locale }: DashboardProps) {
   const exampleMachine = machines[0];
   const costInput = exampleMachine ? createCostInputFromMachine(exampleMachine, maintenanceTasks) : defaultCostInputs;
   const costs = calculateMachineCosts(costInput);
+  const hectaresLabel =
+    exampleMachine?.hectaresPerHour === null || exampleMachine?.hectaresPerHour === undefined
+      ? "-"
+      : `${formatNumber(exampleMachine.hectaresPerHour)} ha/h`;
 
   const dashboardCards = createDashboardCards({
     activeMachineCount,
@@ -65,6 +85,7 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     exampleMachineName: exampleMachine?.name ?? "je Stunde",
     farmConfig,
+    hectaresLabel,
     locale,
     todaysWorkCount
   });
@@ -114,6 +135,7 @@ type DashboardCardInput = {
   dueMaintenanceCount: number;
   exampleMachineName: string;
   farmConfig: FarmAppConfig;
+  hectaresLabel: string;
   locale: Locale;
   todaysWorkCount: number;
 };
@@ -124,6 +146,7 @@ function createDashboardCards({
   dueMaintenanceCount,
   exampleMachineName,
   farmConfig,
+  hectaresLabel,
   locale,
   todaysWorkCount
 }: DashboardCardInput): DashboardFocusCardProps[] {
@@ -181,6 +204,17 @@ function createDashboardCards({
           helper: exampleMachineName,
           href: `/${locale}/costs`,
           action: "Rechnen"
+        }
+      : null,
+    hectares: farmConfig.enabledModules.machines
+      ? {
+          id: "hectares",
+          tone: "earth",
+          label: "Hektarleistung",
+          value: hectaresLabel,
+          helper: exampleMachineName,
+          href: `/${locale}/machines`,
+          action: "Ansehen"
         }
       : null
   };

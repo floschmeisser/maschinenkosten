@@ -27,6 +27,20 @@ Supabase ist waehrend der lokalen Entwicklung optional. Wenn `NEXT_PUBLIC_SUPABA
 
 Dadurch bleiben Dashboard, Maschinen und Wartung nutzbar, ohne eine Live-Datenbank zu verlangen.
 
+## Betriebsanpassung / Kundenprofil
+
+Die Standardprofile liegen in `src/lib/app/farm-config.ts`. Dort bleiben die wiederverwendbaren Basis-Konfigurationen fuer Standard, Milchbetrieb und Ackerbau.
+
+Fuer eine verkaufte Kunden-App kann eine lokale Datei angelegt werden:
+
+```text
+src/lib/app/farm-config.local.ts
+```
+
+Dazu `src/lib/app/farm-config.local.example.ts` kopieren und die Werte fuer Branding, Module, Dashboard-Fokus und Labels anpassen. Die Datei `farm-config.local.ts` ist in `.gitignore` eingetragen, damit echte kundenspezifische Namen, Farben und Modulentscheidungen nicht versehentlich committet werden.
+
+Die Runtime importiert diese lokale Datei aktuell nicht automatisch. Stattdessen ist `getFarmConfig(farmKey, override)` vorbereitet, um einen typisierten Override sauber zu mergen. So bleibt der Vercel-Build stabil, auch wenn keine lokale Kundenkonfiguration existiert.
+
 ## Kostenberechnung v1
 
 Die Kostenberechnung liegt in `src/lib/app/financials.ts` und `src/lib/app/cost-calculation.ts`.

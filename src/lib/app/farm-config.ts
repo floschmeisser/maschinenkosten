@@ -32,6 +32,13 @@ export type FarmAppConfig = {
   };
 };
 
+export type FarmAppConfigOverride = {
+  branding?: Partial<FarmBrandingConfig>;
+  dashboardFocus?: DashboardFocusItem[];
+  enabledModules?: Partial<FarmModuleConfig>;
+  customLabels?: Partial<FarmAppConfig["customLabels"]>;
+};
+
 export const defaultFarmConfig: FarmAppConfig = {
   branding: {
     appName: "MaschinenKosten",
@@ -113,7 +120,30 @@ export const demoArableFarmConfig: FarmAppConfig = {
   }
 };
 
-export function getFarmConfig(farmKey: FarmProfileKey = "default"): FarmAppConfig {
+export function getFarmConfig(farmKey: FarmProfileKey = "default", override?: FarmAppConfigOverride): FarmAppConfig {
+  const baseConfig = getBaseFarmConfig(farmKey);
+  return override ? mergeFarmConfig(baseConfig, override) : baseConfig;
+}
+
+export function mergeFarmConfig(baseConfig: FarmAppConfig, override: FarmAppConfigOverride): FarmAppConfig {
+  return {
+    branding: {
+      ...baseConfig.branding,
+      ...override.branding
+    },
+    dashboardFocus: override.dashboardFocus ?? baseConfig.dashboardFocus,
+    enabledModules: {
+      ...baseConfig.enabledModules,
+      ...override.enabledModules
+    },
+    customLabels: {
+      ...baseConfig.customLabels,
+      ...override.customLabels
+    }
+  };
+}
+
+function getBaseFarmConfig(farmKey: FarmProfileKey): FarmAppConfig {
   if (farmKey === "dairy") {
     return demoDairyFarmConfig;
   }

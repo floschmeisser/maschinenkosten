@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getMachineById } from "./machines-database";
 import {
   createNextRecurringMaintenanceTask,
@@ -61,13 +61,14 @@ export async function getMaintenanceTasks(): Promise<MaintenanceTask[]> {
     return fallbackMaintenanceTasks;
   }
 
-  const { data, error } = await table.select("*");
+  const result = await runSupabaseQuery(() => table.select("*"), "Wartungen konnten nicht geladen werden.");
 
-  if (error || !data) {
+  if (!result?.data) {
     return fallbackMaintenanceTasks;
   }
 
-  return data.map(mapMaintenanceTaskRowToTask);
+  fallbackMaintenanceTasks = result.data.map(mapMaintenanceTaskRowToTask);
+  return fallbackMaintenanceTasks;
 }
 
 export async function getMaintenanceTasksByMachine(machineId: string): Promise<MaintenanceTask[]> {
@@ -91,14 +92,19 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
     return fallbackTask;
   }
 
-  const { data, error } = await table.insert(mapMaintenanceTaskToRow(fallbackTask)).select("*").single();
+  const result = await runSupabaseQuery(
+    () => table.insert(mapMaintenanceTaskToRow(fallbackTask)).select("*").single(),
+    "Wartung konnte nicht angelegt werden."
+  );
 
-  if (error || !data) {
+  if (!result?.data) {
     fallbackMaintenanceTasks = [fallbackTask, ...fallbackMaintenanceTasks];
     return fallbackTask;
   }
 
-  return mapMaintenanceTaskRowToTask(data);
+  const createdTask = mapMaintenanceTaskRowToTask(result.data);
+  fallbackMaintenanceTasks = [createdTask, ...fallbackMaintenanceTasks.filter((task) => task.id !== createdTask.id)];
+  return createdTask;
 }
 
 export async function updateMaintenanceTask(id: string, input: UpdateMaintenanceTaskInput): Promise<MaintenanceTask | null> {
@@ -115,17 +121,18 @@ export async function updateMaintenanceTask(id: string, input: UpdateMaintenance
     return fallbackTask;
   }
 
-  const { data, error } = await table
-    .update(mapMaintenanceTaskInputToRow({ ...input, updatedAt: now }))
-    .eq("id", id)
-    .select("*")
-    .single();
+  const result = await runSupabaseQuery(
+    () => table.update(mapMaintenanceTaskInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single(),
+    "Wartung konnte nicht aktualisiert werden."
+  );
 
-  if (error || !data) {
+  if (!result?.data) {
     return fallbackTask;
   }
 
-  return mapMaintenanceTaskRowToTask(data);
+  const updatedTask = mapMaintenanceTaskRowToTask(result.data);
+  fallbackMaintenanceTasks = fallbackMaintenanceTasks.map((task) => (task.id === id ? updatedTask : task));
+  return updatedTask;
 }
 
 export async function completeMaintenanceTask(

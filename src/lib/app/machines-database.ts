@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import {
   placeholderMachines,
   type CreateMachineInput,
@@ -69,13 +69,14 @@ export async function getMachines(): Promise<Machine[]> {
     return fallbackMachines;
   }
 
-  const { data, error } = await table.select("*");
+  const result = await runSupabaseQuery(() => table.select("*"), "Maschinen konnten nicht geladen werden.");
 
-  if (error || !data) {
+  if (!result?.data) {
     return fallbackMachines;
   }
 
-  return data.map(mapMachineRowToMachine);
+  fallbackMachines = result.data.map(mapMachineRowToMachine);
+  return fallbackMachines;
 }
 
 export async function getMachineById(id: string): Promise<Machine | null> {
@@ -98,14 +99,19 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
     return fallbackMachine;
   }
 
-  const { data, error } = await table.insert(mapMachineToRow(fallbackMachine)).select("*").single();
+  const result = await runSupabaseQuery(
+    () => table.insert(mapMachineToRow(fallbackMachine)).select("*").single(),
+    "Maschine konnte nicht angelegt werden."
+  );
 
-  if (error || !data) {
+  if (!result?.data) {
     fallbackMachines = [fallbackMachine, ...fallbackMachines];
     return fallbackMachine;
   }
 
-  return mapMachineRowToMachine(data);
+  const createdMachine = mapMachineRowToMachine(result.data);
+  fallbackMachines = [createdMachine, ...fallbackMachines.filter((machine) => machine.id !== createdMachine.id)];
+  return createdMachine;
 }
 
 export async function updateMachine(id: string, input: UpdateMachineInput): Promise<Machine | null> {
@@ -122,13 +128,18 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
     return fallbackMachine;
   }
 
-  const { data, error } = await table.update(mapMachineInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single();
+  const result = await runSupabaseQuery(
+    () => table.update(mapMachineInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single(),
+    "Maschine konnte nicht aktualisiert werden."
+  );
 
-  if (error || !data) {
+  if (!result?.data) {
     return fallbackMachine;
   }
 
-  return mapMachineRowToMachine(data);
+  const updatedMachine = mapMachineRowToMachine(result.data);
+  fallbackMachines = fallbackMachines.map((machine) => (machine.id === id ? updatedMachine : machine));
+  return updatedMachine;
 }
 
 export async function deleteMachine(id: string): Promise<boolean> {
@@ -140,12 +151,15 @@ export async function deleteMachine(id: string): Promise<boolean> {
     return hadMachine;
   }
 
-  const { error } = await table.delete().eq("id", id);
+  const result = await runSupabaseQuery(() => table.delete().eq("id", id), "Maschine konnte nicht geloescht werden.");
 
-  if (error) {
-    return false;
+  if (!result) {
+    const hadMachine = fallbackMachines.some((machine) => machine.id === id);
+    fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
+    return hadMachine;
   }
 
+  fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
   return true;
 }
 

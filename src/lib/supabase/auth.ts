@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from "./client";
+import { createSupabaseBrowserClient, warnSupabaseFallback } from "./client";
 
 export async function getCurrentUser() {
   const supabase = await createSupabaseBrowserClient();
@@ -7,8 +7,13 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const { data } = await supabase.auth.getUser();
-  return data.user;
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  } catch (error) {
+    warnSupabaseFallback("Benutzer konnte nicht geladen werden.", error);
+    return null;
+  }
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -18,8 +23,13 @@ export async function signInWithEmail(email: string, password: string) {
     return { error: "Supabase ist noch nicht konfiguriert." };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  return { error: error?.message ?? null };
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  } catch (error) {
+    warnSupabaseFallback("Anmeldung konnte nicht ausgefuehrt werden.", error);
+    return { error: "Anmeldung ist gerade nicht verfuegbar." };
+  }
 }
 
 export async function signOut() {
@@ -29,5 +39,9 @@ export async function signOut() {
     return;
   }
 
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    warnSupabaseFallback("Abmeldung konnte nicht ausgefuehrt werden.", error);
+  }
 }

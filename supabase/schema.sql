@@ -87,8 +87,12 @@ create table if not exists public.maintenance_tasks (
 );
 
 create index if not exists machines_farm_id_idx on public.machines(farm_id);
+create index if not exists farms_owner_id_idx on public.farms(owner_id);
+create index if not exists machines_status_idx on public.machines(status);
 create index if not exists maintenance_tasks_farm_id_idx on public.maintenance_tasks(farm_id);
 create index if not exists maintenance_tasks_machine_id_idx on public.maintenance_tasks(machine_id);
+create index if not exists maintenance_tasks_status_idx on public.maintenance_tasks(status);
+create index if not exists maintenance_tasks_due_date_idx on public.maintenance_tasks(due_date);
 
 -- Keep updated_at current for simple updates.
 create or replace function public.set_updated_at()

@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "MaschinenKosten",
+    "description": "Einfache Maschinenkosten fuer landwirtschaftliche Betriebe"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "machines": "Maschinen",
+    "maintenance": "Wartung",
+    "costs": "Kosten",
+    "settings": "Einstellungen"
+  },
+  "search": {
+    "placeholder": "Maschine oder Wartung suchen"
+  }
+}

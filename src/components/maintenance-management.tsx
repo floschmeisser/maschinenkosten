@@ -1,0 +1,725 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import type { Locale } from "@/i18n/routing";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
+import type { Machine } from "@/lib/app/machines";
+import { getMachines as getPlaceholderMachines } from "@/lib/app/machines";
+import { getMachines } from "@/lib/app/machines-database";
+import { getMaintenanceViewPreference, setMaintenanceViewPreference } from "@/lib/app/preferences";
+import {
+  completeMaintenanceTask,
+  createMaintenanceTask,
+  getMaintenanceTasks,
+  updateMaintenanceTask
+} from "@/lib/app/maintenance-database";
+import {
+  filterMaintenanceTasks,
+  getMaintenanceDisplayStatus,
+  getMaintenanceRecurrenceLabel,
+  getMaintenanceTypeLabel,
+  getMaintenanceUrgencyLabel,
+  getMostRelevantDueLabel,
+  getTodaysWorkTasks,
+  isMaintenanceFilter,
+  sortMaintenanceTasksByUrgency,
+  type CompleteMaintenanceTaskInput,
+  type CreateMaintenanceTaskInput,
+  type MaintenanceDisplayStatus,
+  type MaintenanceFilter,
+  type MaintenanceTask
+} from "@/lib/app/maintenance";
+import { MaintenanceFormModal } from "./maintenance-form-modal";
+
+type TaskGroup = {
+  key: MaintenanceDisplayStatus;
+  title: string;
+  tasks: MaintenanceTask[];
+};
+
+type MaintenanceManagementProps = {
+  initialFilter?: string;
+  initialFocusedTaskId?: string;
+  locale: Locale;
+};
+
+export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, locale }: MaintenanceManagementProps) {
+  const [machines, setMachines] = useState<Machine[]>(() => getPlaceholderMachines());
+  const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [completionTask, setCompletionTask] = useState<MaintenanceTask | null>(null);
+  const [costEditTaskId, setCostEditTaskId] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<MaintenanceFilter>("all");
+  const [isTodayMode, setIsTodayMode] = useState(false);
+  const [openedWithFilter, setOpenedWithFilter] = useState(false);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [hasFocusedFromUrl, setHasFocusedFromUrl] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const refreshData = useCallback(async () => {
+    const [machineData, taskData] = await Promise.all([getMachines(), getMaintenanceTasks()]);
+    setMachines(machineData);
+    setTasks(sortMaintenanceTasksByUrgency(taskData, machineData));
+  }, []);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  useEffect(() => {
+    if (isMaintenanceFilter(initialFilter)) {
+      setSelectedFilter(initialFilter);
+      setIsTodayMode(false);
+      setOpenedWithFilter(true);
+      return;
+    }
+
+    setSelectedFilter("all");
+    setIsTodayMode(getMaintenanceViewPreference() === "today");
+    setOpenedWithFilter(false);
+  }, [initialFilter]);
+
+  useEffect(() => {
+    setFocusedTaskId(null);
+    setHasFocusedFromUrl(false);
+  }, [initialFocusedTaskId]);
+
+  const filteredTasks = useMemo(() => filterMaintenanceTasks(tasks, machines, selectedFilter), [tasks, machines, selectedFilter]);
+  const todaysWorkTasks = useMemo(() => getTodaysWorkTasks(tasks, machines), [tasks, machines]);
+  const taskGroups = useMemo(() => groupTasks(filteredTasks, machines), [filteredTasks, machines]);
+  const focusedTask = useMemo(
+    () => (focusedTaskId ? tasks.find((task) => task.id === focusedTaskId) ?? null : null),
+    [focusedTaskId, tasks]
+  );
+
+  useEffect(() => {
+    if (!initialFocusedTaskId || hasFocusedFromUrl || tasks.length === 0) {
+      return;
+    }
+
+    const focusedTask = tasks.find((task) => task.id === initialFocusedTaskId);
+
+    if (!focusedTask) {
+      return;
+    }
+
+    const isVisibleInNormalView = filteredTasks.some((task) => task.id === focusedTask.id);
+    const isVisibleInTodayMode = todaysWorkTasks.some((task) => task.id === focusedTask.id);
+
+    if (isTodayMode && !isVisibleInTodayMode) {
+      setIsTodayMode(false);
+      return;
+    }
+
+    if (!isTodayMode && !isVisibleInNormalView) {
+      setSelectedFilter(getFilterForTask(focusedTask, machines));
+      return;
+    }
+
+    setExpandedTaskId(focusedTask.id);
+    setFocusedTaskId(focusedTask.id);
+    setHasFocusedFromUrl(true);
+
+    window.setTimeout(() => {
+      document.getElementById(getTaskElementId(focusedTask.id))?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }, 80);
+  }, [filteredTasks, hasFocusedFromUrl, initialFocusedTaskId, isTodayMode, machines, tasks, todaysWorkTasks]);
+
+  async function handleCreateTask(input: CreateMaintenanceTaskInput) {
+    await createMaintenanceTask(input);
+    await refreshData();
+    setIsCreating(false);
+    setSuccessMessage(null);
+  }
+
+  async function handleUpdateTask(input: CreateMaintenanceTaskInput) {
+    if (!editingTask) {
+      return;
+    }
+
+    await updateMaintenanceTask(editingTask.id, input);
+    await refreshData();
+    setEditingTask(null);
+    setSuccessMessage(null);
+  }
+
+  async function handleQuickCostSave(task: MaintenanceTask, actualCost: number | null, notes: string | null) {
+    await updateMaintenanceTask(task.id, { actualCost, notes });
+    await refreshData();
+    setCostEditTaskId(null);
+    setSuccessMessage("Kosten gespeichert.");
+  }
+
+  async function handleCompleteTask(task: MaintenanceTask, completionData: CompleteMaintenanceTaskInput) {
+    const result = await completeMaintenanceTask(task.id, completionData);
+    await refreshData();
+    setCompletionTask(null);
+    setExpandedTaskId(task.id);
+    setFocusedTaskId(null);
+    setSuccessMessage(
+      result.nextTask ? "Wartung erledigt. Naechster Termin wurde angelegt." : "Wartung erledigt."
+    );
+  }
+
+  return (
+    <main className="page">
+      <section className="page-header">
+        <h1>Wartung</h1>
+        <p>Offene Arbeiten und einfache Planung fuer die wichtigsten Maschinen.</p>
+      </section>
+
+      {isCreating ? (
+        <MaintenanceFormModal
+          mode="create"
+          machines={machines}
+          onSave={handleCreateTask}
+          onCancel={() => setIsCreating(false)}
+        />
+      ) : editingTask ? (
+        <MaintenanceFormModal
+          mode="edit"
+          machines={machines}
+          task={editingTask}
+          onSave={handleUpdateTask}
+          onCancel={() => setEditingTask(null)}
+        />
+      ) : (
+        <section className="panel">
+          <div className="panel-heading">
+            <h2>Wartung anlegen</h2>
+            <button className="button primary" type="button" onClick={() => setIsCreating(true)}>
+              Wartung anlegen
+            </button>
+          </div>
+          <p className="muted">Erfasse Service, Reparaturen und Kontrollen fuer den taeglichen Betrieb.</p>
+        </section>
+      )}
+
+      {completionTask ? (
+        <CompletionForm
+          task={completionTask}
+          onCancel={() => setCompletionTask(null)}
+          onComplete={(completionData) => handleCompleteTask(completionTask, completionData)}
+        />
+      ) : null}
+
+      {successMessage ? <section className="panel success-panel">{successMessage}</section> : null}
+      {openedWithFilter ? <section className="panel info-panel">Ansicht wurde passend zur Wartung geoeffnet.</section> : null}
+      {focusedTask ? <FocusedTaskPanel locale={locale} task={focusedTask} onComplete={setCompletionTask} /> : null}
+
+      <section className={isTodayMode ? "today-mode-panel active" : "today-mode-panel"}>
+        <div>
+          <h2>Meine Arbeit heute</h2>
+          <p>{todaysWorkTasks.length} dringende Aufgaben fuer heute.</p>
+        </div>
+        <button
+          className={isTodayMode ? "button primary large-action" : "button large-action"}
+          type="button"
+          onClick={() => {
+            setIsTodayMode((current) => {
+              const nextValue = !current;
+              setMaintenanceViewPreference(nextValue ? "today" : "overview");
+              return nextValue;
+            });
+            setCostEditTaskId(null);
+            setExpandedTaskId(null);
+          }}
+        >
+          {isTodayMode ? "Normale Ansicht" : "Meine Arbeit heute"}
+        </button>
+        {isTodayMode ? <p className="preference-hint">Diese Ansicht wird fuer das naechste Mal gemerkt.</p> : null}
+      </section>
+
+      {isTodayMode ? (
+        <TodayWorkList
+          costEditTaskId={costEditTaskId}
+          expandedTaskId={expandedTaskId}
+          focusedTaskId={focusedTaskId}
+          machines={machines}
+          onComplete={setCompletionTask}
+          onCostEdit={setCostEditTaskId}
+          onCostSave={handleQuickCostSave}
+          onToggle={(taskId) => setExpandedTaskId((current) => (current === taskId ? null : taskId))}
+          tasks={todaysWorkTasks}
+        />
+      ) : (
+        <>
+      <MaintenanceFilters
+        selectedFilter={selectedFilter}
+        onChange={(filter) => {
+          setSelectedFilter(filter);
+          setCostEditTaskId(null);
+          setSuccessMessage(null);
+        }}
+      />
+
+      {taskGroups.map((group) => (
+        <MaintenanceGroup
+          costEditTaskId={costEditTaskId}
+          expandedTaskId={expandedTaskId}
+          focusedTaskId={focusedTaskId}
+          group={group}
+          key={group.key}
+          machines={machines}
+          onComplete={setCompletionTask}
+          onCostEdit={setCostEditTaskId}
+          onCostSave={handleQuickCostSave}
+          onEdit={setEditingTask}
+          onToggle={(taskId) => setExpandedTaskId((current) => (current === taskId ? null : taskId))}
+        />
+      ))}
+        </>
+      )}
+    </main>
+  );
+}
+
+type TodayWorkListProps = {
+  costEditTaskId: string | null;
+  expandedTaskId: string | null;
+  focusedTaskId: string | null;
+  machines: Machine[];
+  tasks: MaintenanceTask[];
+  onComplete: (task: MaintenanceTask) => void;
+  onCostEdit: (taskId: string | null) => void;
+  onCostSave: (task: MaintenanceTask, actualCost: number | null, notes: string | null) => Promise<void> | void;
+  onToggle: (taskId: string) => void;
+};
+
+function TodayWorkList({
+  costEditTaskId,
+  expandedTaskId,
+  focusedTaskId,
+  machines,
+  onComplete,
+  onCostEdit,
+  onCostSave,
+  onToggle,
+  tasks
+}: TodayWorkListProps) {
+  return (
+    <section className="today-work-list">
+      {tasks.length === 0 ? (
+        <section className="panel">
+          <h2>Heute nichts Dringendes</h2>
+          <p className="muted">Keine faelligen Wartungen nach Datum, Stunden oder Kilometern.</p>
+        </section>
+      ) : null}
+
+      {tasks.map((task) => {
+        const machine = machines.find((item) => item.id === task.machineId);
+        const isExpanded = expandedTaskId === task.id;
+
+        return (
+          <article
+            className={focusedTaskId === task.id ? "today-task-card focused-task" : "today-task-card"}
+            id={getTaskElementId(task.id)}
+            key={task.id}
+          >
+            <button className="task-summary" type="button" onClick={() => onToggle(task.id)}>
+              <span>
+                <strong>{task.title}</strong>
+                <small>
+                  {machine?.name ?? "Unbekannte Maschine"} / {getMaintenanceTypeLabel(task.type)}
+                </small>
+              </span>
+              <span className="task-side">
+                <span className="urgency-badge due">{getMaintenanceUrgencyLabel(task, machine)}</span>
+                <strong>{getMostRelevantDueLabel(task, machine)}</strong>
+              </span>
+            </button>
+
+            {isExpanded ? <MaintenanceDetails task={task} machine={machine} /> : null}
+
+            <div className="today-actions">
+              <button className="button primary large-action" type="button" onClick={() => onComplete(task)}>
+                Erledigen
+              </button>
+              <button className="button large-action" type="button" onClick={() => onCostEdit(costEditTaskId === task.id ? null : task.id)}>
+                Kosten eintragen
+              </button>
+              <button className="button large-action" type="button" onClick={() => onToggle(task.id)}>
+                Details
+              </button>
+            </div>
+
+            {costEditTaskId === task.id ? (
+              <QuickCostForm task={task} onCancel={() => onCostEdit(null)} onSave={(actualCost, notes) => onCostSave(task, actualCost, notes)} />
+            ) : null}
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+type MaintenanceGroupProps = {
+  costEditTaskId: string | null;
+  expandedTaskId: string | null;
+  focusedTaskId: string | null;
+  group: TaskGroup;
+  machines: Machine[];
+  onEdit: (task: MaintenanceTask) => void;
+  onComplete: (task: MaintenanceTask) => void;
+  onCostEdit: (taskId: string | null) => void;
+  onCostSave: (task: MaintenanceTask, actualCost: number | null, notes: string | null) => Promise<void> | void;
+  onToggle: (taskId: string) => void;
+};
+
+function MaintenanceGroup({
+  costEditTaskId,
+  expandedTaskId,
+  focusedTaskId,
+  group,
+  machines,
+  onEdit,
+  onComplete,
+  onCostEdit,
+  onCostSave,
+  onToggle
+}: MaintenanceGroupProps) {
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>{group.title}</h2>
+        <span className="muted">{group.tasks.length} Aufgaben</span>
+      </div>
+
+      {group.tasks.length === 0 ? (
+        <p className="muted">Keine Aufgaben.</p>
+      ) : (
+        <div className="task-list">
+          {group.tasks.map((task) => {
+            const machine = machines.find((item) => item.id === task.machineId);
+            const isCompleted = task.status === "completed";
+            const isExpanded = expandedTaskId === task.id;
+            const urgency = getMaintenanceDisplayStatus(task, machine);
+
+            return (
+              <article
+                className={focusedTaskId === task.id ? "task-item focused-task" : "task-item"}
+                id={getTaskElementId(task.id)}
+                key={task.id}
+              >
+                <button className="task-summary" type="button" onClick={() => onToggle(task.id)}>
+                  <span>
+                    <strong>{task.title}</strong>
+                    <small>
+                      {machine?.name ?? "Unbekannte Maschine"} / {getMaintenanceTypeLabel(task.type)} /{" "}
+                      {getMostRelevantDueLabel(task, machine)}
+                    </small>
+                  </span>
+                  <span className="task-side">
+                    <span className={`urgency-badge ${urgency}`}>{getMaintenanceUrgencyLabel(task, machine)}</span>
+                    <strong>{getMaintenanceRecurrenceLabel(task)}</strong>
+                  </span>
+                </button>
+
+                {isExpanded ? <MaintenanceDetails task={task} machine={machine} /> : null}
+
+                <div className="task-actions">
+                  <button className="button" type="button" onClick={() => onEdit(task)}>
+                    Bearbeiten
+                  </button>
+                  <button className="button" type="button" onClick={() => onCostEdit(costEditTaskId === task.id ? null : task.id)}>
+                    Kosten eintragen
+                  </button>
+                  {!isCompleted ? (
+                    <button className="button primary" type="button" onClick={() => onComplete(task)}>
+                      Als erledigt markieren
+                    </button>
+                  ) : null}
+                </div>
+
+                {costEditTaskId === task.id ? (
+                  <QuickCostForm task={task} onCancel={() => onCostEdit(null)} onSave={(actualCost, notes) => onCostSave(task, actualCost, notes)} />
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+type MaintenanceFiltersProps = {
+  selectedFilter: MaintenanceFilter;
+  onChange: (filter: MaintenanceFilter) => void;
+};
+
+const filterOptions: Array<{ label: string; value: MaintenanceFilter }> = [
+  { label: "Alle", value: "all" },
+  { label: "Heute", value: "today" },
+  { label: "Diese Woche", value: "week" },
+  { label: "Faellig", value: "due" },
+  { label: "Bald", value: "soon" },
+  { label: "Erledigt", value: "completed" }
+];
+
+function MaintenanceFilters({ selectedFilter, onChange }: MaintenanceFiltersProps) {
+  return (
+    <section className="filter-row" aria-label="Wartung filtern">
+      {filterOptions.map((option) => (
+        <button
+          className={selectedFilter === option.value ? "filter-button active" : "filter-button"}
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </section>
+  );
+}
+
+type FocusedTaskPanelProps = {
+  locale: Locale;
+  task: MaintenanceTask;
+  onComplete: (task: MaintenanceTask) => void;
+};
+
+function FocusedTaskPanel({ locale, task, onComplete }: FocusedTaskPanelProps) {
+  const isCompleted = task.status === "completed";
+
+  return (
+    <section className="panel focused-task-panel">
+      <div>
+        <h2>{task.title}</h2>
+        <p>{isCompleted ? "Diese Wartung ist bereits erledigt." : "Diese Wartung wurde aus dem Tagesstand geoeffnet."}</p>
+      </div>
+      <div className="focused-task-actions">
+        {!isCompleted ? (
+          <button className="button primary large-action" type="button" onClick={() => onComplete(task)}>
+            Jetzt erledigen
+          </button>
+        ) : null}
+        <Link className="button large-action" href={`/${locale}/daily-usage`}>
+          Zurueck zum Tagesstand
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+type MaintenanceDetailsProps = {
+  task: MaintenanceTask;
+  machine?: Machine;
+};
+
+function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
+  return (
+    <dl className="detail-list task-details">
+      <div>
+        <dt>Maschine</dt>
+        <dd>{machine?.name ?? "Unbekannte Maschine"}</dd>
+      </div>
+      <div>
+        <dt>Art</dt>
+        <dd>{getMaintenanceTypeLabel(task.type)}</dd>
+      </div>
+      <div>
+        <dt>Faellig</dt>
+        <dd>{formatDue(task)}</dd>
+      </div>
+      <div>
+        <dt>Wiederholung</dt>
+        <dd>{getMaintenanceRecurrenceLabel(task)}</dd>
+      </div>
+      <div>
+        <dt>Geschaetzt</dt>
+        <dd>{formatCurrency(task.estimatedCost)}</dd>
+      </div>
+      <div>
+        <dt>Tatsaechlich</dt>
+        <dd>{task.actualCost === null ? "-" : formatCurrency(task.actualCost)}</dd>
+      </div>
+      <div>
+        <dt>Notiz</dt>
+        <dd>{task.notes || "-"}</dd>
+      </div>
+      <div>
+        <dt>Erledigt am</dt>
+        <dd>{task.completedAt ? formatDate(task.completedAt) : "-"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+type CompletionFormProps = {
+  task: MaintenanceTask;
+  onCancel: () => void;
+  onComplete: (completionData: CompleteMaintenanceTaskInput) => Promise<void> | void;
+};
+
+function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
+  const [actualCost, setActualCost] = useState(String(task.actualCost ?? task.estimatedCost ?? 0));
+  const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState(task.notes ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+
+    try {
+      await onComplete({
+        actualCost: toOptionalNumber(actualCost),
+        completedAt,
+        notes
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section className="panel form-panel">
+      <div className="panel-heading">
+        <h2>Wartung abschliessen</h2>
+        <span className="muted">{task.title}</span>
+      </div>
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <label>
+          Tatsaechliche Kosten
+          <input min="0" type="number" value={actualCost} onChange={(event) => setActualCost(event.target.value)} />
+        </label>
+        <label>
+          Erledigt am
+          <input type="date" value={completedAt} onChange={(event) => setCompletedAt(event.target.value)} />
+        </label>
+        <label className="form-section">
+          Notiz
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
+        </label>
+        <div className="form-actions">
+          <button className="button" type="button" onClick={onCancel}>
+            Abbrechen
+          </button>
+          <button className="button primary" type="submit" disabled={isSaving}>
+            {isSaving ? "Speichern..." : "Erledigt speichern"}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+type QuickCostFormProps = {
+  task: MaintenanceTask;
+  onCancel: () => void;
+  onSave: (actualCost: number | null, notes: string | null) => Promise<void> | void;
+};
+
+function QuickCostForm({ task, onCancel, onSave }: QuickCostFormProps) {
+  const [actualCost, setActualCost] = useState(String(task.actualCost ?? task.estimatedCost ?? 0));
+  const [notes, setNotes] = useState(task.notes ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+
+    try {
+      await onSave(toOptionalNumber(actualCost), notes.trim() || null);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <form className="quick-cost-form" onSubmit={handleSubmit}>
+      <label>
+        Kosten
+        <input min="0" type="number" value={actualCost} onChange={(event) => setActualCost(event.target.value)} />
+      </label>
+      <label>
+        Notiz
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
+      </label>
+      <div className="form-actions">
+        <button className="button" type="button" onClick={onCancel}>
+          Abbrechen
+        </button>
+        <button className="button primary" type="submit" disabled={isSaving}>
+          {isSaving ? "Speichern..." : "Kosten speichern"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function groupTasks(tasks: MaintenanceTask[], machines: Machine[]): TaskGroup[] {
+  const groups: TaskGroup[] = [
+    { key: "due", title: "Faellig", tasks: [] },
+    { key: "soon", title: "Bald faellig", tasks: [] },
+    { key: "planned", title: "Geplant", tasks: [] },
+    { key: "completed", title: "Erledigt", tasks: [] }
+  ];
+
+  for (const task of sortMaintenanceTasksByUrgency(tasks, machines)) {
+    const machine = machines.find((item) => item.id === task.machineId);
+    const status = getMaintenanceDisplayStatus(task, machine);
+    const group = groups.find((item) => item.key === status);
+    group?.tasks.push(task);
+  }
+
+  return groups;
+}
+
+function getFilterForTask(task: MaintenanceTask, machines: Machine[]): MaintenanceFilter {
+  const machine = machines.find((item) => item.id === task.machineId);
+  const displayStatus = getMaintenanceDisplayStatus(task, machine);
+
+  if (displayStatus === "completed") {
+    return "completed";
+  }
+
+  if (displayStatus === "due") {
+    return "due";
+  }
+
+  if (displayStatus === "soon") {
+    return "soon";
+  }
+
+  return "all";
+}
+
+function getTaskElementId(taskId: string): string {
+  return `maintenance-task-${taskId}`;
+}
+
+function formatDue(task: MaintenanceTask): string {
+  const parts: string[] = [];
+
+  if (task.dueDate) {
+    parts.push(formatDate(task.dueDate));
+  }
+
+  if (task.dueOperatingHours !== null) {
+    parts.push(`${formatNumber(task.dueOperatingHours)} h`);
+  }
+
+  if (task.dueKilometers !== null) {
+    parts.push(`${formatNumber(task.dueKilometers)} km`);
+  }
+
+  return parts.length > 0 ? parts.join(" / ") : "Keine Faelligkeit";
+}
+
+function toOptionalNumber(value: string): number | null {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}

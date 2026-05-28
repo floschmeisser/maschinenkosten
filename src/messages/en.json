@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "MaschinenKosten",
+    "description": "Simple machine costs for farms"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "machines": "Machines",
+    "maintenance": "Maintenance",
+    "costs": "Costs",
+    "settings": "Settings"
+  },
+  "search": {
+    "placeholder": "Search machine or maintenance"
+  }
+}

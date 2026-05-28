@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "MaschinenKosten",
+    "description": "Costi macchina semplici per aziende agricole"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "machines": "Macchine",
+    "maintenance": "Manutenzione",
+    "costs": "Costi",
+    "settings": "Impostazioni"
+  },
+  "search": {
+    "placeholder": "Cerca macchina o manutenzione"
+  }
+}

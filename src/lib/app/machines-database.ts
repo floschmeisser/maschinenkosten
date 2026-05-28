@@ -1,0 +1,269 @@
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  placeholderMachines,
+  type CreateMachineInput,
+  type Machine,
+  type UpdateMachineInput
+} from "./machines";
+
+type MachineRow = {
+  id: string;
+  farm_id: string;
+  name: string;
+  category: Machine["category"];
+  manufacturer: string;
+  model: string;
+  year_of_manufacture: number;
+  purchase_date: string | null;
+  purchase_price: number;
+  new_price: number;
+  current_value: number;
+  residual_value: number;
+  expected_useful_life_years: number;
+  annual_operating_hours: number;
+  current_operating_hours: number;
+  current_kilometers: number | null;
+  working_width_meters: number | null;
+  hectares_per_hour: number | null;
+  insurance_per_year?: number;
+  tax_per_year?: number;
+  storage_per_year?: number;
+  other_fixed_costs_per_year?: number;
+  maintenance_costs_per_year?: number;
+  repair_costs_per_year?: number;
+  fuel_costs_per_hour?: number;
+  operator_costs_per_hour?: number;
+  other_variable_costs_per_hour?: number;
+  annual_kilometers?: number | null;
+  status: Machine["status"];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupabaseTableApi<T> = {
+  select: (columns?: string) => Promise<{ data: T[] | null; error: Error | null }>;
+  insert: (input: Partial<T>) => {
+    select: (columns?: string) => {
+      single: () => Promise<{ data: T | null; error: Error | null }>;
+    };
+  };
+  update: (input: Partial<T>) => {
+    eq: (column: string, value: string) => {
+      select: (columns?: string) => {
+        single: () => Promise<{ data: T | null; error: Error | null }>;
+      };
+    };
+  };
+  delete: () => {
+    eq: (column: string, value: string) => Promise<{ error: Error | null }>;
+  };
+};
+
+let fallbackMachines = [...placeholderMachines];
+
+export async function getMachines(): Promise<Machine[]> {
+  const table = await getMachinesTable();
+
+  if (!table) {
+    return fallbackMachines;
+  }
+
+  const { data, error } = await table.select("*");
+
+  if (error || !data) {
+    return fallbackMachines;
+  }
+
+  return data.map(mapMachineRowToMachine);
+}
+
+export async function getMachineById(id: string): Promise<Machine | null> {
+  const machines = await getMachines();
+  return machines.find((machine) => machine.id === id) ?? null;
+}
+
+export async function createMachine(input: CreateMachineInput): Promise<Machine> {
+  const now = new Date().toISOString();
+  const fallbackMachine: Machine = {
+    ...input,
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now
+  };
+  const table = await getMachinesTable();
+
+  if (!table) {
+    fallbackMachines = [fallbackMachine, ...fallbackMachines];
+    return fallbackMachine;
+  }
+
+  const { data, error } = await table.insert(mapMachineToRow(fallbackMachine)).select("*").single();
+
+  if (error || !data) {
+    fallbackMachines = [fallbackMachine, ...fallbackMachines];
+    return fallbackMachine;
+  }
+
+  return mapMachineRowToMachine(data);
+}
+
+export async function updateMachine(id: string, input: UpdateMachineInput): Promise<Machine | null> {
+  const existing = fallbackMachines.find((machine) => machine.id === id);
+  const now = new Date().toISOString();
+  const fallbackMachine = existing ? { ...existing, ...input, updatedAt: now } : null;
+  const table = await getMachinesTable();
+
+  if (!table) {
+    if (fallbackMachine) {
+      fallbackMachines = fallbackMachines.map((machine) => (machine.id === id ? fallbackMachine : machine));
+    }
+
+    return fallbackMachine;
+  }
+
+  const { data, error } = await table.update(mapMachineInputToRow({ ...input, updatedAt: now })).eq("id", id).select("*").single();
+
+  if (error || !data) {
+    return fallbackMachine;
+  }
+
+  return mapMachineRowToMachine(data);
+}
+
+export async function deleteMachine(id: string): Promise<boolean> {
+  const table = await getMachinesTable();
+
+  if (!table) {
+    const hadMachine = fallbackMachines.some((machine) => machine.id === id);
+    fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
+    return hadMachine;
+  }
+
+  const { error } = await table.delete().eq("id", id);
+
+  if (error) {
+    return false;
+  }
+
+  return true;
+}
+
+async function getMachinesTable(): Promise<SupabaseTableApi<MachineRow> | null> {
+  const supabase = await createSupabaseBrowserClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  return supabase.from("machines") as unknown as SupabaseTableApi<MachineRow>;
+}
+
+function mapMachineRowToMachine(row: MachineRow): Machine {
+  return {
+    id: row.id,
+    farmId: row.farm_id,
+    name: row.name,
+    category: row.category,
+    manufacturer: row.manufacturer,
+    model: row.model,
+    yearOfManufacture: row.year_of_manufacture,
+    purchaseDate: row.purchase_date,
+    purchasePrice: row.purchase_price,
+    newPrice: row.new_price,
+    currentValue: row.current_value,
+    residualValue: row.residual_value,
+    expectedUsefulLifeYears: row.expected_useful_life_years,
+    annualOperatingHours: row.annual_operating_hours,
+    currentOperatingHours: row.current_operating_hours,
+    currentKilometers: row.current_kilometers,
+    workingWidthMeters: row.working_width_meters,
+    hectaresPerHour: row.hectares_per_hour,
+    insurancePerYear: row.insurance_per_year,
+    taxPerYear: row.tax_per_year,
+    storagePerYear: row.storage_per_year,
+    otherFixedCostsPerYear: row.other_fixed_costs_per_year,
+    maintenanceCostsPerYear: row.maintenance_costs_per_year,
+    repairCostsPerYear: row.repair_costs_per_year,
+    fuelCostsPerHour: row.fuel_costs_per_hour,
+    operatorCostsPerHour: row.operator_costs_per_hour,
+    otherVariableCostsPerHour: row.other_variable_costs_per_hour,
+    annualKilometers: row.annual_kilometers,
+    status: row.status,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapMachineToRow(machine: Machine): MachineRow {
+  return {
+    id: machine.id,
+    farm_id: machine.farmId,
+    name: machine.name,
+    category: machine.category,
+    manufacturer: machine.manufacturer,
+    model: machine.model,
+    year_of_manufacture: machine.yearOfManufacture,
+    purchase_date: machine.purchaseDate,
+    purchase_price: machine.purchasePrice,
+    new_price: machine.newPrice,
+    current_value: machine.currentValue,
+    residual_value: machine.residualValue,
+    expected_useful_life_years: machine.expectedUsefulLifeYears,
+    annual_operating_hours: machine.annualOperatingHours,
+    current_operating_hours: machine.currentOperatingHours,
+    current_kilometers: machine.currentKilometers,
+    working_width_meters: machine.workingWidthMeters,
+    hectares_per_hour: machine.hectaresPerHour,
+    insurance_per_year: machine.insurancePerYear,
+    tax_per_year: machine.taxPerYear,
+    storage_per_year: machine.storagePerYear,
+    other_fixed_costs_per_year: machine.otherFixedCostsPerYear,
+    maintenance_costs_per_year: machine.maintenanceCostsPerYear,
+    repair_costs_per_year: machine.repairCostsPerYear,
+    fuel_costs_per_hour: machine.fuelCostsPerHour,
+    operator_costs_per_hour: machine.operatorCostsPerHour,
+    other_variable_costs_per_hour: machine.otherVariableCostsPerHour,
+    annual_kilometers: machine.annualKilometers,
+    status: machine.status,
+    notes: machine.notes,
+    created_at: machine.createdAt,
+    updated_at: machine.updatedAt
+  };
+}
+
+function mapMachineInputToRow(input: Partial<CreateMachineInput & Pick<Machine, "updatedAt">>): Partial<MachineRow> {
+  return {
+    farm_id: input.farmId,
+    name: input.name,
+    category: input.category,
+    manufacturer: input.manufacturer,
+    model: input.model,
+    year_of_manufacture: input.yearOfManufacture,
+    purchase_date: input.purchaseDate,
+    purchase_price: input.purchasePrice,
+    new_price: input.newPrice,
+    current_value: input.currentValue,
+    residual_value: input.residualValue,
+    expected_useful_life_years: input.expectedUsefulLifeYears,
+    annual_operating_hours: input.annualOperatingHours,
+    current_operating_hours: input.currentOperatingHours,
+    current_kilometers: input.currentKilometers,
+    working_width_meters: input.workingWidthMeters,
+    hectares_per_hour: input.hectaresPerHour,
+    insurance_per_year: input.insurancePerYear,
+    tax_per_year: input.taxPerYear,
+    storage_per_year: input.storagePerYear,
+    other_fixed_costs_per_year: input.otherFixedCostsPerYear,
+    maintenance_costs_per_year: input.maintenanceCostsPerYear,
+    repair_costs_per_year: input.repairCostsPerYear,
+    fuel_costs_per_hour: input.fuelCostsPerHour,
+    operator_costs_per_hour: input.operatorCostsPerHour,
+    other_variable_costs_per_hour: input.otherVariableCostsPerHour,
+    annual_kilometers: input.annualKilometers,
+    status: input.status,
+    notes: input.notes,
+    updated_at: input.updatedAt
+  };
+}

@@ -29,7 +29,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -112,6 +113,11 @@ select {
   margin: 0 auto;
 }
 
+.search {
+  position: relative;
+  display: block;
+}
+
 .search input,
 .form-grid input,
 .form-grid select {
@@ -124,8 +130,37 @@ select {
   color: var(--text);
 }
 
-.search {
-  display: block;
+.search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.12);
+}
+
+.search-results a,
+.search-results p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.search-results a:hover {
+  background: var(--surface-muted);
+}
+
+.search-results span {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .sr-only {
@@ -209,6 +244,25 @@ select {
 .button.primary {
   background: var(--primary);
   color: #ffffff;
+}
+
+.button:disabled,
+.button[aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.dashboard-grid,
+.action-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.quick-actions {
+  border-color: var(--primary);
 }
 
 .mini-list,
@@ -361,6 +415,13 @@ td span {
   margin: 0;
   color: var(--danger);
   font-size: 14px;
+}
+
+.form-success {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #1f6b35;
+  font-weight: 700;
 }
 
 .filter-row {
@@ -873,6 +934,14 @@ td span {
 
   .stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+
+  .action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .details-grid,

@@ -49,16 +49,20 @@ export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: Mach
                   <span>Wartung</span>
                 </td>
                 <td>
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onUsageUpdate?.(machine);
-                    }}
-                  >
-                    Stand
-                  </button>
+                  {onUsageUpdate ? (
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onUsageUpdate(machine);
+                      }}
+                    >
+                      Stand
+                    </button>
+                  ) : (
+                    <span className="muted">-</span>
+                  )}
                 </td>
               </tr>
             ))}

@@ -50,7 +50,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
-  const helper = onSave ? "Pflichtfelder ausfuellen und speichern." : "Formular ist vorbereitet.";
+  const helper = onSave ? "Pflichtfelder ausfuellen und speichern." : "Speichern ist hier nicht verfuegbar.";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
   const canCancel = Boolean(onCancel);
 
@@ -191,8 +191,8 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
               Abbrechen
             </button>
           ) : null}
-          <button className="button primary" type="submit" disabled={isSaving}>
-            {isSaving ? "Speichern..." : "Speichern"}
+          <button className="button primary" type="submit" disabled={isSaving || !onSave}>
+            {!onSave ? "Nicht verfuegbar" : isSaving ? "Speichern..." : "Speichern"}
           </button>
         </div>
       </form>

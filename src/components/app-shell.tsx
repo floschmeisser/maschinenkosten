@@ -25,13 +25,14 @@ export function AppShell({ children, locale, messages }: AppShellProps) {
         <Link href={`/${locale}/dashboard`} className="brand" aria-label={messages.app.name}>
           <Image src="/assets/logo.svg" alt="" width={160} height={40} priority />
         </Link>
-        <GlobalSearch placeholder={messages.search.placeholder} />
+        <GlobalSearch locale={locale} placeholder={messages.search.placeholder} />
       </header>
 
       <div className="layout">
         <nav className="nav" aria-label="Hauptnavigation">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isDashboardRoot = item.href === `/${locale}/dashboard` && pathname === `/${locale}`;
+            const isActive = isDashboardRoot || pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
               <Link className={isActive ? "nav-link active" : "nav-link"} href={item.href} key={item.href}>

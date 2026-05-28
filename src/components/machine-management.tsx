@@ -31,7 +31,7 @@ type MachineManagementProps = {
 
 export function MachineManagement({ locale }: MachineManagementProps) {
   const router = useRouter();
-  const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines());
+  const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [isCreating, setIsCreating] = useState(false);
   const [usageMachine, setUsageMachine] = useState<MachineSummary | null>(null);
 

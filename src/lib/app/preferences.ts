@@ -1,4 +1,9 @@
 export type MaintenanceViewPreference = "overview" | "today";
+export type AppSettingsPreferences = {
+  farmName: string;
+  locale: "de" | "en" | "it";
+  currency: "EUR";
+};
 export type DailyUsageDraftRow = {
   currentOperatingHours: string;
   currentKilometers: string;
@@ -9,6 +14,12 @@ export type DailyUsageDraft = Record<string, DailyUsageDraftRow>;
 
 const maintenanceViewPreferenceKey = "maschinenkosten.maintenanceView";
 const dailyUsageDraftKey = "maschinenkosten.dailyUsageDraft";
+const appSettingsPreferenceKey = "maschinenkosten.settings";
+const defaultAppSettingsPreferences: AppSettingsPreferences = {
+  farmName: "",
+  locale: "de",
+  currency: "EUR"
+};
 
 export function getMaintenanceViewPreference(): MaintenanceViewPreference {
   if (!isBrowser()) {
@@ -67,6 +78,33 @@ export function clearDailyUsageDraft(): void {
   window.localStorage.removeItem(dailyUsageDraftKey);
 }
 
+export function getAppSettingsPreferences(): AppSettingsPreferences {
+  if (!isBrowser()) {
+    return defaultAppSettingsPreferences;
+  }
+
+  const storedValue = window.localStorage.getItem(appSettingsPreferenceKey);
+
+  if (!storedValue) {
+    return defaultAppSettingsPreferences;
+  }
+
+  try {
+    const parsedValue: unknown = JSON.parse(storedValue);
+    return isAppSettingsPreferences(parsedValue) ? parsedValue : defaultAppSettingsPreferences;
+  } catch {
+    return defaultAppSettingsPreferences;
+  }
+}
+
+export function setAppSettingsPreferences(preferences: AppSettingsPreferences): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.localStorage.setItem(appSettingsPreferenceKey, JSON.stringify(preferences));
+}
+
 export function formatDailyUsageDraftAge(updatedAt: string): string | null {
   const draftDate = new Date(updatedAt);
 
@@ -110,6 +148,20 @@ function isDailyUsageDraft(value: unknown): value is DailyUsageDraft {
       typeof (row as DailyUsageDraftRow).currentKilometers === "string" &&
       typeof (row as DailyUsageDraftRow).notes === "string" &&
       typeof (row as DailyUsageDraftRow).updatedAt === "string"
+  );
+}
+
+function isAppSettingsPreferences(value: unknown): value is AppSettingsPreferences {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const settings = value as AppSettingsPreferences;
+
+  return (
+    typeof settings.farmName === "string" &&
+    (settings.locale === "de" || settings.locale === "en" || settings.locale === "it") &&
+    settings.currency === "EUR"
   );
 }
 

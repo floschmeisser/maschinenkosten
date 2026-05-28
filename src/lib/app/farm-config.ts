@@ -47,8 +47,8 @@ export const defaultFarmConfig: FarmAppConfig = {
     primaryColor: "#2f7d32",
     accentColor: "#f4b942",
     backgroundColor: "#fff8e8",
-    welcomeTitle: "Heute am Betrieb",
-    welcomeSubtitle: "Die wichtigsten Maschinen, Wartungen und Kosten auf einen Blick."
+    welcomeTitle: "Heute",
+    welcomeSubtitle: "Maschinen. Wartung. Kosten."
   },
   dashboardFocus: ["today", "maintenance", "dailyUsage", "machines", "costs"],
   enabledModules: {
@@ -74,10 +74,10 @@ export const demoDairyFarmConfig: FarmAppConfig = {
     primaryColor: "#2f7d32",
     accentColor: "#f4b942",
     backgroundColor: "#fff8e8",
-    welcomeTitle: "Heute im Stall und am Hof",
-    welcomeSubtitle: "Tagesstand, Wartung und aktive Maschinen zuerst."
+    welcomeTitle: "Heute",
+    welcomeSubtitle: "Tagesstand. Wartung. Maschinen."
   },
-  dashboardFocus: ["dailyUsage", "today", "maintenance", "machines"],
+  dashboardFocus: ["today", "maintenance", "dailyUsage", "machines", "costs"],
   enabledModules: {
     machines: true,
     maintenance: true,
@@ -101,10 +101,10 @@ export const demoArableFarmConfig: FarmAppConfig = {
     primaryColor: "#3f7f2f",
     accentColor: "#d9a441",
     backgroundColor: "#fff5dc",
-    welcomeTitle: "Heute am Feld",
-    welcomeSubtitle: "Maschinen, Kosten und Hektarleistung im Blick."
+    welcomeTitle: "Heute",
+    welcomeSubtitle: "Maschinen. Kosten. Hektar."
   },
-  dashboardFocus: ["machines", "costs", "hectares", "maintenance", "dailyUsage"],
+  dashboardFocus: ["today", "maintenance", "dailyUsage", "machines", "costs"],
   enabledModules: {
     machines: true,
     maintenance: true,

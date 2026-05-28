@@ -5,7 +5,6 @@ export default function SettingsPage() {
     <main className="page">
       <section className="page-header">
         <h1>Einstellungen</h1>
-        <p>Basisdaten fuer Betrieb und lokale Anzeige.</p>
       </section>
       <SettingsPanel />
     </main>

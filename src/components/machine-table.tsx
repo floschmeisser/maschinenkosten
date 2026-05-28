@@ -36,7 +36,7 @@ export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: Mach
                 <td colSpan={6}>
                   <div className="empty-state">
                     <strong>Noch keine Maschinen</strong>
-                    <p>Lege die erste Maschine an, damit Tagesstand, Wartung und Kosten berechnet werden koennen.</p>
+                    <p>Noch keine Maschinen.</p>
                   </div>
                 </td>
               </tr>

@@ -96,7 +96,7 @@ export function Dashboard({ locale }: DashboardProps) {
         <span>{farmConfig.branding.farmName}</span>
         <h1>{farmConfig.branding.welcomeTitle}</h1>
         <p>{farmConfig.branding.welcomeSubtitle}</p>
-        {isLoading ? <small>Aktuelle Daten werden geladen...</small> : null}
+        {isLoading ? <small>Laden...</small> : null}
       </section>
 
       <section className="dashboard-focus-grid" aria-label="Betriebsuebersicht">
@@ -157,16 +157,16 @@ function createDashboardCards({
           tone: todaysWorkCount > 0 ? "warning" : "good",
           label: "Heute",
           value: todaysWorkCount.toString(),
-          helper: todaysWorkCount === 1 ? "Aufgabe" : "Aufgaben",
+          helper: todaysWorkCount === 1 ? "Aufgabe" : "offen",
           href: `/${locale}/maintenance`,
-          action: "Oeffnen"
+          action: "Heute"
         }
       : null,
     maintenance: farmConfig.enabledModules.maintenance
       ? {
           id: "maintenance",
           tone: dueMaintenanceCount > 0 ? "danger" : "good",
-          label: farmConfig.customLabels.maintenanceLabel,
+          label: "Faellig",
           value: dueMaintenanceCount.toString(),
           helper: "faellig",
           href: `/${locale}/maintenance?filter=due`,
@@ -179,7 +179,7 @@ function createDashboardCards({
           tone: "primary",
           label: farmConfig.customLabels.dailyUsageLabel,
           value: "Jetzt",
-          helper: "Staende eintragen",
+          helper: "Stand",
           href: `/${locale}/daily-usage`,
           action: "Erfassen"
         }
@@ -188,33 +188,33 @@ function createDashboardCards({
       ? {
           id: "machines",
           tone: "earth",
-          label: "Maschinenstatus",
+          label: farmConfig.customLabels.machinesLabel,
           value: activeMachineCount.toString(),
           helper: "aktiv",
           href: `/${locale}/machines`,
-          action: "Ansehen"
+          action: "Oeffnen"
         }
       : null,
     costs: farmConfig.enabledModules.costs
       ? {
           id: "costs",
           tone: "primary",
-          label: "Kostenuebersicht",
+          label: farmConfig.customLabels.costsLabel,
           value: costLabel,
           helper: exampleMachineName,
           href: `/${locale}/costs`,
-          action: "Rechnen"
+          action: "Oeffnen"
         }
       : null,
     hectares: farmConfig.enabledModules.machines
       ? {
           id: "hectares",
           tone: "earth",
-          label: "Hektarleistung",
+          label: "Hektar",
           value: hectaresLabel,
           helper: exampleMachineName,
           href: `/${locale}/machines`,
-          action: "Ansehen"
+          action: "Oeffnen"
         }
       : null
   };

@@ -84,7 +84,6 @@ export function MachineManagement({ locale }: MachineManagementProps) {
     <main className="page">
       <section className="page-header">
         <h1>Maschinen</h1>
-        <p>Alle Maschinen mit Betriebsstunden, Anschaffung und Wartungsstatus.</p>
       </section>
 
       {isCreating ? (
@@ -97,7 +96,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
               Neue Maschine
             </button>
           </div>
-          <p className="muted">Erfasse zuerst Name, Hersteller und Kosten. Details kannst du spaeter ergaenzen.</p>
+          <p className="muted">Grunddaten.</p>
         </section>
       )}
 
@@ -107,7 +106,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
             <h2>Stand aktualisieren</h2>
             <span className="muted">{usageMachine.name}</span>
           </div>
-          <p className="muted">Aktueller Stand beeinflusst Wartung und Kosten.</p>
+          <p className="muted">Stunden. Kilometer.</p>
           <UsageUpdateForm
             key={usageMachine.id}
             machine={usageMachine}
@@ -117,7 +116,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
         </section>
       ) : null}
 
-      {isLoadingMachines ? <p className="preference-hint">Maschinen werden geladen...</p> : null}
+      {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
       <MachineTable
         locale={locale}
         machines={machines}
@@ -186,7 +185,6 @@ export function MachineDetail({ machine }: MachineDetailProps) {
       <main className="page">
         <section className="page-header">
           <h1>{currentMachine.name}</h1>
-          <p>Maschinendaten bearbeiten und Kosten neu berechnen.</p>
         </section>
         <MachineFormModal
           mode="page"
@@ -220,7 +218,7 @@ export function MachineDetail({ machine }: MachineDetailProps) {
             </button>
           </div>
         </div>
-        <p className="muted">Aktueller Stand beeinflusst Wartung und Kosten.</p>
+        <p className="muted">Stand. Wartung. Kosten.</p>
         {isUpdatingUsage ? (
           <UsageUpdateForm machine={currentMachine} onCancel={() => setIsUpdatingUsage(false)} onSave={handleUsageUpdate} />
         ) : null}
@@ -291,7 +289,7 @@ export function MachineDetail({ machine }: MachineDetailProps) {
 
         <div className="panel">
           <h2>Kostenberechnung</h2>
-          <p className="muted">Wartung und Reparaturen werden aus erfassten Aufgaben uebernommen, wenn Daten vorhanden sind.</p>
+          <p className="muted">Berechnet.</p>
           <dl className="detail-list">
             <div>
               <dt>Abschreibung pro Jahr</dt>
@@ -337,7 +335,7 @@ export function MachineDetail({ machine }: MachineDetailProps) {
             <span className="muted">{maintenanceTasks.length} Aufgaben</span>
           </div>
           {maintenanceTasks.length === 0 ? (
-            <p className="muted">Keine Wartung erfasst.</p>
+            <p className="muted">Keine Wartung.</p>
           ) : (
             <div className="mini-list">
               {nextMaintenanceTasks.map((task) => (

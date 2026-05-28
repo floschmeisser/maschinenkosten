@@ -68,8 +68,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
       setMachines(machineData);
       setTasks(sortMaintenanceTasksByUrgency(taskData, machineData));
     } catch {
-      const fallbackMachines = getPlaceholderMachines();
-      setMachines(fallbackMachines);
+      setMachines(getPlaceholderMachines());
       setTasks([]);
     } finally {
       setIsLoadingData(false);
@@ -174,7 +173,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
     setExpandedTaskId(task.id);
     setFocusedTaskId(null);
     setSuccessMessage(
-      result.nextTask ? "Wartung erledigt. Naechster Termin wurde angelegt." : "Wartung erledigt."
+      result.nextTask ? "Erledigt. Neuer Termin." : "Erledigt."
     );
   }
 
@@ -182,9 +181,8 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
     <main className="page">
       <section className="page-header">
         <h1>Wartung</h1>
-        <p>Offene Arbeiten und einfache Planung fuer die wichtigsten Maschinen.</p>
       </section>
-      {isLoadingData ? <p className="preference-hint">Wartungen werden geladen...</p> : null}
+      {isLoadingData ? <p className="preference-hint">Laden...</p> : null}
 
       {isCreating ? (
         <MaintenanceFormModal
@@ -209,7 +207,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
               Wartung anlegen
             </button>
           </div>
-          <p className="muted">Erfasse Service, Reparaturen und Kontrollen fuer den taeglichen Betrieb.</p>
+          <p className="muted">Service. Reparatur. Kontrolle.</p>
         </section>
       )}
 
@@ -222,13 +220,13 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
       ) : null}
 
       {successMessage ? <section className="panel success-panel">{successMessage}</section> : null}
-      {openedWithFilter ? <section className="panel info-panel">Ansicht wurde passend zur Wartung geoeffnet.</section> : null}
+      {openedWithFilter ? <section className="panel info-panel">Ansicht gesetzt.</section> : null}
       {focusedTask ? <FocusedTaskPanel locale={locale} task={focusedTask} onComplete={setCompletionTask} /> : null}
 
       <section className={isTodayMode ? "today-mode-panel active" : "today-mode-panel"}>
         <div>
-          <h2>Meine Arbeit heute</h2>
-          <p>{todaysWorkTasks.length} dringende Aufgaben fuer heute.</p>
+          <h2>Heute</h2>
+          <p>{todaysWorkTasks.length} offen</p>
         </div>
         <button
           className={isTodayMode ? "button primary large-action" : "button large-action"}
@@ -243,9 +241,9 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
             setExpandedTaskId(null);
           }}
         >
-          {isTodayMode ? "Normale Ansicht" : "Meine Arbeit heute"}
+          {isTodayMode ? "Alle anzeigen" : "Heute"}
         </button>
-        {isTodayMode ? <p className="preference-hint">Diese Ansicht wird fuer das naechste Mal gemerkt.</p> : null}
+        {isTodayMode ? <p className="preference-hint">Ansicht gemerkt.</p> : null}
       </section>
 
       {isTodayMode ? (
@@ -319,8 +317,8 @@ function TodayWorkList({
     <section className="today-work-list">
       {tasks.length === 0 ? (
         <section className="panel empty-state">
-          <h2>Heute nichts Dringendes</h2>
-          <p className="muted">Keine faelligen Wartungen nach Datum, Stunden oder Kilometern.</p>
+          <h2>Alles erledigt</h2>
+          <p className="muted">Keine Wartung faellig.</p>
         </section>
       ) : null}
 
@@ -405,8 +403,8 @@ function MaintenanceGroup({
 
       {group.tasks.length === 0 ? (
         <div className="empty-state">
-          <strong>Keine Aufgaben</strong>
-          <p>In diesem Bereich ist aktuell nichts zu tun.</p>
+          <strong>Alles erledigt</strong>
+          <p>Alles erledigt.</p>
         </div>
       ) : (
         <div className="task-list">
@@ -443,11 +441,11 @@ function MaintenanceGroup({
                     Bearbeiten
                   </button>
                   <button className="button" type="button" onClick={() => onCostEdit(costEditTaskId === task.id ? null : task.id)}>
-                    Kosten eintragen
+                    Kosten
                   </button>
                   {!isCompleted ? (
                     <button className="button primary" type="button" onClick={() => onComplete(task)}>
-                      Als erledigt markieren
+                      Erledigen
                     </button>
                   ) : null}
                 </div>
@@ -508,7 +506,7 @@ function FocusedTaskPanel({ locale, task, onComplete }: FocusedTaskPanelProps) {
     <section className="panel focused-task-panel">
       <div>
         <h2>{task.title}</h2>
-        <p>{isCompleted ? "Diese Wartung ist bereits erledigt." : "Diese Wartung wurde aus dem Tagesstand geoeffnet."}</p>
+        <p>{isCompleted ? "Erledigt." : "Aus Tagesstand."}</p>
       </div>
       <div className="focused-task-actions">
         {!isCompleted ? (

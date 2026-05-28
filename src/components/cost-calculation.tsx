@@ -20,14 +20,12 @@ export function CostCalculation() {
     <main className="page">
       <section className="page-header">
         <h1>Kosten</h1>
-        <p>Einfache Orientierung fuer Maschinenkosten je Jahr und je Betriebsstunde.</p>
       </section>
 
       <section className="cost-layout">
         <form className="panel form-grid">
           <div className="form-section">
             <h2>Werte eintragen</h2>
-            <p className="muted">Alle Felder wirken sofort auf das Ergebnis.</p>
           </div>
           <NumberField label="Anschaffung" value={inputs.purchasePrice} onChange={(value) => updateInput("purchasePrice", value)} />
           <NumberField label="Restwert" value={inputs.residualValue} onChange={(value) => updateInput("residualValue", value)} />

@@ -41,7 +41,7 @@ export function LoginPanel() {
     <section className="panel form-panel info-panel">
       <div>
         <h2>Anmeldung kommt spaeter</h2>
-        <p className="muted">Die App arbeitet aktuell lokal mit Supabase-Fallback. Auth wird erst verbunden, wenn Benutzerkonten aktiv sind.</p>
+        <p className="muted">Noch nicht aktiv.</p>
       </div>
       <form className="form-grid" aria-disabled="true">
         <label>
@@ -88,15 +88,15 @@ export function SettingsPanel() {
   function updateFarmProfile(value: FarmProfilePreference) {
     setFarmProfile(value);
     setFarmProfilePreference(value);
-    setStatusMessage("Betriebsprofil Vorschau aktiviert.");
+    setStatusMessage("Profil aktiv.");
   }
 
   return (
     <section className="panel form-panel">
       <form className="form-grid" onSubmit={handleSubmit}>
         <fieldset className="form-section">
-          <legend>Betriebsprofil Vorschau</legend>
-          <p className="muted">Nur zur Vorschau fuer Anpassungen. Keine Datenbank- oder Benutzerverwaltung.</p>
+          <legend>Betriebsprofil</legend>
+          <p className="muted">Nur Vorschau.</p>
           <label>
             Profil
             <select value={farmProfile} onChange={(event) => updateFarmProfile(event.target.value as FarmProfilePreference)}>
@@ -135,7 +135,7 @@ export function SettingsPanel() {
         {statusMessage ? <p className="form-success">{statusMessage}</p> : null}
         <div className="form-actions">
           <button className="button primary" type="submit">
-            Einstellungen speichern
+            Speichern
           </button>
         </div>
       </form>

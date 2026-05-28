@@ -221,7 +221,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
 
   async function saveChangedRows() {
     if (changedMachineIds.length === 0) {
-      setSaveStatusMessage("Keine Änderungen zum Speichern");
+      setSaveStatusMessage("Keine Aenderungen");
       setAttentionMachineIds([]);
       setShowOnlyAttentionRows(false);
       return;
@@ -266,7 +266,6 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
     <main className="page">
       <section className="page-header">
         <h1>Tagesstand erfassen</h1>
-        <p>Einmal am Tag die Maschinenstaende eintragen. Wartung und Kosten bleiben aktuell.</p>
       </section>
 
       <section className="panel">
@@ -281,8 +280,8 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
             </button>
           </div>
         </div>
-        <p className="muted">Leere Felder behalten den bisherigen Stand.</p>
-        {isLoadingData ? <p className="preference-hint">Maschinenstaende werden geladen...</p> : null}
+        <p className="muted">Leer = unveraendert.</p>
+        {isLoadingData ? <p className="preference-hint">Laden...</p> : null}
         {saveStatusMessage ? <p className="daily-save-status">{saveStatusMessage}</p> : null}
         {attentionMachineIds.length > 0 ? (
           <div className="daily-attention-filter" aria-label="Pruefansicht">
@@ -291,7 +290,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
               type="button"
               onClick={() => setShowOnlyAttentionRows(true)}
             >
-              Nur prüfen ({attentionMachineIds.length})
+              Nur pruefen ({attentionMachineIds.length})
             </button>
             <button
               className={showOnlyAttentionRows ? "button" : "button primary"}
@@ -307,7 +306,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
             <div className="daily-draft-panel-text">
               <strong>Entwurf gefunden</strong>
               {restoredDraftAgeLabel ? <span>{restoredDraftAgeLabel}</span> : null}
-              <p>Du hast noch nicht gespeicherte Maschinenstaende.</p>
+              <p>Nicht gespeichert.</p>
             </div>
             <div className="daily-draft-panel-actions">
               <button className="button primary large-action" type="button" onClick={continueRestoredDraft}>
@@ -331,13 +330,13 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
         {machines.length === 0 ? (
           <div className="empty-state">
             <strong>Keine aktiven Maschinen</strong>
-            <p>Lege zuerst eine Maschine an oder aktiviere eine vorhandene Maschine.</p>
+            <p>Noch keine Maschine aktiv.</p>
           </div>
         ) : (
           <div className="daily-usage-list">
             {attentionMachines.length > 0 ? (
               <section className="daily-attention-group" aria-labelledby="daily-attention-heading" ref={attentionSectionRef}>
-                <h3 id="daily-attention-heading">Bitte prüfen ({attentionMachineIds.length})</h3>
+                <h3 id="daily-attention-heading">Bitte pruefen ({attentionMachineIds.length})</h3>
                 {attentionMachines.map((machine) =>
                   renderDailyUsageRow({
                     machine,
@@ -449,7 +448,7 @@ function renderDailyUsageRow({
         ) : (
           <>
             <span>Nach diesem Stand: {formatMaintenanceCount(predictedDueCount)} faellig</span>
-            <strong>{predictedDueCount > currentDueCount ? "Durch diesen Stand wird Wartung faellig." : "Keine neue Wartung faellig."}</strong>
+            <strong>{predictedDueCount > currentDueCount ? "Wartung wird faellig." : "Keine neue Wartung."}</strong>
           </>
         )}
       </div>
@@ -616,10 +615,10 @@ function formatSaveStatusMessage(savedCount: number, reviewCount: number): strin
   }
 
   if (reviewCount > 0) {
-    parts.push(`${reviewCount} bitte prüfen`);
+    parts.push(`${reviewCount} bitte pruefen`);
   }
 
-  return parts.length > 0 ? parts.join(", ") : "Keine Änderungen zum Speichern";
+  return parts.length > 0 ? parts.join(", ") : "Keine Aenderungen";
 }
 
 function createMaintenanceHref(locale: Locale, predictedDueTasks: MaintenanceTask[], currentDueTaskIds: Set<string>): string {

@@ -33,11 +33,20 @@ export function MachineManagement({ locale }: MachineManagementProps) {
   const router = useRouter();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoadingMachines, setIsLoadingMachines] = useState(false);
   const [usageMachine, setUsageMachine] = useState<MachineSummary | null>(null);
 
   const refreshMachines = useCallback(async () => {
-    const machineData = await loadMachines();
-    setMachines(machineData.map(toMachineSummary));
+    setIsLoadingMachines(true);
+
+    try {
+      const machineData = await loadMachines();
+      setMachines(machineData.map(toMachineSummary));
+    } catch {
+      setMachines(getPlaceholderMachines().map(toMachineSummary));
+    } finally {
+      setIsLoadingMachines(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,7 +97,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
               Neue Maschine
             </button>
           </div>
-          <p className="muted">Erfasse zuerst die wichtigsten Daten. Details koennen spaeter ergaenzt werden.</p>
+          <p className="muted">Erfasse zuerst Name, Hersteller und Kosten. Details kannst du spaeter ergaenzen.</p>
         </section>
       )}
 
@@ -108,6 +117,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
         </section>
       ) : null}
 
+      {isLoadingMachines ? <p className="preference-hint">Maschinen werden geladen...</p> : null}
       <MachineTable
         locale={locale}
         machines={machines}
@@ -203,7 +213,7 @@ export function MachineDetail({ machine }: MachineDetailProps) {
           <h2>Uebersicht</h2>
           <div className="task-actions">
             <button className="button" type="button" onClick={() => setIsUpdatingUsage((current) => !current)}>
-              Stand aktualisieren
+              {isUpdatingUsage ? "Stand schliessen" : "Stand aktualisieren"}
             </button>
             <button className="button" type="button" onClick={() => setIsEditing(true)}>
               Bearbeiten

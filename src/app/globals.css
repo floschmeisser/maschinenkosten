@@ -36,7 +36,7 @@ textarea {
 
 .page {
   display: grid;
-  gap: 20px;
+  gap: 18px;
 }
 
 .page-header {
@@ -47,6 +47,7 @@ textarea {
 .page-header h1 {
   margin: 0;
   font-size: 28px;
+  line-height: 1.15;
 }
 
 .page-header p {
@@ -185,7 +186,7 @@ textarea {
 
 .panel {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   padding: 16px;
 }
 
@@ -196,9 +197,10 @@ textarea {
 
 .panel-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .muted {
@@ -231,8 +233,8 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 46px;
+  padding: 0 16px;
   border: 1px solid var(--primary);
   border-radius: 8px;
   background: var(--surface);
@@ -265,6 +267,24 @@ textarea:disabled {
   border-color: var(--primary);
 }
 
+.empty-state {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.empty-state strong {
+  color: var(--primary-dark);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .mini-list,
 .detail-list {
   display: grid;
@@ -281,6 +301,12 @@ textarea:disabled {
   gap: 12px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
+}
+
+.mini-list-item:first-child,
+.detail-list div:first-child,
+.result-line:first-of-type {
+  border-top: 0;
 }
 
 .detail-list {
@@ -404,9 +430,8 @@ td span {
 }
 
 .form-actions {
-  display: flex;
+  display: grid;
   grid-column: 1 / -1;
-  justify-content: flex-end;
   gap: 10px;
 }
 
@@ -432,7 +457,7 @@ td span {
 }
 
 .filter-button {
-  min-height: 38px;
+  min-height: 42px;
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -596,8 +621,7 @@ td span {
 }
 
 .task-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
@@ -955,6 +979,13 @@ td span {
 
   .form-grid .button {
     align-self: end;
+  }
+
+  .form-actions,
+  .task-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .daily-usage-header {

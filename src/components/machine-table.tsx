@@ -31,6 +31,16 @@ export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: Mach
             </tr>
           </thead>
           <tbody>
+            {machines.length === 0 ? (
+              <tr>
+                <td colSpan={6}>
+                  <div className="empty-state">
+                    <strong>Noch keine Maschinen</strong>
+                    <p>Lege die erste Maschine an, damit Tagesstand, Wartung und Kosten berechnet werden koennen.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : null}
             {machines.map((machine) => (
               <tr
                 className={onSelect ? "table-row-action" : undefined}

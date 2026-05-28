@@ -25,6 +25,10 @@ export function CostCalculation() {
 
       <section className="cost-layout">
         <form className="panel form-grid">
+          <div className="form-section">
+            <h2>Werte eintragen</h2>
+            <p className="muted">Alle Felder wirken sofort auf das Ergebnis.</p>
+          </div>
           <NumberField label="Anschaffung" value={inputs.purchasePrice} onChange={(value) => updateInput("purchasePrice", value)} />
           <NumberField label="Restwert" value={inputs.residualValue} onChange={(value) => updateInput("residualValue", value)} />
           <NumberField label="Nutzungsdauer Jahre" value={inputs.expectedUsefulLifeYears} onChange={(value) => updateInput("expectedUsefulLifeYears", value)} />
@@ -89,7 +93,7 @@ function NumberField({ label, value, onChange }: NumberFieldProps) {
   return (
     <label>
       {label}
-      <input min="0" type="number" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input inputMode="decimal" min="0" type="number" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

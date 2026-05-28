@@ -27,8 +27,9 @@ export function MachineDetailPageClient({ machineId }: MachineDetailPageClientPr
   if (!hasLoaded) {
     return (
       <main className="page">
-        <section className="panel">
-          <p className="muted">Maschine wird geladen...</p>
+        <section className="panel empty-state">
+          <strong>Maschine wird geladen...</strong>
+          <p>Die Detaildaten werden aus Supabase oder dem lokalen Fallback geholt.</p>
         </section>
       </main>
     );
@@ -37,7 +38,7 @@ export function MachineDetailPageClient({ machineId }: MachineDetailPageClientPr
   if (!machine) {
     return (
       <main className="page">
-        <section className="page-header">
+        <section className="page-header empty-state">
           <h1>Maschine nicht gefunden</h1>
           <p>Diese Maschine ist im lokalen Fallback oder in Supabase nicht vorhanden.</p>
         </section>

@@ -60,6 +60,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
   const [attentionMachineIds, setAttentionMachineIds] = useState<string[]>([]);
   const [showOnlyAttentionRows, setShowOnlyAttentionRows] = useState(false);
   const [savingIds, setSavingIds] = useState<string[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
   const [isRestoredDraftPanelVisible, setIsRestoredDraftPanelVisible] = useState(false);
   const [restoredDraftAgeLabel, setRestoredDraftAgeLabel] = useState<string | null>(null);
@@ -67,9 +68,18 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
   const attentionSectionRef = useRef<HTMLElement | null>(null);
 
   const refreshMachines = useCallback(async () => {
-    const [machineData, taskData] = await Promise.all([getMachines(), getMaintenanceTasks()]);
-    setMachines(machineData.filter((machine) => machine.status === "active").map(toMachineSummary));
-    setMaintenanceTasks(taskData);
+    setIsLoadingData(true);
+
+    try {
+      const [machineData, taskData] = await Promise.all([getMachines(), getMaintenanceTasks()]);
+      setMachines(machineData.filter((machine) => machine.status === "active").map(toMachineSummary));
+      setMaintenanceTasks(taskData);
+    } catch {
+      setMachines([]);
+      setMaintenanceTasks([]);
+    } finally {
+      setIsLoadingData(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -272,6 +282,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
           </div>
         </div>
         <p className="muted">Leere Felder behalten den bisherigen Stand.</p>
+        {isLoadingData ? <p className="preference-hint">Maschinenstaende werden geladen...</p> : null}
         {saveStatusMessage ? <p className="daily-save-status">{saveStatusMessage}</p> : null}
         {attentionMachineIds.length > 0 ? (
           <div className="daily-attention-filter" aria-label="Pruefansicht">
@@ -318,7 +329,10 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
         ) : null}
 
         {machines.length === 0 ? (
-          <p className="muted">Keine aktiven Maschinen gefunden.</p>
+          <div className="empty-state">
+            <strong>Keine aktiven Maschinen</strong>
+            <p>Lege zuerst eine Maschine an oder aktiviere eine vorhandene Maschine.</p>
+          </div>
         ) : (
           <div className="daily-usage-list">
             {attentionMachines.length > 0 ? (

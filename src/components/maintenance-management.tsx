@@ -58,11 +58,22 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [hasFocusedFromUrl, setHasFocusedFromUrl] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const refreshData = useCallback(async () => {
-    const [machineData, taskData] = await Promise.all([getMachines(), getMaintenanceTasks()]);
-    setMachines(machineData);
-    setTasks(sortMaintenanceTasksByUrgency(taskData, machineData));
+    setIsLoadingData(true);
+
+    try {
+      const [machineData, taskData] = await Promise.all([getMachines(), getMaintenanceTasks()]);
+      setMachines(machineData);
+      setTasks(sortMaintenanceTasksByUrgency(taskData, machineData));
+    } catch {
+      const fallbackMachines = getPlaceholderMachines();
+      setMachines(fallbackMachines);
+      setTasks([]);
+    } finally {
+      setIsLoadingData(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -173,6 +184,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         <h1>Wartung</h1>
         <p>Offene Arbeiten und einfache Planung fuer die wichtigsten Maschinen.</p>
       </section>
+      {isLoadingData ? <p className="preference-hint">Wartungen werden geladen...</p> : null}
 
       {isCreating ? (
         <MaintenanceFormModal
@@ -306,7 +318,7 @@ function TodayWorkList({
   return (
     <section className="today-work-list">
       {tasks.length === 0 ? (
-        <section className="panel">
+        <section className="panel empty-state">
           <h2>Heute nichts Dringendes</h2>
           <p className="muted">Keine faelligen Wartungen nach Datum, Stunden oder Kilometern.</p>
         </section>
@@ -392,7 +404,10 @@ function MaintenanceGroup({
       </div>
 
       {group.tasks.length === 0 ? (
-        <p className="muted">Keine Aufgaben.</p>
+        <div className="empty-state">
+          <strong>Keine Aufgaben</strong>
+          <p>In diesem Bereich ist aktuell nichts zu tun.</p>
+        </div>
       ) : (
         <div className="task-list">
           {group.tasks.map((task) => {

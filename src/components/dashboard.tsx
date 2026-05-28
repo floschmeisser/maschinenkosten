@@ -28,12 +28,22 @@ type DashboardProps = {
 export function Dashboard({ locale }: DashboardProps) {
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     async function loadDashboardData() {
-      const [machineData, taskData] = await Promise.all([loadMachines(), loadMaintenanceTasks()]);
-      setMachines(machineData.map(toMachineSummary));
-      setMaintenanceTasks(taskData);
+      setIsLoading(true);
+
+      try {
+        const [machineData, taskData] = await Promise.all([loadMachines(), loadMaintenanceTasks()]);
+        setMachines(machineData.map(toMachineSummary));
+        setMaintenanceTasks(taskData);
+      } catch {
+        setMachines(getPlaceholderMachines().map(toMachineSummary));
+        setMaintenanceTasks(getPlaceholderMaintenanceTasks());
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     loadDashboardData();
@@ -61,6 +71,7 @@ export function Dashboard({ locale }: DashboardProps) {
         <h1>Dashboard</h1>
         <p>Der schnelle Blick auf Maschinen, Wartung und Kosten im Betrieb.</p>
       </section>
+      {isLoading ? <p className="preference-hint">Aktuelle Betriebsdaten werden geladen...</p> : null}
 
       <section className="stats-grid" aria-label="Uebersicht">
         <StatCard label="Maschinen" value={machines.length.toString()} helper="angelegt" />
@@ -97,11 +108,16 @@ export function Dashboard({ locale }: DashboardProps) {
           <div className="panel-heading">
             <h2>Heute zu erledigen</h2>
             <Link className="button" href={`/${locale}/maintenance`}>
-              Oeffnen
+              Wartung oeffnen
             </Link>
           </div>
           <p className="muted">Was heute in der Werkstatt zuerst zaehlt.</p>
-          <DashboardTaskList machines={machines} tasks={todaysWorkTasks.slice(0, 3)} emptyText="Heute nichts Dringendes" />
+          <DashboardTaskList
+            machines={machines}
+            tasks={todaysWorkTasks.slice(0, 3)}
+            emptyTitle="Heute nichts Dringendes"
+            emptyText="Keine faelligen Arbeiten nach den aktuellen Daten."
+          />
         </section>
 
         <section className="panel">
@@ -112,7 +128,12 @@ export function Dashboard({ locale }: DashboardProps) {
             </Link>
           </div>
           <p className="muted">Aufgaben, die nach Datum, Stunden oder Kilometern faellig sind.</p>
-          <DashboardTaskList machines={machines} tasks={dueTasks.slice(0, 3)} emptyText="Keine faellige Wartung" />
+          <DashboardTaskList
+            machines={machines}
+            tasks={dueTasks.slice(0, 3)}
+            emptyTitle="Keine faellige Wartung"
+            emptyText="Aktuell ist keine Wartung ueberfaellig."
+          />
         </section>
       </section>
 
@@ -131,7 +152,12 @@ export function Dashboard({ locale }: DashboardProps) {
               <strong>{formatNumber(machine.currentOperatingHours)} h</strong>
             </Link>
           ))}
-          {activeMachines.length === 0 ? <EmptyMiniList label="Keine aktiven Maschinen" value="-" /> : null}
+          {activeMachines.length === 0 ? (
+            <div className="empty-state">
+              <strong>Keine aktiven Maschinen</strong>
+              <p>Lege eine Maschine an, dann erscheinen hier Staende und Kosten.</p>
+            </div>
+          ) : null}
         </div>
       </section>
     </main>
@@ -140,11 +166,12 @@ export function Dashboard({ locale }: DashboardProps) {
 
 type DashboardTaskListProps = {
   emptyText: string;
+  emptyTitle: string;
   machines: MachineSummary[];
   tasks: MaintenanceTask[];
 };
 
-function DashboardTaskList({ emptyText, machines, tasks }: DashboardTaskListProps) {
+function DashboardTaskList({ emptyText, emptyTitle, machines, tasks }: DashboardTaskListProps) {
   return (
     <div className="mini-list">
       {tasks.map((task) => {
@@ -159,16 +186,12 @@ function DashboardTaskList({ emptyText, machines, tasks }: DashboardTaskListProp
           </div>
         );
       })}
-      {tasks.length === 0 ? <EmptyMiniList label={emptyText} value="OK" /> : null}
-    </div>
-  );
-}
-
-function EmptyMiniList({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mini-list-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
+      {tasks.length === 0 ? (
+        <div className="empty-state">
+          <strong>{emptyTitle}</strong>
+          <p>{emptyText}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getMachineById } from "./machines-database";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import {
@@ -254,7 +254,7 @@ async function getMaintenanceDataSource(): Promise<MaintenanceDataSource | null>
 }
 
 async function getMaintenanceTasksTable(): Promise<SupabaseTableApi<MaintenanceTaskRow> | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

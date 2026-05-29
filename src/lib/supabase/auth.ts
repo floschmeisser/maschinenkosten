@@ -1,15 +1,15 @@
-import { createSupabaseBrowserClient, isSupabaseConfigured, warnSupabaseFallback } from "./client";
+import { getSupabaseClient, isSupabaseConfigured, warnSupabaseFallback } from "./client";
 
 export async function isSupabaseAuthAvailable(): Promise<boolean> {
   if (!isSupabaseConfigured()) {
     return false;
   }
 
-  return (await createSupabaseBrowserClient()) !== null;
+  return (await getSupabaseClient()) !== null;
 }
 
 export async function getCurrentUser() {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;
@@ -25,7 +25,7 @@ export async function getCurrentUser() {
 }
 
 export async function signInWithEmail(email: string, redirectPath = "/de/dashboard") {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return { error: "Supabase ist noch nicht konfiguriert." };
@@ -47,7 +47,7 @@ export async function signInWithEmail(email: string, redirectPath = "/de/dashboa
 }
 
 export async function signOut() {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return;

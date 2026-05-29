@@ -24,6 +24,7 @@ export type SupabaseClientLike = {
 };
 
 let browserClient: SupabaseClientLike | null = null;
+let browserClientPromise: Promise<SupabaseClientLike | null> | null = null;
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -73,7 +74,7 @@ async function loadSupabaseCreateClient() {
   }
 }
 
-export async function createSupabaseBrowserClient(): Promise<SupabaseClientLike | null> {
+export async function getSupabaseClient(): Promise<SupabaseClientLike | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -82,19 +83,35 @@ export async function createSupabaseBrowserClient(): Promise<SupabaseClientLike 
   }
 
   if (!browserClient) {
-    const createClient = await loadSupabaseCreateClient();
-
-    if (!createClient) {
-      return null;
+    if (!browserClientPromise) {
+      browserClientPromise = initializeSupabaseClient(supabaseUrl, supabaseAnonKey);
     }
 
-    try {
-      browserClient = createClient(supabaseUrl, supabaseAnonKey);
-    } catch (error) {
-      warnSupabaseFallback("Client konnte nicht erstellt werden.", error);
-      return null;
-    }
+    browserClient = await browserClientPromise;
   }
 
   return browserClient;
+}
+
+export async function createSupabaseBrowserClient(): Promise<SupabaseClientLike | null> {
+  return getSupabaseClient();
+}
+
+async function initializeSupabaseClient(supabaseUrl: string, supabaseAnonKey: string): Promise<SupabaseClientLike | null> {
+  const createClient = await loadSupabaseCreateClient();
+
+  if (!createClient) {
+    browserClientPromise = null;
+    return null;
+  }
+
+  try {
+    const client = createClient(supabaseUrl, supabaseAnonKey);
+    console.info("[Supabase] Singleton client initialized");
+    return client;
+  } catch (error) {
+    browserClientPromise = null;
+    warnSupabaseFallback("Client konnte nicht erstellt werden.", error);
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import {
   deleteMachineDocumentFile,
@@ -286,7 +286,7 @@ async function getMachineDocumentsDataSource(): Promise<MachineDocumentsDataSour
 }
 
 async function getMachineDocumentsTable(): Promise<SupabaseTableApi<MachineDocumentRow> | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import {
   isMachineSparePartLowStock,
@@ -219,7 +219,7 @@ async function getSparePartsDataSource(): Promise<SparePartsDataSource | null> {
 }
 
 async function getSparePartsTable(): Promise<SupabaseTableApi<MachineSparePartRow> | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

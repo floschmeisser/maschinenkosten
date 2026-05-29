@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import {
   placeholderFarmId,
   placeholderMachines,
@@ -212,7 +212,7 @@ async function getMachinesDataSource(): Promise<MachinesDataSource | null> {
 }
 
 async function getMachinesTable(): Promise<SupabaseTableApi<MachineRow> | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

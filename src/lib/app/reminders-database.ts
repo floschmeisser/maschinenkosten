@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import { placeholderFarmId } from "./machines";
 import {
@@ -206,7 +206,7 @@ async function getReminderDataSource(): Promise<ReminderDataSource | null> {
 }
 
 async function getReminderTable(): Promise<SupabaseTableApi<ReminderRow> | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

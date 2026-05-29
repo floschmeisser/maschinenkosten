@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, warnSupabaseFallback } from "@/lib/supabase/client";
+import { getSupabaseClient, warnSupabaseFallback } from "@/lib/supabase/client";
 import { getRuntimeStatus } from "./runtime-status";
 import type { Farm } from "./farms-database";
 
@@ -61,7 +61,7 @@ export async function getMachineDocumentStorageStatus(): Promise<MachineDocument
     return { available: false, farm: null, reason: "farm_missing" };
   }
 
-  const supabase = (await createSupabaseBrowserClient()) as SupabaseStorageClient | null;
+  const supabase = (await getSupabaseClient()) as SupabaseStorageClient | null;
 
   if (!supabase?.storage) {
     return { available: false, farm: null, reason: "client_missing" };
@@ -164,7 +164,7 @@ export async function deleteMachineDocumentFile(filePath: string): Promise<boole
 }
 
 async function getMachineDocumentsBucket(): Promise<SupabaseStorageBucketApi | null> {
-  const supabase = (await createSupabaseBrowserClient()) as SupabaseStorageClient | null;
+  const supabase = (await getSupabaseClient()) as SupabaseStorageClient | null;
 
   if (!supabase?.storage) {
     return null;

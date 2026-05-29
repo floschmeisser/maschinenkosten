@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/supabase/auth";
-import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
+import { getSupabaseClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { placeholderFarmId } from "./machines";
 
 export type Farm = {
@@ -92,7 +92,7 @@ export async function getOrCreateDefaultFarmForUser(userId: string, email?: stri
 }
 
 async function getFarmsTable(): Promise<SupabaseFarmTableApi | null> {
-  const supabase = await createSupabaseBrowserClient();
+  const supabase = await getSupabaseClient();
 
   if (!supabase) {
     return null;

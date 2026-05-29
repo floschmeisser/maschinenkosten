@@ -1,5 +1,5 @@
 import { getCurrentUser, isSupabaseAuthAvailable } from "@/lib/supabase/auth";
-import { createSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getOrCreateDefaultFarmForUser, type Farm } from "./farms-database";
 import { placeholderFarmId } from "./machines";
 import type { SupabaseUser } from "@/lib/supabase/client";
@@ -19,7 +19,7 @@ export type RuntimeStatus = {
 
 export async function getRuntimeStatus(): Promise<RuntimeStatus> {
   const supabaseConfigured = isSupabaseConfigured();
-  const supabaseClient = await createSupabaseBrowserClient();
+  const supabaseClient = await getSupabaseClient();
   const supabaseClientAvailable = supabaseClient !== null;
   const authAvailable = supabaseConfigured && supabaseClientAvailable && (await isSupabaseAuthAvailable());
 

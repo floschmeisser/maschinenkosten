@@ -2,7 +2,7 @@ import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/cl
 import { getCurrentFarm, type Farm } from "./farms-database";
 import {
   deleteMachineDocumentFile,
-  isStorageAvailable,
+  getMachineDocumentStorageStatus,
   uploadMachineDocumentFile
 } from "./machine-documents-storage";
 import {
@@ -25,6 +25,7 @@ export type UploadMachineDocumentInput = {
 export type UploadMachineDocumentResult = {
   document: MachineDocument | null;
   error: string | null;
+  reason: "env_missing" | "client_missing" | "user_missing" | "farm_missing" | null;
   storageAvailable: boolean;
 };
 
@@ -129,30 +130,26 @@ export async function createMachineDocument(input: CreateMachineDocumentInput): 
 }
 
 export async function uploadAndCreateMachineDocument(input: UploadMachineDocumentInput): Promise<UploadMachineDocumentResult> {
-  const source = await getMachineDocumentsDataSource();
-  const storageAvailable = await isStorageAvailable();
+  const storageStatus = await getMachineDocumentStorageStatus();
+  const source = storageStatus.available ? await getMachineDocumentsDataSource() : null;
   const now = new Date().toISOString();
   const documentId = crypto.randomUUID();
-  const farmId = source?.farm.id ?? placeholderFarmId;
 
-  if (!source || !storageAvailable) {
-    const document = await createMachineDocument({
-      farmId,
-      machineId: input.machineId,
-      title: input.title,
-      type: input.type,
-      fileName: input.file.name,
-      filePath: null,
-      fileSize: input.file.size,
-      mimeType: input.file.type || null,
-      uploadedAt: null,
-      notes: input.notes
-    });
-
+  if (!storageStatus.available) {
     return {
-      document,
-      error: storageAvailable ? null : "Dateiupload ist im Demo-Modus nicht aktiv.",
-      storageAvailable
+      document: null,
+      error: getStorageUnavailableMessage(storageStatus.reason),
+      reason: storageStatus.reason,
+      storageAvailable: false
+    };
+  }
+
+  if (!source) {
+    return {
+      document: null,
+      error: "Betrieb konnte nicht geladen werden.",
+      reason: "farm_missing",
+      storageAvailable: true
     };
   }
 
@@ -167,7 +164,8 @@ export async function uploadAndCreateMachineDocument(input: UploadMachineDocumen
     return {
       document: null,
       error: "Datei konnte nicht hochgeladen werden.",
-      storageAvailable
+      reason: null,
+      storageAvailable: true
     };
   }
 
@@ -197,7 +195,8 @@ export async function uploadAndCreateMachineDocument(input: UploadMachineDocumen
     return {
       document: null,
       error: "Dokumentdaten konnten nicht gespeichert werden.",
-      storageAvailable
+      reason: null,
+      storageAvailable: true
     };
   }
 
@@ -207,7 +206,8 @@ export async function uploadAndCreateMachineDocument(input: UploadMachineDocumen
   return {
     document: createdDocument,
     error: null,
-    storageAvailable
+    reason: null,
+    storageAvailable: true
   };
 }
 
@@ -347,4 +347,16 @@ function mapDocumentInputToRow(
     notes: input.notes,
     updated_at: input.updatedAt
   };
+}
+
+function getStorageUnavailableMessage(reason: UploadMachineDocumentResult["reason"]): string {
+  if (reason === "user_missing") {
+    return "Bitte einloggen, um Dateien hochzuladen.";
+  }
+
+  if (reason === "farm_missing") {
+    return "Betrieb konnte nicht geladen werden.";
+  }
+
+  return "Dateiupload ist im Demo-Modus nicht aktiv.";
 }

@@ -1,7 +1,21 @@
 import { createSupabaseBrowserClient, warnSupabaseFallback } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/auth";
+import { getOrCreateDefaultFarmForUser, type Farm } from "./farms-database";
+import { placeholderFarmId } from "./machines";
 
 const machineDocumentsBucket = "machine-documents";
+
+export type MachineDocumentStorageUnavailableReason =
+  | "env_missing"
+  | "client_missing"
+  | "user_missing"
+  | "farm_missing";
+
+export type MachineDocumentStorageStatus = {
+  available: boolean;
+  farm: Farm | null;
+  reason: MachineDocumentStorageUnavailableReason | null;
+};
 
 type StorageUploadResult = {
   filePath: string | null;
@@ -26,8 +40,33 @@ type SupabaseStorageClient = {
 };
 
 export async function isStorageAvailable(): Promise<boolean> {
-  const [bucket, user] = await Promise.all([getMachineDocumentsBucket(), getCurrentUser()]);
-  return bucket !== null && user !== null;
+  return (await getMachineDocumentStorageStatus()).available;
+}
+
+export async function getMachineDocumentStorageStatus(): Promise<MachineDocumentStorageStatus> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return { available: false, farm: null, reason: "env_missing" };
+  }
+
+  const supabase = (await createSupabaseBrowserClient()) as SupabaseStorageClient | null;
+
+  if (!supabase?.storage) {
+    return { available: false, farm: null, reason: "client_missing" };
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return { available: false, farm: null, reason: "user_missing" };
+  }
+
+  const farm = await getOrCreateDefaultFarmForUser(user.id, user.email);
+
+  if (farm.id === placeholderFarmId) {
+    return { available: false, farm: null, reason: "farm_missing" };
+  }
+
+  return { available: true, farm, reason: null };
 }
 
 export function createSafeFileName(fileName: string): string {

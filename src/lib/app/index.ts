@@ -114,10 +114,12 @@ export {
   buildMachineDocumentPath,
   createSafeFileName,
   deleteMachineDocumentFile,
+  getMachineDocumentStorageStatus,
   getMachineDocumentSignedUrl,
   isStorageAvailable,
   uploadMachineDocumentFile
 } from "./machine-documents-storage";
+export type { MachineDocumentStorageStatus, MachineDocumentStorageUnavailableReason } from "./machine-documents-storage";
 
 export {
   completeMaintenanceTask,

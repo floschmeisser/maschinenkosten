@@ -12,6 +12,9 @@ export type SupabaseClientLike = {
   from: (table: string) => {
     select: (columns?: string) => Promise<SupabaseQueryResult>;
   };
+  storage?: {
+    from: (bucket: string) => unknown;
+  };
   auth: {
     getUser: () => Promise<{ data: { user: SupabaseUser | null } }>;
     signInWithOtp: (options: { email: string; options?: { emailRedirectTo?: string } }) => Promise<{ error: Error | null }>;
@@ -60,8 +63,7 @@ export async function runSupabaseQuery<T>(
 
 async function loadSupabaseCreateClient() {
   try {
-    const packageName = "@supabase/supabase-js";
-    const supabase = (await import(/* webpackIgnore: true */ packageName)) as {
+    const supabase = (await import("@supabase/supabase-js")) as {
       createClient: (url: string, key: string) => SupabaseClientLike;
     };
     return supabase.createClient;

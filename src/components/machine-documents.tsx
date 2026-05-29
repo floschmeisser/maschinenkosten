@@ -8,8 +8,9 @@ import {
   type UploadMachineDocumentInput
 } from "@/lib/app/machine-documents-database";
 import {
+  getMachineDocumentStorageStatus,
   getMachineDocumentSignedUrl,
-  isStorageAvailable
+  type MachineDocumentStorageStatus
 } from "@/lib/app/machine-documents-storage";
 import {
   getMachineDocumentTypeLabel,
@@ -31,16 +32,20 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [storageAvailable, setStorageAvailable] = useState(false);
+  const [storageStatus, setStorageStatus] = useState<MachineDocumentStorageStatus>({
+    available: false,
+    farm: null,
+    reason: "env_missing"
+  });
   const [message, setMessage] = useState<string | null>(null);
 
   const refreshDocuments = useCallback(async () => {
     setIsLoading(true);
 
     try {
-      const [documentData, storageReady] = await Promise.all([getMachineDocuments(machine.id), isStorageAvailable()]);
+      const [documentData, storageReady] = await Promise.all([getMachineDocuments(machine.id), getMachineDocumentStorageStatus()]);
       setDocuments(documentData);
-      setStorageAvailable(storageReady);
+      setStorageStatus(storageReady);
       setSignedUrls(await createSignedUrlMap(documentData));
     } finally {
       setIsLoading(false);
@@ -109,9 +114,9 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
           machine={machine}
           onCancel={() => setIsCreating(false)}
           onSave={handleCreateDocument}
-          storageAvailable={storageAvailable}
+          storageStatus={storageStatus}
         />
-        {message ? <p className={message.includes("nicht") ? "form-error" : "form-success"}>{message}</p> : null}
+        {message ? <p className={isDocumentErrorMessage(message) ? "form-error" : "form-success"}>{message}</p> : null}
       </section>
     );
   }
@@ -127,10 +132,13 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
           Dokument hinzufuegen
         </button>
       </div>
-      {!storageAvailable ? (
-        <p className="info-panel panel">Dateiupload ist im Demo-Modus nicht aktiv.</p>
+      {!storageStatus.available ? (
+        <div className="info-panel panel">
+          <p>{getStorageStatusMessage(storageStatus)}</p>
+          {process.env.NODE_ENV === "development" ? <small>Diagnose: {storageStatus.reason}</small> : null}
+        </div>
       ) : null}
-      {message ? <p className={message.includes("nicht") || message.includes("Keine") ? "form-error" : "form-success"}>{message}</p> : null}
+      {message ? <p className={isDocumentErrorMessage(message) ? "form-error" : "form-success"}>{message}</p> : null}
 
       {documents.length === 0 ? (
         <div className="empty-state">
@@ -195,10 +203,10 @@ type MachineDocumentFormProps = {
   machine: MachineSummary;
   onCancel: () => void;
   onSave: (input: UploadMachineDocumentInput) => Promise<void>;
-  storageAvailable: boolean;
+  storageStatus: MachineDocumentStorageStatus;
 };
 
-function MachineDocumentForm({ machine, onCancel, onSave, storageAvailable }: MachineDocumentFormProps) {
+function MachineDocumentForm({ machine, onCancel, onSave, storageStatus }: MachineDocumentFormProps) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<MachineDocumentType>("invoice");
   const [file, setFile] = useState<File | null>(null);
@@ -215,7 +223,7 @@ function MachineDocumentForm({ machine, onCancel, onSave, storageAvailable }: Ma
     }
 
     if (!file) {
-      setError(storageAvailable ? "Datei auswaehlen." : "Im Demo-Modus wird keine Datei hochgeladen.");
+      setError(storageStatus.available ? "Datei auswaehlen." : getStorageStatusMessage(storageStatus));
       return;
     }
 
@@ -236,7 +244,7 @@ function MachineDocumentForm({ machine, onCancel, onSave, storageAvailable }: Ma
 
   return (
     <form className="form-grid" onSubmit={handleSubmit}>
-      {!storageAvailable ? <p className="form-section preference-hint">Dateiupload ist im Demo-Modus nicht aktiv.</p> : null}
+      {!storageStatus.available ? <p className="form-section preference-hint">{getStorageStatusMessage(storageStatus)}</p> : null}
       <label>
         Titel
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Rechnung Maehwerk" />
@@ -273,6 +281,27 @@ function MachineDocumentForm({ machine, onCancel, onSave, storageAvailable }: Ma
         </button>
       </div>
     </form>
+  );
+}
+
+function getStorageStatusMessage(status: MachineDocumentStorageStatus): string {
+  if (status.reason === "user_missing") {
+    return "Bitte einloggen, um Dateien hochzuladen.";
+  }
+
+  if (status.reason === "farm_missing") {
+    return "Betrieb konnte nicht geladen werden.";
+  }
+
+  return "Dateiupload ist im Demo-Modus nicht aktiv.";
+}
+
+function isDocumentErrorMessage(message: string): boolean {
+  return (
+    message.includes("nicht") ||
+    message.includes("Keine") ||
+    message.includes("Bitte einloggen") ||
+    message.includes("konnte")
   );
 }
 

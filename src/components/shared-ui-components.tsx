@@ -11,6 +11,7 @@ import {
   type FarmProfilePreference
 } from "@/lib/app/preferences";
 import { getActiveFarmConfig } from "@/lib/app/farm-config";
+import { getRuntimeStatus, type RuntimeStatus } from "@/lib/app/runtime-status";
 import { isSupabaseAuthAvailable, signInWithEmail } from "@/lib/supabase/auth";
 import type { StatusTone } from "@/lib/app/status";
 import { getStatusLabel } from "@/lib/app/status";
@@ -149,11 +150,15 @@ export function SettingsPanel() {
   }));
   const [farmProfile, setFarmProfile] = useState<FarmProfilePreference>("default");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null);
   const activeFarmConfig = getActiveFarmConfig(farmProfile);
 
   useEffect(() => {
     setSettings(getAppSettingsPreferences());
     setFarmProfile(getFarmProfilePreference());
+    getRuntimeStatus()
+      .then(setRuntimeStatus)
+      .catch(() => setRuntimeStatus(null));
   }, []);
 
   function updateField<Key extends keyof AppSettingsPreferences>(key: Key, value: AppSettingsPreferences[Key]) {
@@ -174,8 +179,28 @@ export function SettingsPanel() {
   }
 
   return (
-    <section className="panel form-panel">
-      <form className="form-grid" onSubmit={handleSubmit}>
+    <>
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Systemstatus</h2>
+        </div>
+        <div className="runtime-status-grid">
+          <div>
+            <span>Datenmodus</span>
+            <strong>{runtimeStatus?.dataMode === "supabase" ? "Supabase" : "Demo"}</strong>
+          </div>
+          <div>
+            <span>Dateiupload</span>
+            <strong>{getStorageModeLabel(runtimeStatus?.storageMode)}</strong>
+          </div>
+          <div>
+            <span>Eingeloggt</span>
+            <strong>{runtimeStatus?.currentUser ? "Ja" : "Nein"}</strong>
+          </div>
+        </div>
+      </section>
+      <section className="panel form-panel">
+        <form className="form-grid" onSubmit={handleSubmit}>
         <fieldset className="form-section">
           <legend>Betriebsprofil</legend>
           <p className="muted">Nur Vorschau.</p>
@@ -223,7 +248,20 @@ export function SettingsPanel() {
             Speichern
           </button>
         </div>
-      </form>
-    </section>
+        </form>
+      </section>
+    </>
   );
+}
+
+function getStorageModeLabel(mode: RuntimeStatus["storageMode"] | undefined): string {
+  if (mode === "active") {
+    return "Aktiv";
+  }
+
+  if (mode === "login_required") {
+    return "Login erforderlich";
+  }
+
+  return "Demo";
 }

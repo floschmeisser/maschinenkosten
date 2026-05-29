@@ -1,7 +1,6 @@
 import { createSupabaseBrowserClient, warnSupabaseFallback } from "@/lib/supabase/client";
-import { getCurrentUser } from "@/lib/supabase/auth";
-import { getOrCreateDefaultFarmForUser, type Farm } from "./farms-database";
-import { placeholderFarmId } from "./machines";
+import { getRuntimeStatus } from "./runtime-status";
+import type { Farm } from "./farms-database";
 
 const machineDocumentsBucket = "machine-documents";
 
@@ -44,8 +43,22 @@ export async function isStorageAvailable(): Promise<boolean> {
 }
 
 export async function getMachineDocumentStorageStatus(): Promise<MachineDocumentStorageStatus> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const runtimeStatus = await getRuntimeStatus();
+
+  if (!runtimeStatus.supabaseConfigured) {
     return { available: false, farm: null, reason: "env_missing" };
+  }
+
+  if (!runtimeStatus.supabaseClientAvailable) {
+    return { available: false, farm: null, reason: "client_missing" };
+  }
+
+  if (runtimeStatus.storageMode === "login_required") {
+    return { available: false, farm: null, reason: "user_missing" };
+  }
+
+  if (runtimeStatus.storageMode === "farm_missing" || !runtimeStatus.currentFarm) {
+    return { available: false, farm: null, reason: "farm_missing" };
   }
 
   const supabase = (await createSupabaseBrowserClient()) as SupabaseStorageClient | null;
@@ -54,19 +67,7 @@ export async function getMachineDocumentStorageStatus(): Promise<MachineDocument
     return { available: false, farm: null, reason: "client_missing" };
   }
 
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return { available: false, farm: null, reason: "user_missing" };
-  }
-
-  const farm = await getOrCreateDefaultFarmForUser(user.id, user.email);
-
-  if (farm.id === placeholderFarmId) {
-    return { available: false, farm: null, reason: "farm_missing" };
-  }
-
-  return { available: true, farm, reason: null };
+  return { available: true, farm: runtimeStatus.currentFarm, reason: null };
 }
 
 export function createSafeFileName(fileName: string): string {

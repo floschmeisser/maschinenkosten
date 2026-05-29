@@ -192,3 +192,6 @@ export {
   overdueMaintenanceReminderExample,
   soonMaintenanceReminderExample
 } from "./reminder-examples";
+
+export { getRuntimeStatus } from "./runtime-status";
+export type { RuntimeDataMode, RuntimeStatus, RuntimeStorageMode } from "./runtime-status";

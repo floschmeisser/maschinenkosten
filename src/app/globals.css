@@ -287,6 +287,31 @@ textarea {
   gap: 12px;
 }
 
+.runtime-status-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.runtime-status-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.runtime-status-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.runtime-status-grid strong {
+  color: var(--primary-dark);
+  font-size: 22px;
+}
+
 .stat-card {
   display: grid;
   gap: 6px;

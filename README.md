@@ -136,6 +136,29 @@ Verwendete Grundformeln:
 
 Wenn Werte fehlen oder eine Division nicht sinnvoll ist, gibt die Berechnung `null` fuer diesen Kennwert zurueck und ergaenzt eine Warnung.
 
+## Reminder-System v1
+
+Erinnerungen sind in v1 echte, persistierte Datensaetze und keine Browser-Deko. Die App erzeugt Reminder-Inputs aus vorhandenen Maschinen, Wartungen, Ersatzteilen und Kostenhinweisen und speichert sie ueber `upsertReminder`.
+
+Abgedeckt sind aktuell:
+
+- faellige Wartung
+- Wartung in den naechsten 7 Tagen
+- Pickerl/TUEV in den naechsten 30 Tagen, wenn als Wartung vom Typ `inspection` erfasst
+- niedriger oder kritischer Ersatzteilbestand
+- auffaellige Maschinenkosten
+
+Jede Erinnerung besitzt `farm_id`, einen stabilen `reminder_key`, Prioritaet und Status. Der eindeutige Index auf `farm_id + reminder_key` verhindert doppelte Erinnerungen. Statuswerte sind:
+
+- `open`: offen
+- `acknowledged`: gesehen, nicht mehr in der offenen Liste
+- `dismissed`: ausgeblendet
+- `completed`: erledigt
+
+Das Dashboard zeigt die wichtigsten offenen Erinnerungen, die Seite `/de/reminders` zeigt alle offenen Erinnerungen mit Aktionen `Erledigt`, `Gesehen` und `Ausblenden`.
+
+Wichtig: Dieses v1 sendet noch keine E-Mail und keine Push-Nachrichten. Der zuverlaessige Teil ist die persistierte Datenbasis. Fuer echte Benachrichtigung ohne offenen Browser sollte spaeter ein geplanter Job die Reminder erzeugen und E-Mail/Push versenden.
+
 ## Naechste Schritte fuer Supabase
 
 1. Supabase Projekt erstellen.

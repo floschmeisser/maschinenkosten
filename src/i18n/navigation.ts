@@ -12,6 +12,7 @@ export function createNavigation(locale: Locale, farmConfig: FarmAppConfig = get
 
   return [
     { href: `${base}/dashboard`, label: "Dashboard" },
+    { href: `${base}/reminders`, label: "Erinnerungen" },
     enabledModules.machines ? { href: `${base}/machines`, label: customLabels.machinesLabel } : null,
     enabledModules.dailyUsage ? { href: `${base}/daily-usage`, label: customLabels.dailyUsageLabel } : null,
     enabledModules.maintenance ? { href: `${base}/maintenance`, label: customLabels.maintenanceLabel } : null,

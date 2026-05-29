@@ -139,6 +139,39 @@ create table if not exists public.maintenance_used_parts (
   created_at timestamptz not null default now()
 );
 
+-- Reminders are persisted and can later be delivered by scheduled email or push jobs.
+create table if not exists public.reminders (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  reminder_key text not null,
+  type text not null,
+  source_type text not null,
+  source_id text not null,
+  machine_id uuid references public.machines(id) on delete cascade,
+  title text not null,
+  message text,
+  due_date date,
+  priority text not null,
+  status text not null default 'open',
+  acknowledged_at timestamptz,
+  dismissed_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint reminders_type_check check (
+    type in ('maintenance_due', 'maintenance_soon', 'inspection_due', 'spare_part_low_stock', 'machine_cost_warning', 'custom')
+  ),
+  constraint reminders_source_type_check check (
+    source_type in ('maintenance_task', 'machine_document', 'spare_part', 'machine', 'custom')
+  ),
+  constraint reminders_priority_check check (
+    priority in ('low', 'medium', 'high', 'critical')
+  ),
+  constraint reminders_status_check check (
+    status in ('open', 'acknowledged', 'dismissed', 'completed')
+  )
+);
+
 create index if not exists machines_farm_id_idx on public.machines(farm_id);
 create index if not exists farms_owner_id_idx on public.farms(owner_id);
 create index if not exists machines_status_idx on public.machines(status);
@@ -156,6 +189,11 @@ create index if not exists maintenance_used_parts_farm_id_idx on public.maintena
 create index if not exists maintenance_used_parts_task_id_idx on public.maintenance_used_parts(maintenance_task_id);
 create index if not exists maintenance_used_parts_spare_part_id_idx on public.maintenance_used_parts(spare_part_id);
 create index if not exists maintenance_used_parts_machine_id_idx on public.maintenance_used_parts(machine_id);
+create unique index if not exists reminders_farm_key_idx on public.reminders(farm_id, reminder_key);
+create index if not exists reminders_farm_id_idx on public.reminders(farm_id);
+create index if not exists reminders_status_idx on public.reminders(status);
+create index if not exists reminders_due_date_idx on public.reminders(due_date);
+create index if not exists reminders_priority_idx on public.reminders(priority);
 
 -- Keep updated_at current for simple updates.
 create or replace function public.set_updated_at()
@@ -193,6 +231,11 @@ create trigger machine_documents_set_updated_at
 before update on public.machine_documents
 for each row execute function public.set_updated_at();
 
+drop trigger if exists reminders_set_updated_at on public.reminders;
+create trigger reminders_set_updated_at
+before update on public.reminders
+for each row execute function public.set_updated_at();
+
 -- Row level security: authenticated users can access rows for farms they own.
 alter table public.farms enable row level security;
 alter table public.machines enable row level security;
@@ -200,6 +243,7 @@ alter table public.maintenance_tasks enable row level security;
 alter table public.machine_spare_parts enable row level security;
 alter table public.machine_documents enable row level security;
 alter table public.maintenance_used_parts enable row level security;
+alter table public.reminders enable row level security;
 
 create policy "Farm owners can manage farms"
 on public.farms
@@ -299,6 +343,25 @@ with check (
   exists (
     select 1 from public.farms
     where farms.id = maintenance_used_parts.farm_id
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can manage reminders"
+on public.reminders
+for all
+to authenticated
+using (
+  exists (
+    select 1 from public.farms
+    where farms.id = reminders.farm_id
+    and farms.owner_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.farms
+    where farms.id = reminders.farm_id
     and farms.owner_id = auth.uid()
   )
 );

@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/app/format";
 import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
 import { getMachineSparePartStockStatus, getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
-import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
+import { getLowStockSpareParts, getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
@@ -19,6 +19,9 @@ import {
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
+import { getReminderPriorityLabel, getReminderTypeLabel, type Reminder } from "@/lib/app/reminders";
+import { getOpenReminders, upsertReminder } from "@/lib/app/reminders-database";
+import { generateAllReminders } from "@/lib/app/reminder-generation";
 
 type DashboardProps = {
   locale: Locale;
@@ -32,6 +35,7 @@ export function Dashboard({ locale }: DashboardProps) {
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [lowStockSpareParts, setLowStockSpareParts] = useState<MachineSparePart[]>([]);
+  const [openReminders, setOpenReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -59,13 +63,24 @@ export function Dashboard({ locale }: DashboardProps) {
           loadMaintenanceTasks(),
           getLowStockSpareParts()
         ]);
+        const spareParts = (await Promise.all(machineData.map((machine) => getMachineSpareParts(machine.id)))).flat();
+        const generatedReminders = generateAllReminders({
+          machines: machineData,
+          maintenanceTasks: taskData,
+          spareParts
+        });
+
+        await Promise.all(generatedReminders.map((reminder) => upsertReminder(reminder)));
+
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
         setLowStockSpareParts(lowStockSpareParts);
+        setOpenReminders(await getOpenReminders());
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
         setLowStockSpareParts([]);
+        setOpenReminders(await getOpenReminders());
       } finally {
         setIsLoading(false);
       }
@@ -83,6 +98,7 @@ export function Dashboard({ locale }: DashboardProps) {
   const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
   const urgentMachineCount = machines.filter((machine) => machine.status === "maintenance" || machine.serviceStatus === "danger").length;
   const criticalLowStockCount = lowStockSpareParts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
+  const importantReminderCount = openReminders.filter((reminder) => reminder.priority === "critical" || reminder.priority === "high").length;
   const costComparisonItems = createMachineCostComparison(machines, maintenanceTasks);
   const mostExpensiveMachine = costComparisonItems[0];
   const cheapestMachine = [...costComparisonItems]
@@ -110,6 +126,7 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     farmConfig,
     lowStockSparePartsCount: lowStockSpareParts.length,
+    importantReminderCount,
     criticalLowStockCount,
     locale,
     todaysWorkCount
@@ -157,6 +174,18 @@ export function Dashboard({ locale }: DashboardProps) {
           <DashboardFocusCard {...card} key={card.id} />
         ))}
       </section>
+
+      {openReminders.length > 0 ? (
+        <section className="dashboard-reminders" aria-label="Erinnerungen">
+          {openReminders.slice(0, 3).map((reminder) => (
+            <Link className={`dashboard-reminder-item ${reminder.priority}`} href={`/${locale}/reminders`} key={reminder.id}>
+              <span>{getReminderPriorityLabel(reminder.priority)}</span>
+              <strong>{reminder.title}</strong>
+              <small>{getReminderTypeLabel(reminder.type)}</small>
+            </Link>
+          ))}
+        </section>
+      ) : null}
 
       {farmConfig.enabledModules.costs && costComparisonItems.length > 0 ? (
         <section className="dashboard-cost-strip" aria-label="Kostenblick">
@@ -218,7 +247,7 @@ type DashboardFocusCardProps = {
   value: string;
 };
 
-type DashboardCardId = "today" | "maintenance" | "machines" | "spareParts";
+type DashboardCardId = "today" | "maintenance" | "machines" | "spareParts" | "reminders";
 type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
 
 function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
@@ -236,6 +265,7 @@ type DashboardCardInput = {
   criticalLowStockCount: number;
   dueMaintenanceCount: number;
   farmConfig: FarmAppConfig;
+  importantReminderCount: number;
   lowStockSparePartsCount: number;
   locale: Locale;
   todaysWorkCount: number;
@@ -246,6 +276,7 @@ function createDailyCards({
   criticalLowStockCount,
   dueMaintenanceCount,
   farmConfig,
+  importantReminderCount,
   lowStockSparePartsCount,
   locale,
   todaysWorkCount
@@ -274,6 +305,14 @@ function createDailyCards({
       value: activeMachineCount.toString(),
       helper: activeMachineCount === 0 ? "Noch keine" : "aktiv",
       href: `/${locale}/machines`
+    },
+    {
+      id: "reminders",
+      tone: importantReminderCount > 0 ? "danger" : "good",
+      label: "Erinnerungen",
+      value: importantReminderCount.toString(),
+      helper: importantReminderCount === 0 ? "ruhig" : "wichtig",
+      href: `/${locale}/reminders`
     },
     {
       id: "spareParts",
@@ -309,6 +348,7 @@ function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: F
     today: farmConfig.enabledModules.maintenance,
     maintenance: farmConfig.enabledModules.maintenance,
     machines: farmConfig.enabledModules.machines,
+    reminders: true,
     spareParts: farmConfig.enabledModules.machines && lowStockSparePartsCount > 0
   };
 

@@ -63,7 +63,7 @@ export async function runSupabaseQuery<T>(
 
 async function loadSupabaseCreateClient() {
   try {
-    const supabase = (await import("@supabase/supabase-js")) as {
+    const supabase = (await import("@supabase/supabase-js")) as unknown as {
       createClient: (url: string, key: string) => SupabaseClientLike;
     };
     return supabase.createClient;

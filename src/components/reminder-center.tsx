@@ -104,7 +104,13 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
             <h1>Erinnerungen</h1>
             <p>Wartung, Pickerl/TUEV, Lager und Kosten.</p>
           </div>
-          <button className="button primary" type="button" onClick={handleManualSync} disabled={isLoading}>
+          <button
+            className="button primary"
+            type="button"
+            onClick={handleManualSync}
+            disabled={isLoading}
+            title={isLoading ? "Erinnerungen werden geladen." : undefined}
+          >
             Erinnerungen aktualisieren
           </button>
         </div>

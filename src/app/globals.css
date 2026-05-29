@@ -1,24 +1,24 @@
 :root {
-  --color-bg: #f7f3e8;
-  --color-surface: #fffdf7;
-  --color-primary: #176b5c;
-  --color-primary-strong: #0b3d35;
-  --color-warning: #b7791f;
+  --color-bg: #f8f7f3;
+  --color-surface: #ffffff;
+  --color-primary: #2d5a1b;
+  --color-primary-strong: #0f1410;
+  --color-warning: #7a5c2e;
   --color-danger: #b42318;
-  --color-earth: #4f5d46;
-  --color-text: #17211d;
-  --color-muted: #4b5a54;
-  --color-border: #c9c4b5;
-  --color-primary-soft: #dcefe9;
-  --color-warning-soft: #f6e2b8;
+  --color-earth: #243020;
+  --color-text: #0f1410;
+  --color-muted: #56645a;
+  --color-border: #d4dbd0;
+  --color-primary-soft: #eaf2e3;
+  --color-warning-soft: #f1e5cf;
   --color-danger-soft: #f8d8d3;
-  --color-earth-soft: #e5eadf;
-  --color-highlight: #cfe9ec;
-  --color-success: #146c43;
-  --color-success-soft: #d9ecdf;
+  --color-earth-soft: #f3f5f0;
+  --color-highlight: #c4ddb4;
+  --color-success: #4a8c2a;
+  --color-success-soft: #eaf2e3;
   --background: var(--color-bg);
   --surface: var(--color-surface);
-  --surface-muted: #efede4;
+  --surface-muted: #f3f5f0;
   --text: var(--color-text);
   --muted: var(--color-muted);
   --border: var(--color-border);
@@ -104,7 +104,7 @@ textarea {
   display: grid;
   gap: 12px;
   padding: 14px 16px;
-  background: rgba(247, 243, 232, 0.98);
+  background: rgba(248, 247, 243, 0.98);
   border-bottom: 2px solid var(--border);
   box-shadow: 0 2px 8px rgba(23, 33, 29, 0.08);
 }
@@ -346,10 +346,34 @@ textarea {
   background: var(--primary);
   color: #ffffff;
   border-color: var(--primary-dark);
-  box-shadow: 0 2px 0 rgba(11, 61, 53, 0.22);
+  box-shadow: 0 2px 0 rgba(15, 20, 16, 0.2);
 }
 
-.button:not(.primary):hover,
+.button.secondary {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  border-color: var(--primary);
+}
+
+.button.quiet {
+  background: transparent;
+  color: var(--primary-dark);
+  border-color: var(--border);
+}
+
+.button.warning {
+  background: var(--warning-soft);
+  color: var(--primary-dark);
+  border-color: var(--warning);
+}
+
+.button.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.button:not(.primary):not(.danger):hover,
 .nav-link:hover {
   background: var(--highlight);
 }
@@ -1633,7 +1657,7 @@ td span {
 
 .focused-task {
   border-color: var(--primary-dark);
-  box-shadow: 0 0 0 3px rgba(23, 107, 92, 0.22);
+  box-shadow: 0 0 0 3px rgba(45, 90, 27, 0.22);
 }
 
 .quick-cost-form {
@@ -2320,7 +2344,7 @@ td span {
 .daily-usage-card.needs-attention {
   border-color: var(--warning);
   background: var(--warning-soft);
-  box-shadow: 0 0 0 3px rgba(183, 121, 31, 0.2);
+  box-shadow: 0 0 0 3px rgba(122, 92, 46, 0.2);
 }
 
 .daily-usage-header {

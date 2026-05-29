@@ -793,7 +793,13 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
         <section className="form-section used-parts-section">
           <div className="panel-heading compact">
             <h3>Verwendete Ersatzteile</h3>
-            <button className="button" type="button" onClick={handleAddUsedPart} disabled={spareParts.length === 0}>
+            <button
+              className="button"
+              type="button"
+              onClick={handleAddUsedPart}
+              disabled={spareParts.length === 0}
+              title={spareParts.length === 0 ? "Keine Ersatzteile erfasst." : undefined}
+            >
               Teil dazu
             </button>
           </div>

@@ -272,10 +272,22 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
         <div className="panel-heading">
           <h2>Aktive Maschinen</h2>
           <div className="task-actions">
-            <button className="button" type="button" onClick={clearDrafts} disabled={changedMachineIds.length === 0}>
+            <button
+              className="button"
+              type="button"
+              onClick={clearDrafts}
+              disabled={changedMachineIds.length === 0}
+              title={changedMachineIds.length === 0 ? "Keine Aenderungen vorhanden." : undefined}
+            >
               Entwurf loeschen
             </button>
-            <button className="button primary" type="button" onClick={saveChangedRows} disabled={savingIds.length > 0}>
+            <button
+              className="button primary"
+              type="button"
+              onClick={saveChangedRows}
+              disabled={savingIds.length > 0}
+              title={savingIds.length > 0 ? "Speichern laeuft." : undefined}
+            >
               Alle speichern
             </button>
           </div>
@@ -317,6 +329,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
                 type="button"
                 onClick={saveChangedRows}
                 disabled={savingIds.length > 0}
+                title={savingIds.length > 0 ? "Speichern laeuft." : undefined}
               >
                 Jetzt speichern
               </button>

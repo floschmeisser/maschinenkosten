@@ -42,6 +42,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
   const [isCreating, setIsCreating] = useState(false);
   const [editingPart, setEditingPart] = useState<MachineSparePart | null>(null);
   const [query, setQuery] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
   const refreshParts = useCallback(async () => {
     setIsLoading(true);
@@ -68,6 +69,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
     await createMachineSparePart(input);
     await refreshParts();
     setIsCreating(false);
+    setMessage("Ersatzteil gespeichert.");
   }
 
   async function handleUpdatePart(input: CreateMachineSparePartInput) {
@@ -78,11 +80,17 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
     await updateMachineSparePart(editingPart.id, input);
     await refreshParts();
     setEditingPart(null);
+    setMessage("Ersatzteil gespeichert.");
   }
 
   async function handleDeletePart(partId: string) {
-    await deleteMachineSparePart(partId);
+    if (!window.confirm("Ersatzteil wirklich loeschen?")) {
+      return;
+    }
+
+    const deleted = await deleteMachineSparePart(partId);
     await refreshParts();
+    setMessage(deleted ? "Ersatzteil geloescht." : "Ersatzteil konnte nicht geloescht werden.");
   }
 
   const visibleParts = useMemo(() => {
@@ -157,6 +165,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
           <strong>{parts.length}</strong>
         </div>
       </div>
+      {message ? <p className={message.includes("konnte") ? "form-error" : "form-success"}>{message}</p> : null}
 
       {parts.length > 0 ? (
         <label className="spare-parts-search">
@@ -224,7 +233,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
                   <button className="button" type="button" onClick={() => setEditingPart(part)}>
                     Bearbeiten
                   </button>
-                  <button className="button" type="button" onClick={() => handleDeletePart(part.id)}>
+                  <button className="button danger" type="button" onClick={() => handleDeletePart(part.id)}>
                     Loeschen
                   </button>
                 </div>

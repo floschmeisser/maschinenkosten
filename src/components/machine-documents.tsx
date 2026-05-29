@@ -75,8 +75,13 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
   }
 
   async function handleDeleteDocument(documentId: string) {
+    if (!window.confirm("Dokument wirklich loeschen?")) {
+      return;
+    }
+
     setMessage(null);
-    await deleteMachineDocument(documentId);
+    const deleted = await deleteMachineDocument(documentId);
+    setMessage(deleted ? "Dokument geloescht." : "Dokument konnte nicht geloescht werden.");
     await refreshDocuments();
   }
 
@@ -187,7 +192,7 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
                     Oeffnen
                   </button>
                 )}
-                <button className="button" type="button" onClick={() => handleDeleteDocument(document.id)}>
+                <button className="button danger" type="button" onClick={() => handleDeleteDocument(document.id)}>
                   Loeschen
                 </button>
               </div>

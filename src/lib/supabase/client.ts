@@ -107,7 +107,9 @@ async function initializeSupabaseClient(supabaseUrl: string, supabaseAnonKey: st
 
   try {
     const client = createClient(supabaseUrl, supabaseAnonKey);
-    console.info("[Supabase] Singleton client initialized");
+    if (process.env.NODE_ENV === "development") {
+      console.info("[Supabase] Singleton client initialized");
+    }
     return client;
   } catch (error) {
     browserClientPromise = null;

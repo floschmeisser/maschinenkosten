@@ -142,7 +142,11 @@ export function LoginPanel({ locale = "de" }: LoginPanelProps) {
   );
 }
 
-export function SettingsPanel() {
+type SettingsPanelProps = {
+  locale?: Locale;
+};
+
+export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
   const [settings, setSettings] = useState<AppSettingsPreferences>(() => ({
     farmName: "",
     locale: "de",
@@ -197,7 +201,18 @@ export function SettingsPanel() {
             <span>Eingeloggt</span>
             <strong>{runtimeStatus?.currentUser ? "Ja" : "Nein"}</strong>
           </div>
+          <div>
+            <span>Betrieb</span>
+            <strong>{runtimeStatus?.currentFarm ? "geladen" : "fehlt"}</strong>
+          </div>
         </div>
+        {runtimeStatus?.storageMode === "login_required" ? (
+          <div className="form-actions">
+            <Link className="button primary" href={`/${locale}/login`}>
+              Einloggen
+            </Link>
+          </div>
+        ) : null}
       </section>
       <section className="panel form-panel">
         <form className="form-grid" onSubmit={handleSubmit}>

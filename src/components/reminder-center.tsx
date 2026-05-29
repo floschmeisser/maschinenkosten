@@ -5,8 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/i18n/routing";
 import { formatDate } from "@/lib/app/format";
 import { getMachines } from "@/lib/app/machines-database";
-import { getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
-import { getMaintenanceTasks } from "@/lib/app/maintenance-database";
 import {
   getReminderPriorityLabel,
   getReminderTypeLabel,
@@ -18,9 +16,8 @@ import {
   completeReminder,
   dismissReminder,
   getOpenReminders,
-  upsertReminder
 } from "@/lib/app/reminders-database";
-import { generateAllReminders } from "@/lib/app/reminder-generation";
+import { syncRemindersFromCurrentData } from "@/lib/app/reminder-sync";
 import type { Machine } from "@/lib/app/machines";
 
 type ReminderCenterProps = {
@@ -31,6 +28,7 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const machineNames = useMemo(
     () => new Map(machines.map((machine) => [machine.id, machine.name])),
@@ -41,20 +39,16 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
     setIsLoading(true);
 
     try {
-      const [machineData, maintenanceTasks] = await Promise.all([getMachines(), getMaintenanceTasks()]);
-      const spareParts = (await Promise.all(machineData.map((machine) => getMachineSpareParts(machine.id)))).flat();
-      const generatedReminders = generateAllReminders({
-        machines: machineData,
-        maintenanceTasks,
-        spareParts
-      });
-
-      await Promise.all(generatedReminders.map((reminder) => upsertReminder(reminder)));
-
+      await syncRemindersFromCurrentData();
+      const [machineData, reminderData] = await Promise.all([getMachines(), getOpenReminders()]);
       setMachines(machineData);
-      setReminders(await getOpenReminders());
+      setReminders(reminderData);
     } catch {
-      setReminders(await getOpenReminders());
+      try {
+        setReminders(await getOpenReminders());
+      } catch {
+        setReminders([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,11 +73,36 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
     setReminders((currentReminders) => sortRemindersByPriority(currentReminders.filter((reminder) => reminder.id !== id)));
   }
 
+  async function handleManualSync() {
+    setSyncMessage(null);
+    setIsLoading(true);
+
+    try {
+      await syncRemindersFromCurrentData();
+      const [machineData, reminderData] = await Promise.all([getMachines(), getOpenReminders()]);
+      setMachines(machineData);
+      setReminders(reminderData);
+      setSyncMessage("Erinnerungen aktualisiert.");
+    } catch {
+      setSyncMessage("Aktualisieren nicht moeglich.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="page">
       <header className="page-header">
-        <h1>Erinnerungen</h1>
-        <p>Persistierte Hinweise fuer Wartung, Pickerl/TUEV, Lager und Kosten.</p>
+        <div className="page-header-actions">
+          <div>
+            <h1>Erinnerungen</h1>
+            <p>Wartung, Pickerl/TUEV, Lager und Kosten.</p>
+          </div>
+          <button className="button primary" type="button" onClick={handleManualSync} disabled={isLoading}>
+            Erinnerungen aktualisieren
+          </button>
+        </div>
+        {syncMessage ? <p className={syncMessage.includes("nicht") ? "form-error" : "form-success"}>{syncMessage}</p> : null}
       </header>
 
       {isLoading ? (

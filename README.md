@@ -157,6 +157,15 @@ Jede Erinnerung besitzt `farm_id`, einen stabilen `reminder_key`, Prioritaet und
 
 Das Dashboard zeigt die wichtigsten offenen Erinnerungen, die Seite `/de/reminders` zeigt alle offenen Erinnerungen mit Aktionen `Erledigt`, `Gesehen` und `Ausblenden`.
 
+Die App synchronisiert Erinnerungen nach wichtigen Datenaktionen automatisch im Hintergrund:
+
+- Wartung anlegen, aendern oder erledigen
+- Maschinenstand und Maschinendaten aktualisieren
+- Ersatzteil anlegen oder aendern
+- Lagerbestand nach verwendeten Ersatzteilen reduzieren
+
+Fehler im Hintergrund-Sync blockieren die Hauptaktion nicht. In der Erinnerungsseite gibt es zusaetzlich `Erinnerungen aktualisieren`, um die Daten manuell neu aus Maschinen, Wartung, Lager und Kosten zu erzeugen.
+
 Wichtig: Dieses v1 sendet noch keine E-Mail und keine Push-Nachrichten. Der zuverlaessige Teil ist die persistierte Datenbasis. Fuer echte Benachrichtigung ohne offenen Browser sollte spaeter ein geplanter Job die Reminder erzeugen und E-Mail/Push versenden.
 
 ## Naechste Schritte fuer Supabase

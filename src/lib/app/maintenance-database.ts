@@ -10,6 +10,7 @@ import {
   type UpdateMaintenanceTaskInput
 } from "./maintenance";
 import { placeholderFarmId } from "./machines";
+import { scheduleReminderSync } from "./reminder-sync-scheduler";
 
 export type CompleteMaintenanceTaskResult = {
   completedTask: MaintenanceTask | null;
@@ -105,6 +106,7 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
 
   if (!source) {
     fallbackMaintenanceTasks = [fallbackTask, ...fallbackMaintenanceTasks];
+    triggerReminderSync();
     return fallbackTask;
   }
 
@@ -115,11 +117,13 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
 
   if (!result?.data) {
     fallbackMaintenanceTasks = [fallbackTask, ...fallbackMaintenanceTasks];
+    triggerReminderSync();
     return fallbackTask;
   }
 
   const createdTask = mapMaintenanceTaskRowToTask(result.data);
   fallbackMaintenanceTasks = [createdTask, ...fallbackMaintenanceTasks.filter((task) => task.id !== createdTask.id)];
+  triggerReminderSync();
   return createdTask;
 }
 
@@ -132,6 +136,7 @@ export async function updateMaintenanceTask(id: string, input: UpdateMaintenance
   if (!source) {
     if (fallbackTask) {
       fallbackMaintenanceTasks = fallbackMaintenanceTasks.map((task) => (task.id === id ? fallbackTask : task));
+      triggerReminderSync();
     }
 
     return fallbackTask;
@@ -149,11 +154,16 @@ export async function updateMaintenanceTask(id: string, input: UpdateMaintenance
   );
 
   if (!result?.data) {
+    if (fallbackTask) {
+      triggerReminderSync();
+    }
+
     return fallbackTask;
   }
 
   const updatedTask = mapMaintenanceTaskRowToTask(result.data);
   fallbackMaintenanceTasks = fallbackMaintenanceTasks.map((task) => (task.id === id ? updatedTask : task));
+  triggerReminderSync();
   return updatedTask;
 }
 
@@ -323,4 +333,8 @@ function mapMaintenanceTaskInputToRow(
     completed_at: input.completedAt,
     updated_at: input.updatedAt
   };
+}
+
+function triggerReminderSync(): void {
+  scheduleReminderSync();
 }

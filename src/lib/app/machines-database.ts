@@ -7,6 +7,7 @@ import {
   type UpdateMachineInput
 } from "./machines";
 import { getCurrentFarm, type Farm } from "./farms-database";
+import { scheduleReminderSync } from "./reminder-sync-scheduler";
 
 type MachineRow = {
   id: string;
@@ -114,6 +115,7 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
 
   if (!source) {
     fallbackMachines = [fallbackMachine, ...fallbackMachines];
+    triggerReminderSync();
     return fallbackMachine;
   }
 
@@ -124,11 +126,13 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
 
   if (!result?.data) {
     fallbackMachines = [fallbackMachine, ...fallbackMachines];
+    triggerReminderSync();
     return fallbackMachine;
   }
 
   const createdMachine = mapMachineRowToMachine(result.data);
   fallbackMachines = [createdMachine, ...fallbackMachines.filter((machine) => machine.id !== createdMachine.id)];
+  triggerReminderSync();
   return createdMachine;
 }
 
@@ -141,6 +145,7 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
   if (!source) {
     if (fallbackMachine) {
       fallbackMachines = fallbackMachines.map((machine) => (machine.id === id ? fallbackMachine : machine));
+      triggerReminderSync();
     }
 
     return fallbackMachine;
@@ -152,11 +157,16 @@ export async function updateMachine(id: string, input: UpdateMachineInput): Prom
   );
 
   if (!result?.data) {
+    if (fallbackMachine) {
+      triggerReminderSync();
+    }
+
     return fallbackMachine;
   }
 
   const updatedMachine = mapMachineRowToMachine(result.data);
   fallbackMachines = fallbackMachines.map((machine) => (machine.id === id ? updatedMachine : machine));
+  triggerReminderSync();
   return updatedMachine;
 }
 
@@ -166,6 +176,9 @@ export async function deleteMachine(id: string): Promise<boolean> {
   if (!source) {
     const hadMachine = fallbackMachines.some((machine) => machine.id === id);
     fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
+    if (hadMachine) {
+      triggerReminderSync();
+    }
     return hadMachine;
   }
 
@@ -177,10 +190,14 @@ export async function deleteMachine(id: string): Promise<boolean> {
   if (!result) {
     const hadMachine = fallbackMachines.some((machine) => machine.id === id);
     fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
+    if (hadMachine) {
+      triggerReminderSync();
+    }
     return hadMachine;
   }
 
   fallbackMachines = fallbackMachines.filter((machine) => machine.id !== id);
+  triggerReminderSync();
   return true;
 }
 
@@ -311,4 +328,8 @@ function mapMachineInputToRow(input: Partial<CreateMachineInput & Pick<Machine, 
     notes: input.notes,
     updated_at: input.updatedAt
   };
+}
+
+function triggerReminderSync(): void {
+  scheduleReminderSync();
 }

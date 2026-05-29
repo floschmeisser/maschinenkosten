@@ -8,6 +8,7 @@ import {
   type MachineSparePart,
   type UpdateMachineSparePartInput
 } from "./machines";
+import { scheduleReminderSync } from "./reminder-sync-scheduler";
 
 type MachineSparePartRow = {
   id: string;
@@ -95,6 +96,7 @@ export async function createMachineSparePart(input: CreateMachineSparePartInput)
 
   if (!source) {
     fallbackSpareParts = [fallbackPart, ...fallbackSpareParts];
+    triggerReminderSync();
     return fallbackPart;
   }
 
@@ -105,11 +107,13 @@ export async function createMachineSparePart(input: CreateMachineSparePartInput)
 
   if (!result?.data) {
     fallbackSpareParts = [fallbackPart, ...fallbackSpareParts];
+    triggerReminderSync();
     return fallbackPart;
   }
 
   const createdPart = mapSparePartRowToSparePart(result.data);
   fallbackSpareParts = [createdPart, ...fallbackSpareParts.filter((part) => part.id !== createdPart.id)];
+  triggerReminderSync();
   return createdPart;
 }
 
@@ -122,6 +126,7 @@ export async function updateMachineSparePart(id: string, input: UpdateMachineSpa
   if (!source) {
     if (fallbackPart) {
       fallbackSpareParts = fallbackSpareParts.map((part) => (part.id === id ? fallbackPart : part));
+      triggerReminderSync();
     }
 
     return fallbackPart;
@@ -139,11 +144,16 @@ export async function updateMachineSparePart(id: string, input: UpdateMachineSpa
   );
 
   if (!result?.data) {
+    if (fallbackPart) {
+      triggerReminderSync();
+    }
+
     return fallbackPart;
   }
 
   const updatedPart = mapSparePartRowToSparePart(result.data);
   fallbackSpareParts = fallbackSpareParts.map((part) => (part.id === id ? updatedPart : part));
+  triggerReminderSync();
   return updatedPart;
 }
 
@@ -153,6 +163,9 @@ export async function deleteMachineSparePart(id: string): Promise<boolean> {
   if (!source) {
     const hadPart = fallbackSpareParts.some((part) => part.id === id);
     fallbackSpareParts = fallbackSpareParts.filter((part) => part.id !== id);
+    if (hadPart) {
+      triggerReminderSync();
+    }
     return hadPart;
   }
 
@@ -164,10 +177,14 @@ export async function deleteMachineSparePart(id: string): Promise<boolean> {
   if (!result) {
     const hadPart = fallbackSpareParts.some((part) => part.id === id);
     fallbackSpareParts = fallbackSpareParts.filter((part) => part.id !== id);
+    if (hadPart) {
+      triggerReminderSync();
+    }
     return hadPart;
   }
 
   fallbackSpareParts = fallbackSpareParts.filter((part) => part.id !== id);
+  triggerReminderSync();
   return true;
 }
 
@@ -275,4 +292,8 @@ function mapSparePartInputToRow(
     notes: input.notes,
     updated_at: input.updatedAt
   };
+}
+
+function triggerReminderSync(): void {
+  scheduleReminderSync();
 }

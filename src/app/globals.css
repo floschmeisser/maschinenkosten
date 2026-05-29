@@ -82,6 +82,16 @@ textarea {
   line-height: 1.5;
 }
 
+.page-header-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.page-header-actions > div {
+  display: grid;
+  gap: 6px;
+}
+
 .shell {
   min-height: 100vh;
   background: var(--background);
@@ -2432,6 +2442,11 @@ td span {
 
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-header-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
   }
 
   .dashboard-focus-grid {

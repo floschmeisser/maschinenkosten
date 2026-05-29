@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/app/format";
 import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
 import { getMachineSparePartStockStatus, getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
-import { getLowStockSpareParts, getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
+import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
@@ -20,8 +20,8 @@ import {
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
 import { getReminderPriorityLabel, getReminderTypeLabel, type Reminder } from "@/lib/app/reminders";
-import { getOpenReminders, upsertReminder } from "@/lib/app/reminders-database";
-import { generateAllReminders } from "@/lib/app/reminder-generation";
+import { getOpenReminders } from "@/lib/app/reminders-database";
+import { syncRemindersFromCurrentData } from "@/lib/app/reminder-sync";
 
 type DashboardProps = {
   locale: Locale;
@@ -58,29 +58,31 @@ export function Dashboard({ locale }: DashboardProps) {
       setIsLoading(true);
 
       try {
-        const [machineData, taskData, lowStockSpareParts] = await Promise.all([
+        const [machineData, taskData, lowStockSpareParts, reminderData] = await Promise.all([
           loadMachines(),
           loadMaintenanceTasks(),
-          getLowStockSpareParts()
+          getLowStockSpareParts(),
+          getOpenReminders()
         ]);
-        const spareParts = (await Promise.all(machineData.map((machine) => getMachineSpareParts(machine.id)))).flat();
-        const generatedReminders = generateAllReminders({
-          machines: machineData,
-          maintenanceTasks: taskData,
-          spareParts
-        });
-
-        await Promise.all(generatedReminders.map((reminder) => upsertReminder(reminder)));
 
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
         setLowStockSpareParts(lowStockSpareParts);
-        setOpenReminders(await getOpenReminders());
+        setOpenReminders(reminderData);
+        void syncRemindersFromCurrentData()
+          .then(async () => {
+            setOpenReminders(await getOpenReminders());
+          })
+          .catch(() => undefined);
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
         setLowStockSpareParts([]);
-        setOpenReminders(await getOpenReminders());
+        try {
+          setOpenReminders(await getOpenReminders());
+        } catch {
+          setOpenReminders([]);
+        }
       } finally {
         setIsLoading(false);
       }

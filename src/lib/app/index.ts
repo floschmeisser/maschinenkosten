@@ -166,3 +166,6 @@ export {
   generateMaintenanceReminders,
   generateSparePartReminders
 } from "./reminder-generation";
+
+export { syncRemindersForFarm, syncRemindersFromCurrentData } from "./reminder-sync";
+export type { ReminderSyncResult } from "./reminder-sync";

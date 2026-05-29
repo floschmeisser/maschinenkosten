@@ -547,6 +547,39 @@ textarea:disabled {
   width: 100%;
 }
 
+.dashboard-cost-strip {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-cost-signal {
+  display: grid;
+  gap: 4px;
+  min-height: 104px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
+}
+
+.dashboard-cost-signal span {
+  color: var(--primary-dark);
+  font-weight: 900;
+}
+
+.dashboard-cost-signal strong {
+  color: var(--primary-dark);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.dashboard-cost-signal small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .dashboard-focus-card.good {
   border-color: var(--success);
   background: var(--primary-soft);
@@ -601,6 +634,170 @@ textarea:disabled {
   gap: 12px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
+}
+
+.cost-page {
+  gap: 14px;
+}
+
+.cost-decision-hero {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+
+.cost-decision-hero.warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.cost-decision-hero.danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.cost-decision-hero span {
+  color: var(--primary-dark);
+  font-weight: 900;
+}
+
+.cost-decision-hero h2,
+.cost-decision-hero p {
+  margin: 0;
+}
+
+.cost-decision-hero h2 {
+  color: var(--text);
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.cost-decision-hero p {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.cost-kpi-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.cost-kpi {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 2px solid rgba(12, 81, 61, 0.18);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cost-kpi strong {
+  color: var(--primary-dark);
+  font-size: 38px;
+  line-height: 1;
+}
+
+.cost-kpi small,
+.cost-kpi span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.cost-breakdown {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.cost-breakdown:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.cost-bar-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) 1.4fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.cost-bar-row span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cost-bar-row strong {
+  color: var(--text);
+}
+
+.cost-bar {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.cost-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.cost-comparison-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cost-comparison-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cost-comparison-card.warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.cost-comparison-card.danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.cost-comparison-card strong {
+  font-size: 20px;
+}
+
+.cost-comparison-card span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cost-comparison-metrics {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cost-comparison-metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .mini-list-item:first-child,
@@ -1486,6 +1683,46 @@ td span {
   margin-top: 0;
 }
 
+.machine-cost-panel {
+  border-color: var(--primary);
+}
+
+.machine-cost-panel.warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.machine-cost-panel.danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.machine-cost-kpis {
+  display: grid;
+  gap: 10px;
+}
+
+.machine-cost-kpis div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.machine-cost-kpis span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.machine-cost-kpis strong {
+  color: var(--primary-dark);
+  font-size: 28px;
+  line-height: 1;
+}
+
 .spare-parts-list {
   display: grid;
   gap: 12px;
@@ -2044,6 +2281,20 @@ td span {
   }
 
   .dashboard-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-cost-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cost-decision-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 1.4fr);
+    align-items: stretch;
+  }
+
+  .cost-kpi-grid,
+  .machine-cost-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 

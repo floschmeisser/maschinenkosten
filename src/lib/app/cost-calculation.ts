@@ -15,6 +15,20 @@ import {
   type MaintenanceTask
 } from "./maintenance";
 
+export type MachineCostHealthTone = "good" | "warning" | "danger" | "neutral";
+
+export type MachineCostHealth = {
+  label: string;
+  tone: MachineCostHealthTone;
+  reasons: string[];
+};
+
+export type MachineCostComparisonItem = {
+  machine: Machine;
+  result: MachineCostResult;
+  health: MachineCostHealth;
+};
+
 export const defaultCostInputs: MachineCostInput = {
   purchasePrice: 84000,
   currentValue: 61000,
@@ -88,4 +102,67 @@ export function createCostInputFromMachine(machine: Machine, maintenanceTasks?: 
     otherVariableCostsPerHour: machine.otherVariableCostsPerHour ?? 0,
     annualKilometers: machine.annualKilometers ?? null
   };
+}
+
+export function evaluateMachineCostHealth(input: MachineCostInput, result: MachineCostResult): MachineCostHealth {
+  const reasons: string[] = [];
+  const maintenanceAndRepairPerHour = result.variableCosts.maintenanceCostsPerHour + result.variableCosts.repairCostsPerHour;
+  const costPerHour = result.costPerOperatingHour ?? 0;
+
+  if (input.annualOperatingHours > 0 && input.annualOperatingHours < 120) {
+    reasons.push("Sehr geringe Jahresstunden");
+  }
+
+  if (costPerHour > 0 && costPerHour >= 140) {
+    reasons.push("Ungewoehnlich hohe Kosten pro Stunde");
+  }
+
+  if (result.variableCosts.repairCostsPerHour >= 18 || input.repairCostsPerYear >= input.purchasePrice * 0.08) {
+    reasons.push("Hohe Reparaturkosten");
+  }
+
+  if (result.variableCosts.maintenanceCostsPerHour >= 12 || input.maintenanceCostsPerYear >= input.purchasePrice * 0.05) {
+    reasons.push("Hohe Wartungskosten");
+  }
+
+  if (maintenanceAndRepairPerHour >= 28) {
+    reasons.push("Wartungsintensiv");
+  }
+
+  if (reasons.some((reason) => reason.includes("Ungewoehnlich") || reason.includes("Reparatur"))) {
+    return { label: "Hohe Betriebskosten", tone: "danger", reasons };
+  }
+
+  if (reasons.some((reason) => reason.includes("Wartung") || reason.includes("Jahresstunden"))) {
+    return { label: "Wartungsintensiv", tone: "warning", reasons };
+  }
+
+  if (costPerHour > 0 && costPerHour < 70 && input.annualOperatingHours >= 250) {
+    return { label: "Sehr wirtschaftlich", tone: "good", reasons: ["Gute Auslastung"] };
+  }
+
+  return { label: "Wirtschaftlich", tone: "neutral", reasons: reasons.length > 0 ? reasons : ["Unauffaellige Kosten"] };
+}
+
+export function createMachineCostComparison(machines: Machine[], maintenanceTasks: MaintenanceTask[]): MachineCostComparisonItem[] {
+  return machines
+    .map((machine) => {
+      const input = createCostInputFromMachine(machine, maintenanceTasks);
+      const result = calculateMachineCosts(input);
+
+      return {
+        machine,
+        result,
+        health: evaluateMachineCostHealth(input, result)
+      };
+    })
+    .sort((first, second) => {
+      const firstCost = first.result.costPerOperatingHour ?? Number.POSITIVE_INFINITY;
+      const secondCost = second.result.costPerOperatingHour ?? Number.POSITIVE_INFINITY;
+      return secondCost - firstCost;
+    });
+}
+
+export function getAdditionalCostWarnings(input: MachineCostInput, result: MachineCostResult): string[] {
+  return evaluateMachineCostHealth(input, result).reasons.filter((reason) => reason !== "Unauffaellige Kosten" && reason !== "Gute Auslastung");
 }

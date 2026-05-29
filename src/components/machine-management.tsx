@@ -13,7 +13,7 @@ import {
   validateMachineUsageUpdate
 } from "@/lib/app/machines";
 import { createMachine, getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
-import { calculateMachineCosts, createCostInputFromMachine } from "@/lib/app/cost-calculation";
+import { calculateMachineCosts, createCostInputFromMachine, evaluateMachineCostHealth } from "@/lib/app/cost-calculation";
 import { getMaintenanceTasksByMachine } from "@/lib/app/maintenance-database";
 import { getUsedPartsForMachine, type MachineUsedPartHistoryItem } from "@/lib/app/maintenance-used-parts-database";
 import {
@@ -147,6 +147,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
   const [documentCreateKey, setDocumentCreateKey] = useState(0);
   const costInput = createCostInputFromMachine(currentMachine, maintenanceTasks);
   const costResult = calculateMachineCosts(costInput);
+  const costHealth = evaluateMachineCostHealth(costInput, costResult);
   const nextMaintenanceTasks = getNextMaintenanceTasksForMachine(currentMachine.id, maintenanceTasks, 3, [currentMachine]);
   const nextMaintenanceTask = nextMaintenanceTasks[0] ?? null;
 
@@ -305,41 +306,43 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
         )}
       </section>
 
+      <section className={`panel machine-cost-panel ${costHealth.tone}`}>
+        <div className="panel-heading">
+          <div>
+            <h2>Kosten</h2>
+            <span className="muted">{costHealth.label}</span>
+          </div>
+          <Link className="button" href={`/${locale}/costs`}>
+            Vergleichen
+          </Link>
+        </div>
+        <div className="machine-cost-kpis">
+          <div>
+            <span>je Stunde</span>
+            <strong>{costResult.costPerOperatingHour === null ? "-" : formatCurrency(costResult.costPerOperatingHour)}</strong>
+          </div>
+          <div>
+            <span>je Hektar</span>
+            <strong>{costResult.costPerHectare === null ? "-" : formatCurrency(costResult.costPerHectare)}</strong>
+          </div>
+          <div>
+            <span>je Kilometer</span>
+            <strong>{costResult.costPerKilometer === null ? "-" : formatCurrency(costResult.costPerKilometer)}</strong>
+          </div>
+        </div>
+        <div className="cost-comparison-metrics">
+          <span>{formatCurrency(costResult.fixedCosts.annualFixedCosts)} Fix/Jahr</span>
+          <span>{formatCurrency(costResult.variableCosts.maintenanceCostsPerHour)}/h Wartung</span>
+          <span>{formatCurrency(costResult.variableCosts.repairCostsPerHour)}/h Reparatur</span>
+        </div>
+      </section>
+
       <MachineSpareParts createSignal={sparePartCreateKey} machine={currentMachine} />
       <MachineSparePartUsageHistory machineId={currentMachine.id} />
 
       <MachineDocuments createSignal={documentCreateKey} machine={currentMachine} />
 
       <section className="details-grid machine-lower-details">
-        <div className="panel">
-          <h2>Kosten</h2>
-          <dl className="detail-list">
-            <div>
-              <dt>Kosten je Stunde</dt>
-              <dd>{costResult.costPerOperatingHour === null ? "-" : formatCurrency(costResult.costPerOperatingHour)}</dd>
-            </div>
-            <div>
-              <dt>Gesamt pro Jahr</dt>
-              <dd>{formatCurrency(costResult.totalAnnualCosts)}</dd>
-            </div>
-            <div>
-              <dt>Fixkosten</dt>
-              <dd>{formatCurrency(costResult.fixedCosts.annualFixedCosts)}</dd>
-            </div>
-            <div>
-              <dt>Variabel</dt>
-              <dd>{formatCurrency(costResult.variableCosts.annualVariableCosts)}</dd>
-            </div>
-          </dl>
-          {costResult.warnings.length > 0 ? (
-            <ul className="warning-list">
-              {costResult.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
         <div className="panel">
           <h2>Technik</h2>
           <dl className="detail-list">

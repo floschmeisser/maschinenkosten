@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/routing";
+import { createMachineCostComparison } from "@/lib/app/cost-calculation";
 import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
+import { formatCurrency } from "@/lib/app/format";
 import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
 import { getMachineSparePartStockStatus, getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
@@ -81,6 +83,14 @@ export function Dashboard({ locale }: DashboardProps) {
   const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
   const urgentMachineCount = machines.filter((machine) => machine.status === "maintenance" || machine.serviceStatus === "danger").length;
   const criticalLowStockCount = lowStockSpareParts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
+  const costComparisonItems = createMachineCostComparison(machines, maintenanceTasks);
+  const mostExpensiveMachine = costComparisonItems[0];
+  const cheapestMachine = [...costComparisonItems]
+    .filter((item) => item.result.costPerOperatingHour !== null)
+    .sort((first, second) => (first.result.costPerOperatingHour ?? 0) - (second.result.costPerOperatingHour ?? 0))[0];
+  const highMaintenanceMachine = [...costComparisonItems].sort(
+    (first, second) => second.result.variableCosts.maintenanceCostsPerHour - first.result.variableCosts.maintenanceCostsPerHour
+  )[0];
   const importantItems = createImportantItems({
     farmConfig,
     locale,
@@ -148,6 +158,29 @@ export function Dashboard({ locale }: DashboardProps) {
         ))}
       </section>
 
+      {farmConfig.enabledModules.costs && costComparisonItems.length > 0 ? (
+        <section className="dashboard-cost-strip" aria-label="Kostenblick">
+          <DashboardCostSignal
+            href={`/${locale}/costs`}
+            label="Teuerste"
+            machineName={mostExpensiveMachine?.machine.name ?? "-"}
+            value={mostExpensiveMachine?.result.costPerOperatingHour ?? null}
+          />
+          <DashboardCostSignal
+            href={`/${locale}/costs`}
+            label="Guenstigste"
+            machineName={cheapestMachine?.machine.name ?? "-"}
+            value={cheapestMachine?.result.costPerOperatingHour ?? null}
+          />
+          <DashboardCostSignal
+            href={`/${locale}/costs`}
+            label="Wartung hoch"
+            machineName={highMaintenanceMachine?.machine.name ?? "-"}
+            value={highMaintenanceMachine?.result.variableCosts.maintenanceCostsPerHour ?? null}
+          />
+        </section>
+      ) : null}
+
       <section className="dashboard-actions" aria-label="Schnellaktionen">
         {quickActions.map((action, index) => (
           <Link className={index === 0 ? "button primary large-action" : "button large-action"} href={action.href} key={action.href}>
@@ -156,6 +189,23 @@ export function Dashboard({ locale }: DashboardProps) {
         ))}
       </section>
     </main>
+  );
+}
+
+type DashboardCostSignalProps = {
+  href: string;
+  label: string;
+  machineName: string;
+  value: number | null;
+};
+
+function DashboardCostSignal({ href, label, machineName, value }: DashboardCostSignalProps) {
+  return (
+    <Link className="dashboard-cost-signal" href={href}>
+      <span>{label}</span>
+      <strong>{value === null ? "-" : `${formatCurrency(value)}/h`}</strong>
+      <small>{machineName}</small>
+    </Link>
   );
 }
 

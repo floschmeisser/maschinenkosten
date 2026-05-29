@@ -18,15 +18,11 @@ import {
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
-import { getReminderPriorityLabel, getReminderTypeLabel, type Reminder } from "@/lib/app/reminders";
-import { getOpenReminders } from "@/lib/app/reminders-database";
 import { syncRemindersFromCurrentData } from "@/lib/app/reminder-sync";
 
 type DashboardProps = {
   locale: Locale;
 };
-
-const maxImportantItems = 3;
 
 export function Dashboard({ locale }: DashboardProps) {
   const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
@@ -34,7 +30,6 @@ export function Dashboard({ locale }: DashboardProps) {
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [lowStockSpareParts, setLowStockSpareParts] = useState<MachineSparePart[]>([]);
-  const [openReminders, setOpenReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -57,31 +52,20 @@ export function Dashboard({ locale }: DashboardProps) {
       setIsLoading(true);
 
       try {
-        const [machineData, taskData, lowStockSpareParts, reminderData] = await Promise.all([
+        const [machineData, taskData, lowStockSpareParts] = await Promise.all([
           loadMachines(),
           loadMaintenanceTasks(),
-          getLowStockSpareParts(),
-          getOpenReminders()
+          getLowStockSpareParts()
         ]);
 
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
         setLowStockSpareParts(lowStockSpareParts);
-        setOpenReminders(reminderData);
-        void syncRemindersFromCurrentData()
-          .then(async () => {
-            setOpenReminders(await getOpenReminders());
-          })
-          .catch(() => undefined);
+        void syncRemindersFromCurrentData().catch(() => undefined);
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
         setLowStockSpareParts([]);
-        try {
-          setOpenReminders(await getOpenReminders());
-        } catch {
-          setOpenReminders([]);
-        }
       } finally {
         setIsLoading(false);
       }
@@ -95,16 +79,9 @@ export function Dashboard({ locale }: DashboardProps) {
     const machine = machines.find((item) => item.id === task.machineId);
     return getMaintenanceDisplayStatus(task, machine) === "due";
   }).length;
-  const criticalLowStockCount = lowStockSpareParts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
-  const importantReminderCount = openReminders.filter((reminder) => reminder.priority === "critical" || reminder.priority === "high").length;
+  const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
   const costComparisonItems = createMachineCostComparison(machines, maintenanceTasks);
   const mostExpensiveMachine = costComparisonItems[0];
-  const cheapestMachine = [...costComparisonItems]
-    .filter((item) => item.result.costPerOperatingHour !== null)
-    .sort((first, second) => (first.result.costPerOperatingHour ?? 0) - (second.result.costPerOperatingHour ?? 0))[0];
-  const highMaintenanceMachine = [...costComparisonItems].sort(
-    (first, second) => second.result.variableCosts.maintenanceCostsPerHour - first.result.variableCosts.maintenanceCostsPerHour
-  )[0];
   const importantItems = createImportantItems({
     farmConfig,
     locale,
@@ -112,53 +89,36 @@ export function Dashboard({ locale }: DashboardProps) {
     machines,
     maintenanceTasks: sortedMaintenanceTasks
   });
-  const statusSummary = createStatusSummary({
-    dueMaintenanceCount,
-    importantCount: importantItems.length,
-    lowStockSparePartsCount: lowStockSpareParts.length,
-    criticalLowStockCount
-  });
+  const mostImportantItem = importantItems[0] ?? null;
   const dashboardCards = createDailyCards({
+    activeMachineCount,
     dueMaintenanceCount,
     farmConfig,
     lowStockSparePartsCount: lowStockSpareParts.length,
-    importantReminderCount,
-    criticalLowStockCount,
-    locale
+    locale,
+    mostExpensiveCost: mostExpensiveMachine?.result.costPerOperatingHour ?? null
   });
   const quickActions = createDashboardQuickActions({ farmConfig, locale });
 
   return (
     <main className="page dashboard-page">
-      <section className="dashboard-hero">
-        <div>
-          <span>{farmConfig.branding.farmName}</span>
-          <h1>{farmConfig.branding.welcomeTitle}</h1>
-        </div>
-        <div className="today-status">
-          <strong>{formatDashboardDate(new Date())}</strong>
-          <small>{isLoading ? "Laden..." : statusSummary}</small>
-        </div>
+      <section className="dashboard-date" aria-label="Datum">
+        <strong>{formatDashboardDate(new Date())}</strong>
       </section>
 
-      <section className="dashboard-important" aria-label="Heute wichtig">
-        <div className="section-title-row">
-          <h2>Heute wichtig</h2>
-          <span>{importantItems.length}</span>
-        </div>
-        {importantItems.length === 0 ? (
+      <section className="dashboard-important" aria-label="Wichtig">
+        {isLoading ? (
           <div className="dashboard-empty">
-            <strong>Alles ruhig</strong>
+            <strong>Laden...</strong>
           </div>
+        ) : mostImportantItem ? (
+          <Link className={`important-item ${mostImportantItem.tone}`} href={mostImportantItem.href}>
+            <strong>{mostImportantItem.title}</strong>
+            <small>{mostImportantItem.meta}</small>
+          </Link>
         ) : (
-          <div className="important-list">
-            {importantItems.map((item) => (
-              <Link className={`important-item ${item.tone}`} href={item.href} key={item.id}>
-                <span>{item.label}</span>
-                <strong>{item.title}</strong>
-                <small>{item.meta}</small>
-              </Link>
-            ))}
+          <div className="dashboard-empty">
+            <strong>Alles erledigt</strong>
           </div>
         )}
       </section>
@@ -168,41 +128,6 @@ export function Dashboard({ locale }: DashboardProps) {
           <DashboardFocusCard {...card} key={card.id} />
         ))}
       </section>
-
-      {openReminders.length > 0 ? (
-        <section className="dashboard-reminders" aria-label="Erinnerungen">
-          {openReminders.slice(0, 3).map((reminder) => (
-            <Link className={`dashboard-reminder-item ${reminder.priority}`} href={`/${locale}/reminders`} key={reminder.id}>
-              <span>{getReminderPriorityLabel(reminder.priority)}</span>
-              <strong>{reminder.title}</strong>
-              <small>{getReminderTypeLabel(reminder.type)}</small>
-            </Link>
-          ))}
-        </section>
-      ) : null}
-
-      {farmConfig.enabledModules.costs && costComparisonItems.length > 0 ? (
-        <section className="dashboard-cost-strip" aria-label="Kostenblick">
-          <DashboardCostSignal
-            href={`/${locale}/costs`}
-            label="Teuerste"
-            machineName={mostExpensiveMachine?.machine.name ?? "-"}
-            value={mostExpensiveMachine?.result.costPerOperatingHour ?? null}
-          />
-          <DashboardCostSignal
-            href={`/${locale}/costs`}
-            label="Guenstigste"
-            machineName={cheapestMachine?.machine.name ?? "-"}
-            value={cheapestMachine?.result.costPerOperatingHour ?? null}
-          />
-          <DashboardCostSignal
-            href={`/${locale}/costs`}
-            label="Wartung hoch"
-            machineName={highMaintenanceMachine?.machine.name ?? "-"}
-            value={highMaintenanceMachine?.result.variableCosts.maintenanceCostsPerHour ?? null}
-          />
-        </section>
-      ) : null}
 
       <section className="dashboard-actions" aria-label="Schnellaktionen">
         {quickActions.map((action, index) => (
@@ -215,23 +140,6 @@ export function Dashboard({ locale }: DashboardProps) {
   );
 }
 
-type DashboardCostSignalProps = {
-  href: string;
-  label: string;
-  machineName: string;
-  value: number | null;
-};
-
-function DashboardCostSignal({ href, label, machineName, value }: DashboardCostSignalProps) {
-  return (
-    <Link className="dashboard-cost-signal" href={href}>
-      <span>{label}</span>
-      <strong>{value === null ? "-" : `${formatCurrency(value)}/h`}</strong>
-      <small>{machineName}</small>
-    </Link>
-  );
-}
-
 type DashboardFocusCardProps = {
   helper: string;
   href: string;
@@ -241,7 +149,7 @@ type DashboardFocusCardProps = {
   value: string;
 };
 
-type DashboardCardId = "maintenance" | "spareParts" | "reminders";
+type DashboardCardId = "maintenance" | "spareParts" | "machines" | "costs";
 type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
 
 function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
@@ -255,21 +163,21 @@ function DashboardFocusCard({ helper, href, label, tone, value }: Omit<Dashboard
 }
 
 type DashboardCardInput = {
-  criticalLowStockCount: number;
+  activeMachineCount: number;
   dueMaintenanceCount: number;
   farmConfig: FarmAppConfig;
-  importantReminderCount: number;
   lowStockSparePartsCount: number;
   locale: Locale;
+  mostExpensiveCost: number | null;
 };
 
 function createDailyCards({
-  criticalLowStockCount,
+  activeMachineCount,
   dueMaintenanceCount,
   farmConfig,
-  importantReminderCount,
   lowStockSparePartsCount,
-  locale
+  locale,
+  mostExpensiveCost
 }: DashboardCardInput): DashboardFocusCardProps[] {
   const cards: DashboardFocusCardProps[] = [
     {
@@ -277,28 +185,36 @@ function createDailyCards({
       tone: dueMaintenanceCount > 0 ? "danger" : "good",
       label: "Wartung",
       value: dueMaintenanceCount.toString(),
-      helper: dueMaintenanceCount === 0 ? "ok" : "faellig",
+      helper: "offen",
       href: `/${locale}/maintenance?filter=due`
     },
     {
-      id: "reminders",
-      tone: importantReminderCount > 0 ? "danger" : "good",
-      label: "Erinnerungen",
-      value: importantReminderCount.toString(),
-      helper: importantReminderCount === 0 ? "ok" : "offen",
-      href: `/${locale}/reminders`
-    },
-    {
       id: "spareParts",
-      tone: criticalLowStockCount > 0 ? "danger" : "warning",
+      tone: lowStockSparePartsCount > 0 ? "warning" : "good",
       label: "Lager",
       value: lowStockSparePartsCount.toString(),
-      helper: criticalLowStockCount > 0 ? "kritisch" : "niedrig",
+      helper: "niedrig",
       href: `/${locale}/machines`
+    },
+    {
+      id: "machines",
+      tone: "earth",
+      label: "Maschinen",
+      value: activeMachineCount.toString(),
+      helper: "aktiv",
+      href: `/${locale}/machines`
+    },
+    {
+      id: "costs",
+      tone: "primary",
+      label: "Kosten",
+      value: mostExpensiveCost === null ? "-" : `${formatCurrency(mostExpensiveCost)}/h`,
+      helper: "hoechste",
+      href: `/${locale}/costs`
     }
   ];
 
-  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig, lowStockSparePartsCount));
+  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig));
 }
 
 type DashboardQuickAction = {
@@ -309,19 +225,20 @@ type DashboardQuickAction = {
 
 function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardInput, "farmConfig" | "locale">): DashboardQuickAction[] {
   const actions: DashboardQuickAction[] = [
-    { label: "Tagesstand erfassen", href: `/${locale}/daily-usage`, module: "dailyUsage" },
-    { label: "Wartung oeffnen", href: `/${locale}/maintenance`, module: "maintenance" },
-    { label: "Maschine hinzufuegen", href: `/${locale}/machines`, module: "machines" }
+    { label: "Tagesstand", href: `/${locale}/daily-usage`, module: "dailyUsage" },
+    { label: "Wartung", href: `/${locale}/maintenance`, module: "maintenance" },
+    { label: "Maschine", href: `/${locale}/machines`, module: "machines" }
   ];
 
   return actions.filter((action) => farmConfig.enabledModules[action.module]);
 }
 
-function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig, lowStockSparePartsCount: number): boolean {
+function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig): boolean {
   const enabledModules: Record<DashboardCardId, boolean> = {
     maintenance: farmConfig.enabledModules.maintenance,
-    reminders: true,
-    spareParts: farmConfig.enabledModules.machines && lowStockSparePartsCount > 0
+    spareParts: farmConfig.enabledModules.machines,
+    machines: farmConfig.enabledModules.machines,
+    costs: farmConfig.enabledModules.costs
   };
 
   return enabledModules[id];
@@ -330,7 +247,6 @@ function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: F
 type ImportantItem = {
   href: string;
   id: string;
-  label: string;
   meta: string;
   title: string;
   tone: "danger" | "warning" | "neutral";
@@ -365,7 +281,6 @@ function createImportantItems({
       items.push({
         id: `maintenance-${task.id}`,
         tone: isOverdue(task, machine) ? "danger" : "warning",
-        label: isOverdue(task, machine) ? "Ueberfaellig" : "Heute",
         title: task.title,
         meta: machine?.name ?? "Wartung",
         href: `/${locale}/maintenance?filter=due&taskId=${task.id}`
@@ -381,7 +296,6 @@ function createImportantItems({
       items.push({
         id: `spare-part-${part.id}`,
         tone: isCritical ? "danger" : "warning",
-        label: isCritical ? "Nachbestellen" : "Lager niedrig",
         title: part.name,
         meta: machine ? `${machine.name} / ${part.storageLocation || "Lager"}` : part.partNumber ?? "Ersatzteil",
         href: `/${locale}/machines/${part.machineId}`
@@ -389,28 +303,7 @@ function createImportantItems({
     }
   }
 
-  return items.slice(0, maxImportantItems);
-}
-
-function createStatusSummary(input: {
-  criticalLowStockCount: number;
-  dueMaintenanceCount: number;
-  importantCount: number;
-  lowStockSparePartsCount: number;
-}): string {
-  if (input.importantCount === 0) {
-    return "Alles ruhig";
-  }
-
-  if (input.dueMaintenanceCount > 0) {
-    return `${input.dueMaintenanceCount} Wartung faellig`;
-  }
-
-  if (input.lowStockSparePartsCount > 0) {
-    return input.criticalLowStockCount > 0 ? `${input.criticalLowStockCount} Teil kritisch` : `${input.lowStockSparePartsCount} Lager pruefen`;
-  }
-
-  return "Pruefen";
+  return items.slice(0, 1);
 }
 
 function formatDashboardDate(date: Date): string {

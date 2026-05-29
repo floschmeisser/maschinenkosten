@@ -83,6 +83,95 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 Die Supabase Redirect URL sollte auf die deployte App zeigen, zum Beispiel `https://dein-projekt.vercel.app/de/dashboard`.
 
+## Supabase Storage fuer Dokumente
+
+Maschinendokumente bestehen aus zwei Teilen:
+
+- Datei-Binary in Supabase Storage.
+- Metadaten in `machine_documents`.
+
+Bucket:
+
+```text
+machine-documents
+```
+
+Empfehlung: Bucket privat anlegen. Dateien werden in der App ueber kurzlebige Signed URLs geoeffnet.
+
+Pfadkonvention:
+
+```text
+farms/{farmId}/machines/{machineId}/{documentId}-{safeFileName}
+```
+
+Aktivierung:
+
+1. Supabase Projekt oeffnen.
+2. `supabase/schema.sql` erneut ausfuehren, damit `file_size`, `mime_type` und `uploaded_at` in `machine_documents` existieren.
+3. Storage Bucket `machine-documents` als privaten Bucket anlegen.
+4. Sicherstellen, dass `NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_ANON_KEY` lokal und in Vercel gesetzt sind.
+5. Storage Policies fuer `storage.objects` setzen.
+
+Policy-Anforderung:
+
+- Authentifizierte Nutzer duerfen Dateien nur unter `farms/{farmId}/...` lesen, hochladen und loeschen.
+- Diese `farmId` muss zu einem Betrieb gehoeren, dessen `owner_id = auth.uid()` ist.
+- Kein Service-Role-Key im Frontend.
+- Keine oeffentlichen, unbeschraenkten Uploads.
+
+Beispiel-Policy-Logik fuer Supabase Storage:
+
+```sql
+-- Bucket anlegen
+insert into storage.buckets (id, name, public)
+values ('machine-documents', 'machine-documents', false)
+on conflict (id) do nothing;
+
+create policy "Farm owners can read machine document files"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'machine-documents'
+  and (storage.foldername(name))[1] = 'farms'
+  and exists (
+    select 1 from public.farms
+    where farms.id = ((storage.foldername(name))[2])::uuid
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can upload machine document files"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'machine-documents'
+  and (storage.foldername(name))[1] = 'farms'
+  and exists (
+    select 1 from public.farms
+    where farms.id = ((storage.foldername(name))[2])::uuid
+    and farms.owner_id = auth.uid()
+  )
+);
+
+create policy "Farm owners can delete machine document files"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'machine-documents'
+  and (storage.foldername(name))[1] = 'farms'
+  and exists (
+    select 1 from public.farms
+    where farms.id = ((storage.foldername(name))[2])::uuid
+    and farms.owner_id = auth.uid()
+  )
+);
+```
+
+Wenn Supabase oder Storage nicht verfuegbar ist, bleibt der Demo-Modus aktiv. Die App zeigt dann klar `Dateiupload ist im Demo-Modus nicht aktiv.` und speichert keine echte Datei. Dokument-Metadaten koennen fuer Demo-Zwecke sichtbar bleiben, haben aber keinen privaten Dateipfad.
+
 ## Betriebsanpassung / Kundenprofil
 
 Die Standardprofile liegen in `src/lib/app/farm-config.ts`. Dort bleiben die wiederverwendbaren Basis-Konfigurationen fuer Standard, Milchbetrieb und Ackerbau.
@@ -166,7 +255,28 @@ Die App synchronisiert Erinnerungen nach wichtigen Datenaktionen automatisch im 
 
 Fehler im Hintergrund-Sync blockieren die Hauptaktion nicht. In der Erinnerungsseite gibt es zusaetzlich `Erinnerungen aktualisieren`, um die Daten manuell neu aus Maschinen, Wartung, Lager und Kosten zu erzeugen.
 
+### Reminder-Erzeugung und Duplikate
+
+Die pure Logik liegt in `src/lib/app/reminder-generation.ts`. Sie erzeugt nur Eingaben und schreibt nicht direkt in die Datenbank. `src/lib/app/reminder-sync.ts` laedt aktuelle Maschinen, Wartungen und Ersatzteile, erzeugt daraus Reminder und speichert sie.
+
+Duplikate werden ueber `reminder_key` vermieden. Der Key entsteht stabil aus:
+
+```text
+type:sourceType:sourceId
+```
+
+Beispiel: Dieselbe Wartungsaufgabe erzeugt fuer `maintenance_due` immer denselben Key. `upsertReminder()` aktualisiert dann den bestehenden Reminder, statt einen neuen anzulegen. Erinnerungen mit Status `dismissed` oder `completed` werden nicht automatisch wieder geoeffnet. Sie erscheinen erst wieder, wenn spaeter eine fachlich neue Quelle entsteht, zum Beispiel eine neue wiederkehrende Wartungsaufgabe mit eigener ID.
+
+Beispiele fuer die erwartete Logik liegen in `src/lib/app/reminder-examples.ts`.
+
 Wichtig: Dieses v1 sendet noch keine E-Mail und keine Push-Nachrichten. Der zuverlaessige Teil ist die persistierte Datenbasis. Fuer echte Benachrichtigung ohne offenen Browser sollte spaeter ein geplanter Job die Reminder erzeugen und E-Mail/Push versenden.
+
+Fuer E-Mail/Push braucht der naechste Schritt:
+
+- einen geplanten Server-Job fuer Reminder-Sync ohne offenen Browser
+- Versandstatus je Reminder oder je Zustellversuch
+- Nutzer- oder Betriebsadresse fuer E-Mail
+- spaetere Push-Tokens, falls Push aktiviert wird
 
 ## Naechste Schritte fuer Supabase
 

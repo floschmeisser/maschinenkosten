@@ -7,8 +7,11 @@ import { formatDate } from "@/lib/app/format";
 import { getMachines } from "@/lib/app/machines-database";
 import {
   getReminderPriorityLabel,
+  getReminderPriorityGroupLabel,
+  getReminderSourceLabel,
   getReminderTypeLabel,
   sortRemindersByPriority,
+  sortRemindersForDailyWork,
   type Reminder
 } from "@/lib/app/reminders";
 import {
@@ -24,6 +27,8 @@ type ReminderCenterProps = {
   locale: Locale;
 };
 
+const reminderPriorityGroups = ["critical", "high", "medium", "low"] as const;
+
 export function ReminderCenter({ locale }: ReminderCenterProps) {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -34,6 +39,7 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
     () => new Map(machines.map((machine) => [machine.id, machine.name])),
     [machines]
   );
+  const groupedReminders = useMemo(() => groupRemindersByPriority(reminders), [reminders]);
 
   const loadReminders = useCallback(async () => {
     setIsLoading(true);
@@ -115,40 +121,77 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
           <p>Alles im Blick.</p>
         </section>
       ) : (
-        <section className="reminder-list" aria-label="Offene Erinnerungen">
-          {reminders.map((reminder) => {
-            const machineName = reminder.machineId ? machineNames.get(reminder.machineId) : null;
+        <section className="reminder-groups" aria-label="Offene Erinnerungen">
+          {reminderPriorityGroups.map((priority) => {
+            const groupReminders = groupedReminders[priority];
+
+            if (groupReminders.length === 0) {
+              return null;
+            }
 
             return (
-              <article className={`reminder-card ${reminder.priority}`} key={reminder.id}>
-                <div className="reminder-card-main">
-                  <div>
-                    <span className={`reminder-badge ${reminder.priority}`}>{getReminderPriorityLabel(reminder.priority)}</span>
-                    <span className="reminder-type">{getReminderTypeLabel(reminder.type)}</span>
-                  </div>
-                  <h2>{reminder.title}</h2>
-                  {reminder.message ? <p>{reminder.message}</p> : null}
-                  <div className="reminder-meta">
-                    {machineName ? <Link href={`/${locale}/machines/${reminder.machineId}`}>{machineName}</Link> : null}
-                    {reminder.dueDate ? <span>{formatDate(reminder.dueDate)}</span> : null}
-                  </div>
+              <section className="reminder-priority-group" key={priority}>
+                <div className="section-title-row">
+                  <h2>{getReminderPriorityGroupLabel(priority)}</h2>
+                  <span>{groupReminders.length}</span>
                 </div>
-                <div className="reminder-actions">
-                  <button className="button primary" type="button" onClick={() => handleReminderAction(reminder.id, "complete")}>
-                    Erledigt
-                  </button>
-                  <button className="button" type="button" onClick={() => handleReminderAction(reminder.id, "acknowledge")}>
-                    Gesehen
-                  </button>
-                  <button className="button" type="button" onClick={() => handleReminderAction(reminder.id, "dismiss")}>
-                    Ausblenden
-                  </button>
+                <div className="reminder-list">
+                  {groupReminders.map((reminder) => {
+                    const machineName = reminder.machineId ? machineNames.get(reminder.machineId) : null;
+
+                    return (
+                      <article className={`reminder-card ${reminder.priority}`} key={reminder.id}>
+                        <div className="reminder-card-main">
+                          <div>
+                            <span className={`reminder-badge ${reminder.priority}`}>{getReminderPriorityLabel(reminder.priority)}</span>
+                            <span className="reminder-type">{getReminderSourceLabel(reminder)}</span>
+                          </div>
+                          <h2>{reminder.title}</h2>
+                          {reminder.message ? <p>{reminder.message}</p> : null}
+                          <div className="reminder-meta">
+                            <span>{getReminderTypeLabel(reminder.type)}</span>
+                            {machineName ? <Link href={`/${locale}/machines/${reminder.machineId}`}>{machineName}</Link> : null}
+                            {reminder.dueDate ? <span>{formatDate(reminder.dueDate)}</span> : null}
+                          </div>
+                        </div>
+                        <div className="reminder-actions">
+                          <button className="button primary" type="button" onClick={() => handleReminderAction(reminder.id, "complete")}>
+                            Erledigt
+                          </button>
+                          <button className="button" type="button" onClick={() => handleReminderAction(reminder.id, "acknowledge")}>
+                            Gesehen
+                          </button>
+                          <button className="button" type="button" onClick={() => handleReminderAction(reminder.id, "dismiss")}>
+                            Ausblenden
+                          </button>
+                          {reminder.machineId ? (
+                            <Link className="button" href={`/${locale}/machines/${reminder.machineId}`}>
+                              Zur Maschine
+                            </Link>
+                          ) : (
+                            <button className="button" type="button" disabled title="Keine Maschine verknuepft">
+                              Zur Maschine
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-              </article>
+              </section>
             );
           })}
         </section>
       )}
     </main>
   );
+}
+
+function groupRemindersByPriority(reminders: Reminder[]): Record<Reminder["priority"], Reminder[]> {
+  return {
+    critical: sortRemindersForDailyWork(reminders.filter((reminder) => reminder.priority === "critical")),
+    high: sortRemindersForDailyWork(reminders.filter((reminder) => reminder.priority === "high")),
+    medium: sortRemindersForDailyWork(reminders.filter((reminder) => reminder.priority === "medium")),
+    low: sortRemindersForDailyWork(reminders.filter((reminder) => reminder.priority === "low"))
+  };
 }

@@ -673,9 +673,15 @@ textarea:disabled {
   color: var(--muted);
 }
 
+.reminder-groups,
+.reminder-priority-group,
 .reminder-list {
   display: grid;
   gap: 12px;
+}
+
+.reminder-priority-group {
+  gap: 10px;
 }
 
 .reminder-card {
@@ -1996,6 +2002,15 @@ td span {
   box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
+.machine-document-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
 .machine-document-main {
   display: flex;
   align-items: flex-start;
@@ -2490,9 +2505,12 @@ td span {
   }
 
   .today-actions,
-  .task-actions,
-  .reminder-actions {
+  .task-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reminder-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .dashboard-focus-card {

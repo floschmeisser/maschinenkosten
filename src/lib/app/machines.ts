@@ -90,7 +90,12 @@ export type MachineDocument = {
   type: MachineDocumentType;
   fileName: string;
   filePath: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  uploadedAt: string | null;
   notes: string | null;
+  publicUrl?: string | null;
+  signedUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -166,6 +171,9 @@ export const placeholderMachineDocuments: MachineDocument[] = [
     type: "invoice",
     fileName: "rechnung-fendt-512.pdf",
     filePath: null,
+    fileSize: null,
+    mimeType: "application/pdf",
+    uploadedAt: null,
     notes: "Metadaten-Beispiel. Datei kann spaeter in Supabase Storage liegen.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
@@ -178,6 +186,9 @@ export const placeholderMachineDocuments: MachineDocument[] = [
     type: "service_report",
     fileName: "service-2500h-foto.jpg",
     filePath: null,
+    fileSize: null,
+    mimeType: "image/jpeg",
+    uploadedAt: null,
     notes: null,
     createdAt: "2026-05-10T08:00:00.000Z",
     updatedAt: "2026-05-10T08:00:00.000Z"

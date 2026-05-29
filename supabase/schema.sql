@@ -110,7 +110,7 @@ create table if not exists public.machine_spare_parts (
   )
 );
 
--- Machine documents store metadata now; file_path can later point to Supabase Storage.
+-- Machine documents store metadata; file_path points to private Supabase Storage objects.
 create table if not exists public.machine_documents (
   id uuid primary key default gen_random_uuid(),
   farm_id uuid not null references public.farms(id) on delete cascade,
@@ -119,6 +119,9 @@ create table if not exists public.machine_documents (
   type text not null default 'other',
   file_name text not null,
   file_path text,
+  file_size bigint,
+  mime_type text,
+  uploaded_at timestamptz,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -126,6 +129,26 @@ create table if not exists public.machine_documents (
     type in ('invoice', 'service_report', 'inspection', 'manual', 'warranty', 'photo', 'other')
   )
 );
+
+alter table public.machine_documents add column if not exists file_size bigint;
+alter table public.machine_documents add column if not exists mime_type text;
+alter table public.machine_documents add column if not exists uploaded_at timestamptz;
+
+-- Supabase Storage setup for real files:
+-- Bucket: machine-documents
+-- Recommended: private bucket.
+-- File path convention:
+-- farms/{farmId}/machines/{machineId}/{documentId}-{safeFileName}
+--
+-- Create the bucket in Supabase Dashboard or run in Supabase SQL editor:
+-- insert into storage.buckets (id, name, public)
+-- values ('machine-documents', 'machine-documents', false)
+-- on conflict (id) do nothing;
+--
+-- Storage policies should allow authenticated users to read/upload/delete only objects
+-- below farms/{farmId}/... where the farm belongs to auth.uid().
+-- Exact policy SQL can depend on the Supabase Storage version; see README section
+-- "Supabase Storage fuer Dokumente" for the required policy shape.
 
 -- Used spare parts connect maintenance completion with stock reduction.
 create table if not exists public.maintenance_used_parts (

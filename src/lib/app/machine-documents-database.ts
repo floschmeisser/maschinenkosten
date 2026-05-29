@@ -1,6 +1,11 @@
 import { createSupabaseBrowserClient, runSupabaseQuery } from "@/lib/supabase/client";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import {
+  deleteMachineDocumentFile,
+  isStorageAvailable,
+  uploadMachineDocumentFile
+} from "./machine-documents-storage";
+import {
   placeholderFarmId,
   placeholderMachineDocuments,
   sortMachineDocumentsByRelevance,
@@ -8,6 +13,20 @@ import {
   type MachineDocument,
   type UpdateMachineDocumentInput
 } from "./machines";
+
+export type UploadMachineDocumentInput = {
+  file: File;
+  machineId: string;
+  notes: string | null;
+  title: string;
+  type: MachineDocument["type"];
+};
+
+export type UploadMachineDocumentResult = {
+  document: MachineDocument | null;
+  error: string | null;
+  storageAvailable: boolean;
+};
 
 type MachineDocumentRow = {
   id: string;
@@ -17,6 +36,9 @@ type MachineDocumentRow = {
   type: MachineDocument["type"];
   file_name: string;
   file_path: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  uploaded_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -106,6 +128,89 @@ export async function createMachineDocument(input: CreateMachineDocumentInput): 
   return createdDocument;
 }
 
+export async function uploadAndCreateMachineDocument(input: UploadMachineDocumentInput): Promise<UploadMachineDocumentResult> {
+  const source = await getMachineDocumentsDataSource();
+  const storageAvailable = await isStorageAvailable();
+  const now = new Date().toISOString();
+  const documentId = crypto.randomUUID();
+  const farmId = source?.farm.id ?? placeholderFarmId;
+
+  if (!source || !storageAvailable) {
+    const document = await createMachineDocument({
+      farmId,
+      machineId: input.machineId,
+      title: input.title,
+      type: input.type,
+      fileName: input.file.name,
+      filePath: null,
+      fileSize: input.file.size,
+      mimeType: input.file.type || null,
+      uploadedAt: null,
+      notes: input.notes
+    });
+
+    return {
+      document,
+      error: storageAvailable ? null : "Dateiupload ist im Demo-Modus nicht aktiv.",
+      storageAvailable
+    };
+  }
+
+  const uploadResult = await uploadMachineDocumentFile({
+    documentId,
+    farmId: source.farm.id,
+    file: input.file,
+    machineId: input.machineId
+  });
+
+  if (!uploadResult.success || !uploadResult.filePath) {
+    return {
+      document: null,
+      error: "Datei konnte nicht hochgeladen werden.",
+      storageAvailable
+    };
+  }
+
+  const document: MachineDocument = {
+    id: documentId,
+    farmId: source.farm.id,
+    machineId: input.machineId,
+    title: input.title,
+    type: input.type,
+    fileName: input.file.name,
+    filePath: uploadResult.filePath,
+    fileSize: input.file.size,
+    mimeType: input.file.type || null,
+    uploadedAt: now,
+    notes: input.notes,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const result = await runSupabaseQuery(
+    () => source.table.insert(mapDocumentToRow(document)).select("*").single(),
+    "Dokument konnte nicht gespeichert werden."
+  );
+
+  if (!result?.data) {
+    await deleteMachineDocumentFile(uploadResult.filePath);
+    return {
+      document: null,
+      error: "Dokumentdaten konnten nicht gespeichert werden.",
+      storageAvailable
+    };
+  }
+
+  const createdDocument = mapDocumentRowToDocument(result.data);
+  fallbackDocuments = [createdDocument, ...fallbackDocuments.filter((item) => item.id !== createdDocument.id)];
+
+  return {
+    document: createdDocument,
+    error: null,
+    storageAvailable
+  };
+}
+
 export async function updateMachineDocument(id: string, input: UpdateMachineDocumentInput): Promise<MachineDocument | null> {
   const existing = fallbackDocuments.find((document) => document.id === id);
   const now = new Date().toISOString();
@@ -141,6 +246,7 @@ export async function updateMachineDocument(id: string, input: UpdateMachineDocu
 }
 
 export async function deleteMachineDocument(id: string): Promise<boolean> {
+  const existingDocument = fallbackDocuments.find((document) => document.id === id);
   const source = await getMachineDocumentsDataSource();
 
   if (!source) {
@@ -161,6 +267,11 @@ export async function deleteMachineDocument(id: string): Promise<boolean> {
   }
 
   fallbackDocuments = fallbackDocuments.filter((document) => document.id !== id);
+
+  if (existingDocument?.filePath) {
+    await deleteMachineDocumentFile(existingDocument.filePath);
+  }
+
   return true;
 }
 
@@ -193,6 +304,9 @@ function mapDocumentRowToDocument(row: MachineDocumentRow): MachineDocument {
     type: row.type,
     fileName: row.file_name,
     filePath: row.file_path,
+    fileSize: row.file_size,
+    mimeType: row.mime_type,
+    uploadedAt: row.uploaded_at,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -208,6 +322,9 @@ function mapDocumentToRow(document: MachineDocument): MachineDocumentRow {
     type: document.type,
     file_name: document.fileName,
     file_path: document.filePath,
+    file_size: document.fileSize,
+    mime_type: document.mimeType,
+    uploaded_at: document.uploadedAt,
     notes: document.notes,
     created_at: document.createdAt,
     updated_at: document.updatedAt
@@ -224,6 +341,9 @@ function mapDocumentInputToRow(
     type: input.type,
     file_name: input.fileName,
     file_path: input.filePath,
+    file_size: input.fileSize,
+    mime_type: input.mimeType,
+    uploaded_at: input.uploadedAt,
     notes: input.notes,
     updated_at: input.updatedAt
   };

@@ -80,6 +80,17 @@ export function getReminderPriorityLabel(priority: ReminderPriority): string {
   return labels[priority];
 }
 
+export function getReminderPriorityGroupLabel(priority: ReminderPriority): string {
+  const labels: Record<ReminderPriority, string> = {
+    critical: "Kritisch",
+    high: "Hoch",
+    medium: "Normal",
+    low: "Niedrig"
+  };
+
+  return labels[priority];
+}
+
 export function getReminderStatusLabel(status: ReminderStatus): string {
   const labels: Record<ReminderStatus, string> = {
     open: "Offen",
@@ -89,6 +100,22 @@ export function getReminderStatusLabel(status: ReminderStatus): string {
   };
 
   return labels[status];
+}
+
+export function getReminderSourceLabel(reminder: Pick<Reminder, "sourceType" | "type">): string {
+  if (reminder.type === "inspection_due") {
+    return "Pickerl/TUEV";
+  }
+
+  const labels: Record<ReminderSourceType, string> = {
+    maintenance_task: "Wartung",
+    machine_document: "Dokument",
+    spare_part: "Ersatzteil",
+    machine: reminder.type === "machine_cost_warning" ? "Kosten" : "Maschine",
+    custom: "Erinnerung"
+  };
+
+  return labels[reminder.sourceType];
 }
 
 export function getReminderTypeLabel(type: ReminderType): string {
@@ -123,4 +150,42 @@ export function sortRemindersByPriority(reminders: Reminder[]): Reminder[] {
     const secondDue = second.dueDate ? new Date(second.dueDate).getTime() : Number.POSITIVE_INFINITY;
     return firstDue - secondDue;
   });
+}
+
+export function sortRemindersForDailyWork(reminders: Reminder[]): Reminder[] {
+  return [...reminders].sort((first, second) => {
+    const firstDueScore = getDueScore(first);
+    const secondDueScore = getDueScore(second);
+
+    if (firstDueScore !== secondDueScore) {
+      return firstDueScore - secondDueScore;
+    }
+
+    const firstDue = first.dueDate ? new Date(first.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    const secondDue = second.dueDate ? new Date(second.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    return firstDue - secondDue;
+  });
+}
+
+function getDueScore(reminder: Reminder): number {
+  if (!reminder.dueDate) {
+    return 2;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(reminder.dueDate);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return 2;
+  }
+
+  dueDate.setHours(0, 0, 0, 0);
+
+  if (dueDate.getTime() <= today.getTime()) {
+    return 0;
+  }
+
+  return 1;
 }

@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  createMachineDocument,
   deleteMachineDocument,
-  getMachineDocuments
+  getMachineDocuments,
+  uploadAndCreateMachineDocument,
+  type UploadMachineDocumentInput
 } from "@/lib/app/machine-documents-database";
 import {
+  getMachineDocumentSignedUrl,
+  isStorageAvailable
+} from "@/lib/app/machine-documents-storage";
+import {
   getMachineDocumentTypeLabel,
-  type CreateMachineDocumentInput,
   type MachineDocument,
   type MachineDocumentType,
   type MachineSummary
@@ -24,14 +28,20 @@ const documentTypes: MachineDocumentType[] = ["invoice", "service_report", "insp
 
 export function MachineDocuments({ createSignal = 0, machine }: MachineDocumentsProps) {
   const [documents, setDocuments] = useState<MachineDocument[]>([]);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [storageAvailable, setStorageAvailable] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const refreshDocuments = useCallback(async () => {
     setIsLoading(true);
 
     try {
-      setDocuments(await getMachineDocuments(machine.id));
+      const [documentData, storageReady] = await Promise.all([getMachineDocuments(machine.id), isStorageAvailable()]);
+      setDocuments(documentData);
+      setStorageAvailable(storageReady);
+      setSignedUrls(await createSignedUrlMap(documentData));
     } finally {
       setIsLoading(false);
     }
@@ -47,15 +57,46 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
     }
   }, [createSignal]);
 
-  async function handleCreateDocument(input: CreateMachineDocumentInput) {
-    await createMachineDocument(input);
+  async function handleCreateDocument(input: UploadMachineDocumentInput) {
+    setMessage(null);
+    const result = await uploadAndCreateMachineDocument(input);
+
+    if (result.error) {
+      setMessage(result.error);
+    }
+
     await refreshDocuments();
-    setIsCreating(false);
+    setIsCreating(result.document === null);
   }
 
   async function handleDeleteDocument(documentId: string) {
+    setMessage(null);
     await deleteMachineDocument(documentId);
     await refreshDocuments();
+  }
+
+  async function handleOpenDocument(document: MachineDocument) {
+    if (!document.filePath) {
+      setMessage("Keine Datei hinterlegt.");
+      return;
+    }
+
+    const existingUrl = signedUrls[document.id];
+
+    if (existingUrl) {
+      window.open(existingUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const result = await getMachineDocumentSignedUrl(document.filePath);
+
+    if (!result.signedUrl) {
+      setMessage("Datei kann gerade nicht geoeffnet werden.");
+      return;
+    }
+
+    setSignedUrls((currentUrls) => ({ ...currentUrls, [document.id]: result.signedUrl as string }));
+    window.open(result.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   if (isCreating) {
@@ -64,7 +105,13 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
         <div className="panel-heading">
           <h2>Dokument hinzufuegen</h2>
         </div>
-        <MachineDocumentForm machine={machine} onCancel={() => setIsCreating(false)} onSave={handleCreateDocument} />
+        <MachineDocumentForm
+          machine={machine}
+          onCancel={() => setIsCreating(false)}
+          onSave={handleCreateDocument}
+          storageAvailable={storageAvailable}
+        />
+        {message ? <p className={message.includes("nicht") ? "form-error" : "form-success"}>{message}</p> : null}
       </section>
     );
   }
@@ -80,6 +127,10 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
           Dokument hinzufuegen
         </button>
       </div>
+      {!storageAvailable ? (
+        <p className="info-panel panel">Dateiupload ist im Demo-Modus nicht aktiv.</p>
+      ) : null}
+      {message ? <p className={message.includes("nicht") || message.includes("Keine") ? "form-error" : "form-success"}>{message}</p> : null}
 
       {documents.length === 0 ? (
         <div className="empty-state">
@@ -90,6 +141,9 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
         <div className="machine-document-list">
           {documents.map((document) => (
             <article className="machine-document-card" key={document.id}>
+              {document.type === "photo" && signedUrls[document.id] ? (
+                <img className="machine-document-preview" src={signedUrls[document.id]} alt={document.title} />
+              ) : null}
               <div className="machine-document-main">
                 <div>
                   <strong>{document.title}</strong>
@@ -100,8 +154,14 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
               <dl className="detail-list">
                 <div>
                   <dt>Datum</dt>
-                  <dd>{formatDate(document.createdAt)}</dd>
+                  <dd>{formatDate(document.uploadedAt ?? document.createdAt)}</dd>
                 </div>
+                {document.fileSize !== null ? (
+                  <div>
+                    <dt>Groesse</dt>
+                    <dd>{formatFileSize(document.fileSize)}</dd>
+                  </div>
+                ) : null}
                 {document.notes ? (
                   <div>
                     <dt>Notiz</dt>
@@ -111,12 +171,12 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
               </dl>
               <div className="machine-document-actions">
                 {document.filePath ? (
-                  <a className="button primary" href={document.filePath} rel="noreferrer" target="_blank">
+                  <button className="button primary" type="button" onClick={() => handleOpenDocument(document)}>
                     Oeffnen
-                  </a>
+                  </button>
                 ) : (
-                  <button className="button" type="button" disabled title="Dateiablage kommt mit Supabase Storage.">
-                    Oeffnen bald
+                  <button className="button" type="button" disabled title="Keine Datei im Demo-Modus gespeichert.">
+                    Oeffnen
                   </button>
                 )}
                 <button className="button" type="button" onClick={() => handleDeleteDocument(document.id)}>
@@ -134,13 +194,14 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
 type MachineDocumentFormProps = {
   machine: MachineSummary;
   onCancel: () => void;
-  onSave: (input: CreateMachineDocumentInput) => Promise<void>;
+  onSave: (input: UploadMachineDocumentInput) => Promise<void>;
+  storageAvailable: boolean;
 };
 
-function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormProps) {
+function MachineDocumentForm({ machine, onCancel, onSave, storageAvailable }: MachineDocumentFormProps) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<MachineDocumentType>("invoice");
-  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -153,8 +214,8 @@ function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormP
       return;
     }
 
-    if (!fileName.trim()) {
-      setError("Dateiname eintragen.");
+    if (!file) {
+      setError(storageAvailable ? "Datei auswaehlen." : "Im Demo-Modus wird keine Datei hochgeladen.");
       return;
     }
 
@@ -162,12 +223,10 @@ function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormP
 
     try {
       await onSave({
-        farmId: machine.farmId,
         machineId: machine.id,
         title: title.trim(),
         type,
-        fileName: fileName.trim(),
-        filePath: null,
+        file,
         notes: notes.trim() || null
       });
     } finally {
@@ -177,9 +236,7 @@ function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormP
 
   return (
     <form className="form-grid" onSubmit={handleSubmit}>
-      <p className="form-section preference-hint">
-        Vorerst werden Dokumentdaten gespeichert. Die echte Dateiablage kommt spaeter ueber Supabase Storage.
-      </p>
+      {!storageAvailable ? <p className="form-section preference-hint">Dateiupload ist im Demo-Modus nicht aktiv.</p> : null}
       <label>
         Titel
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Rechnung Maehwerk" />
@@ -195,8 +252,12 @@ function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormP
         </select>
       </label>
       <label>
-        Dateiname
-        <input value={fileName} onChange={(event) => setFileName(event.target.value)} placeholder="rechnung.pdf oder foto.jpg" />
+        Datei
+        <input
+          type="file"
+          accept=".pdf,image/*"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        />
       </label>
       <label className="form-section">
         Notiz
@@ -213,4 +274,25 @@ function MachineDocumentForm({ machine, onCancel, onSave }: MachineDocumentFormP
       </div>
     </form>
   );
+}
+
+async function createSignedUrlMap(documents: MachineDocument[]): Promise<Record<string, string>> {
+  const entries = await Promise.all(
+    documents
+      .filter((document) => document.filePath)
+      .map(async (document) => {
+        const result = await getMachineDocumentSignedUrl(document.filePath as string);
+        return result.signedUrl ? ([document.id, result.signedUrl] as const) : null;
+      })
+  );
+
+  return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => entry !== null));
+}
+
+function formatFileSize(value: number): string {
+  if (value < 1024 * 1024) {
+    return `${Math.max(1, Math.round(value / 1024))} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

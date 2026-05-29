@@ -17,7 +17,7 @@ export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: Mach
     <section className="panel machine-list-panel">
       <div className="panel-heading">
         <h2>Maschinen</h2>
-        <span className="muted">{machines.length} aktiv</span>
+        <span className="muted">{machines.length}</span>
       </div>
 
       {machines.length === 0 ? (

@@ -148,7 +148,6 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
       {documents.length === 0 ? (
         <div className="empty-state">
           <strong>Noch keine Dokumente</strong>
-          <p>Rechnung oder Servicezettel hinzufuegen.</p>
         </div>
       ) : (
         <div className="machine-document-list">

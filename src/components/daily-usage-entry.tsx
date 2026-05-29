@@ -292,7 +292,6 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
             </button>
           </div>
         </div>
-        <p className="muted">Leer = unveraendert.</p>
         {isLoadingData ? <p className="preference-hint">Laden...</p> : null}
         {saveStatusMessage ? <p className="daily-save-status">{saveStatusMessage}</p> : null}
         {attentionMachineIds.length > 0 ? (
@@ -318,7 +317,6 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
             <div className="daily-draft-panel-text">
               <strong>Entwurf gefunden</strong>
               {restoredDraftAgeLabel ? <span>{restoredDraftAgeLabel}</span> : null}
-              <p>Nicht gespeichert.</p>
             </div>
             <div className="daily-draft-panel-actions">
               <button className="button primary large-action" type="button" onClick={continueRestoredDraft}>
@@ -343,7 +341,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
         {machines.length === 0 ? (
           <div className="empty-state">
             <strong>Keine aktiven Maschinen</strong>
-            <p>Noch keine Maschine aktiv.</p>
+            <p>Keine Maschine aktiv</p>
           </div>
         ) : (
           <div className="daily-usage-list">

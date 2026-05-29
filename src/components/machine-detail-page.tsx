@@ -30,8 +30,7 @@ export function MachineDetailPageClient({ locale, machineId }: MachineDetailPage
     return (
       <main className="page">
         <section className="panel empty-state">
-          <strong>Maschine wird geladen...</strong>
-          <p>Die Detaildaten werden aus Supabase oder dem lokalen Fallback geholt.</p>
+          <strong>Laden...</strong>
         </section>
       </main>
     );
@@ -42,7 +41,6 @@ export function MachineDetailPageClient({ locale, machineId }: MachineDetailPage
       <main className="page">
         <section className="page-header empty-state">
           <h1>Maschine nicht gefunden</h1>
-          <p>Diese Maschine ist im lokalen Fallback oder in Supabase nicht vorhanden.</p>
         </section>
       </main>
     );

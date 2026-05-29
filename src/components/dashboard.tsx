@@ -13,7 +13,6 @@ import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
-  getTodaysWorkTasks,
   sortMaintenanceTasksByUrgency,
   type MaintenanceTask
 } from "@/lib/app/maintenance";
@@ -27,7 +26,7 @@ type DashboardProps = {
   locale: Locale;
 };
 
-const maxImportantItems = 5;
+const maxImportantItems = 3;
 
 export function Dashboard({ locale }: DashboardProps) {
   const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
@@ -92,13 +91,10 @@ export function Dashboard({ locale }: DashboardProps) {
   }, []);
 
   const sortedMaintenanceTasks = sortMaintenanceTasksByUrgency(maintenanceTasks, machines);
-  const todaysWorkCount = getTodaysWorkTasks(maintenanceTasks, machines).length;
   const dueMaintenanceCount = sortedMaintenanceTasks.filter((task) => {
     const machine = machines.find((item) => item.id === task.machineId);
     return getMaintenanceDisplayStatus(task, machine) === "due";
   }).length;
-  const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
-  const urgentMachineCount = machines.filter((machine) => machine.status === "maintenance" || machine.serviceStatus === "danger").length;
   const criticalLowStockCount = lowStockSpareParts.filter((part) => ["critical", "empty"].includes(getMachineSparePartStockStatus(part))).length;
   const importantReminderCount = openReminders.filter((reminder) => reminder.priority === "critical" || reminder.priority === "high").length;
   const costComparisonItems = createMachineCostComparison(machines, maintenanceTasks);
@@ -120,18 +116,15 @@ export function Dashboard({ locale }: DashboardProps) {
     dueMaintenanceCount,
     importantCount: importantItems.length,
     lowStockSparePartsCount: lowStockSpareParts.length,
-    criticalLowStockCount,
-    urgentMachineCount
+    criticalLowStockCount
   });
   const dashboardCards = createDailyCards({
-    activeMachineCount,
     dueMaintenanceCount,
     farmConfig,
     lowStockSparePartsCount: lowStockSpareParts.length,
     importantReminderCount,
     criticalLowStockCount,
-    locale,
-    todaysWorkCount
+    locale
   });
   const quickActions = createDashboardQuickActions({ farmConfig, locale });
 
@@ -155,8 +148,7 @@ export function Dashboard({ locale }: DashboardProps) {
         </div>
         {importantItems.length === 0 ? (
           <div className="dashboard-empty">
-            <strong>Heute keine dringenden Wartungen</strong>
-            <span>Alle wichtigen Maschinen sind einsatzbereit.</span>
+            <strong>Alles ruhig</strong>
           </div>
         ) : (
           <div className="important-list">
@@ -249,7 +241,7 @@ type DashboardFocusCardProps = {
   value: string;
 };
 
-type DashboardCardId = "today" | "maintenance" | "machines" | "spareParts" | "reminders";
+type DashboardCardId = "maintenance" | "spareParts" | "reminders";
 type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
 
 function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
@@ -263,65 +255,45 @@ function DashboardFocusCard({ helper, href, label, tone, value }: Omit<Dashboard
 }
 
 type DashboardCardInput = {
-  activeMachineCount: number;
   criticalLowStockCount: number;
   dueMaintenanceCount: number;
   farmConfig: FarmAppConfig;
   importantReminderCount: number;
   lowStockSparePartsCount: number;
   locale: Locale;
-  todaysWorkCount: number;
 };
 
 function createDailyCards({
-  activeMachineCount,
   criticalLowStockCount,
   dueMaintenanceCount,
   farmConfig,
   importantReminderCount,
   lowStockSparePartsCount,
-  locale,
-  todaysWorkCount
+  locale
 }: DashboardCardInput): DashboardFocusCardProps[] {
   const cards: DashboardFocusCardProps[] = [
     {
-      id: "today",
-      tone: todaysWorkCount > 0 ? "warning" : "good",
-      label: "Heute",
-      value: todaysWorkCount.toString(),
-      helper: todaysWorkCount === 0 ? "Alles erledigt" : "offen",
-      href: `/${locale}/maintenance`
-    },
-    {
       id: "maintenance",
       tone: dueMaintenanceCount > 0 ? "danger" : "good",
-      label: farmConfig.customLabels.maintenanceLabel,
+      label: "Wartung",
       value: dueMaintenanceCount.toString(),
-      helper: dueMaintenanceCount === 0 ? "ruhig" : "faellig",
+      helper: dueMaintenanceCount === 0 ? "ok" : "faellig",
       href: `/${locale}/maintenance?filter=due`
-    },
-    {
-      id: "machines",
-      tone: activeMachineCount > 0 ? "earth" : "good",
-      label: farmConfig.customLabels.machinesLabel,
-      value: activeMachineCount.toString(),
-      helper: activeMachineCount === 0 ? "Noch keine" : "aktiv",
-      href: `/${locale}/machines`
     },
     {
       id: "reminders",
       tone: importantReminderCount > 0 ? "danger" : "good",
       label: "Erinnerungen",
       value: importantReminderCount.toString(),
-      helper: importantReminderCount === 0 ? "ruhig" : "wichtig",
+      helper: importantReminderCount === 0 ? "ok" : "offen",
       href: `/${locale}/reminders`
     },
     {
       id: "spareParts",
       tone: criticalLowStockCount > 0 ? "danger" : "warning",
-      label: criticalLowStockCount > 0 ? "Teile kritisch" : "Niedriger Lagerbestand",
+      label: "Lager",
       value: lowStockSparePartsCount.toString(),
-      helper: criticalLowStockCount > 0 ? "Nachbestellen" : "Ersatzteile",
+      helper: criticalLowStockCount > 0 ? "kritisch" : "niedrig",
       href: `/${locale}/machines`
     }
   ];
@@ -347,9 +319,7 @@ function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardI
 
 function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig, lowStockSparePartsCount: number): boolean {
   const enabledModules: Record<DashboardCardId, boolean> = {
-    today: farmConfig.enabledModules.maintenance,
     maintenance: farmConfig.enabledModules.maintenance,
-    machines: farmConfig.enabledModules.machines,
     reminders: true,
     spareParts: farmConfig.enabledModules.machines && lowStockSparePartsCount > 0
   };
@@ -417,21 +387,6 @@ function createImportantItems({
         href: `/${locale}/machines/${part.machineId}`
       });
     }
-
-    for (const machine of machines) {
-      if (machine.status !== "maintenance" && machine.serviceStatus !== "danger") {
-        continue;
-      }
-
-      items.push({
-        id: `machine-${machine.id}`,
-        tone: "danger",
-        label: "Maschine pruefen",
-        title: machine.name,
-        meta: machine.status === "maintenance" ? "In Wartung" : "Service faellig",
-        href: `/${locale}/machines/${machine.id}`
-      });
-    }
   }
 
   return items.slice(0, maxImportantItems);
@@ -442,7 +397,6 @@ function createStatusSummary(input: {
   dueMaintenanceCount: number;
   importantCount: number;
   lowStockSparePartsCount: number;
-  urgentMachineCount: number;
 }): string {
   if (input.importantCount === 0) {
     return "Alles ruhig";
@@ -456,7 +410,7 @@ function createStatusSummary(input: {
     return input.criticalLowStockCount > 0 ? `${input.criticalLowStockCount} Teil kritisch` : `${input.lowStockSparePartsCount} Lager pruefen`;
   }
 
-  return `${input.urgentMachineCount} Maschine pruefen`;
+  return "Pruefen";
 }
 
 function formatDashboardDate(date: Date): string {

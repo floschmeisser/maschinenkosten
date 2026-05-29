@@ -15,7 +15,6 @@ export default async function NewMachinePage({ params }: NewMachinePageProps) {
     <main className="page">
       <section className="page-header">
         <h1>Neue Maschine</h1>
-        <p>Erfasse die wichtigsten Grunddaten. Danach erscheint die Maschine in der Liste.</p>
       </section>
       <NewMachinePageClient locale={locale} />
     </main>

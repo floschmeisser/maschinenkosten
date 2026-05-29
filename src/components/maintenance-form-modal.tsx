@@ -87,7 +87,6 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
     <section className="panel form-panel">
       <div className="panel-heading">
         <h2>{mode === "edit" ? "Wartung bearbeiten" : "Wartung anlegen"}</h2>
-        <span className="muted">Kurz und praktisch erfassen.</span>
       </div>
 
       <form className="form-grid" onSubmit={handleSubmit}>

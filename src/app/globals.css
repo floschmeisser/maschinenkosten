@@ -4,14 +4,14 @@
   --color-primary: #2d5a1b;
   --color-primary-strong: #0f1410;
   --color-warning: #7a5c2e;
-  --color-danger: #b42318;
+  --color-danger: #7a5c2e;
   --color-earth: #243020;
   --color-text: #0f1410;
   --color-muted: #56645a;
   --color-border: #d4dbd0;
   --color-primary-soft: #eaf2e3;
-  --color-warning-soft: #f1e5cf;
-  --color-danger-soft: #f8d8d3;
+  --color-warning-soft: #eaf2e3;
+  --color-danger-soft: #eaf2e3;
   --color-earth-soft: #f3f5f0;
   --color-highlight: #c4ddb4;
   --color-success: #4a8c2a;
@@ -104,9 +104,8 @@ textarea {
   display: grid;
   gap: 12px;
   padding: 14px 16px;
-  background: rgba(248, 247, 243, 0.98);
+  background: var(--background);
   border-bottom: 2px solid var(--border);
-  box-shadow: 0 2px 8px rgba(23, 33, 29, 0.08);
 }
 
 .brand {
@@ -164,7 +163,6 @@ textarea {
   background: var(--primary-soft);
   color: var(--primary-dark);
   font-weight: 700;
-  box-shadow: inset 4px 0 0 var(--primary);
 }
 
 .content {
@@ -212,7 +210,6 @@ textarea {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 12px 28px rgba(23, 33, 29, 0.14);
 }
 
 .search-results a,
@@ -250,7 +247,6 @@ textarea {
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(23, 33, 29, 0.06);
 }
 
 .panel {
@@ -344,9 +340,8 @@ textarea {
 
 .button.primary {
   background: var(--primary);
-  color: #ffffff;
+  color: var(--surface);
   border-color: var(--primary-dark);
-  box-shadow: 0 2px 0 rgba(15, 20, 16, 0.2);
 }
 
 .button.secondary {
@@ -445,7 +440,7 @@ textarea:disabled {
   gap: 4px;
   min-width: 138px;
   padding: 12px;
-  border: 2px solid rgba(12, 81, 61, 0.22);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   text-align: right;
@@ -507,7 +502,6 @@ textarea:disabled {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .important-item span {
@@ -576,7 +570,6 @@ textarea:disabled {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .dashboard-focus-card span {
@@ -624,7 +617,6 @@ textarea:disabled {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .dashboard-reminder-item span {
@@ -665,7 +657,6 @@ textarea:disabled {
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .dashboard-cost-signal span {
@@ -740,7 +731,6 @@ textarea:disabled {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .reminder-card.critical {
@@ -802,7 +792,7 @@ textarea:disabled {
 .reminder-badge.critical {
   border-color: var(--danger);
   background: var(--danger);
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .reminder-badge.high {
@@ -912,7 +902,7 @@ textarea:disabled {
   display: grid;
   gap: 4px;
   padding: 14px;
-  border: 2px solid rgba(12, 81, 61, 0.18);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -1096,7 +1086,6 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .machine-list-card.warning {
@@ -1395,7 +1384,6 @@ td span {
   border-color: var(--primary-dark);
   background: var(--primary-soft);
   color: var(--primary-dark);
-  box-shadow: inset 0 0 0 1px var(--primary-dark);
 }
 
 .today-mode-panel {
@@ -1410,7 +1398,6 @@ td span {
 .today-mode-panel.active {
   border-color: var(--primary-dark);
   background: var(--primary-soft);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .today-mode-panel h2,
@@ -1449,7 +1436,6 @@ td span {
   border: 2px solid var(--primary);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(23, 33, 29, 0.08);
 }
 
 .today-task-card .task-summary strong {
@@ -1483,7 +1469,6 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .task-item.due {
@@ -1657,7 +1642,6 @@ td span {
 
 .focused-task {
   border-color: var(--primary-dark);
-  box-shadow: 0 0 0 3px rgba(45, 90, 27, 0.22);
 }
 
 .quick-cost-form {
@@ -1820,7 +1804,7 @@ td span {
   display: grid;
   gap: 5px;
   padding: 14px;
-  border: 2px solid rgba(12, 81, 61, 0.18);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -2028,7 +2012,6 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .usage-history-card {
@@ -2038,7 +2021,6 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .machine-document-card {
@@ -2048,7 +2030,6 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .machine-document-preview {
@@ -2338,13 +2319,11 @@ td span {
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 3px 12px rgba(23, 33, 29, 0.06);
 }
 
 .daily-usage-card.needs-attention {
   border-color: var(--warning);
   background: var(--warning-soft);
-  box-shadow: 0 0 0 3px rgba(122, 92, 46, 0.2);
 }
 
 .daily-usage-header {

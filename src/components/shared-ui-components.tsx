@@ -218,7 +218,6 @@ export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
         <form className="form-grid" onSubmit={handleSubmit}>
         <fieldset className="form-section">
           <legend>Betriebsprofil</legend>
-          <p className="muted">Nur Vorschau.</p>
           <label>
             Profil
             <select value={farmProfile} onChange={(event) => updateFarmProfile(event.target.value as FarmProfilePreference)}>
@@ -227,9 +226,7 @@ export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
               <option value="arable">Ackerbau</option>
             </select>
           </label>
-          <p className="muted">
-            Aktiv: {activeFarmConfig.branding.appName} / {activeFarmConfig.branding.farmName}
-          </p>
+          <p className="muted">{activeFarmConfig.branding.farmName}</p>
         </fieldset>
         <label>
           Betriebsname

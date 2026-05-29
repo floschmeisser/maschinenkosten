@@ -223,7 +223,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         <div>
           <span>Werkstatt</span>
           <h1>Wartung</h1>
-          <p>{isLoadingData ? "Laden..." : dueTaskCount > 0 ? `${dueTaskCount} faellig` : "Keine dringenden Arbeiten"}</p>
+          <p>{isLoadingData ? "Laden..." : dueTaskCount > 0 ? `${dueTaskCount} faellig` : "Alles ruhig"}</p>
         </div>
         <div className="maintenance-hero-stats">
           <div className={dueTaskCount > 0 ? "danger" : "good"}>
@@ -283,7 +283,6 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         <div>
           <span>Meine Arbeit heute</span>
           <h2>{todaysWorkTasks.length === 0 ? "Alles erledigt" : `${todaysWorkTasks.length} offen`}</h2>
-          <p>{todaysWorkTasks.length === 0 ? "Heute keine Wartung offen" : "Jetzt abarbeiten"}</p>
         </div>
         <button
           className={isTodayMode ? "button primary large-action" : "button large-action"}
@@ -300,7 +299,6 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         >
           {isTodayMode ? "Alle anzeigen" : "Heute"}
         </button>
-        {isTodayMode ? <p className="preference-hint">Ansicht gemerkt.</p> : null}
       </section>
 
       {isTodayMode ? (
@@ -341,7 +339,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
           onToggle={(taskId) => setExpandedTaskId((current) => (current === taskId ? null : taskId))}
         />
       ))}
-      {completedTaskCount > 0 ? <p className="preference-hint maintenance-history-note">{completedTaskCount} erledigte Arbeiten in der Historie.</p> : null}
+      {completedTaskCount > 0 ? <p className="preference-hint maintenance-history-note">{completedTaskCount} erledigt</p> : null}
         </>
       )}
     </main>
@@ -376,7 +374,6 @@ function TodayWorkList({
       {tasks.length === 0 ? (
         <section className="panel empty-state maintenance-empty">
           <h2>Heute keine Wartung offen</h2>
-          <p className="muted">Alle Maschinen sind einsatzbereit.</p>
         </section>
       ) : null}
 
@@ -456,12 +453,12 @@ function MaintenanceGroup({
     <section className={`panel maintenance-group ${group.key}`}>
       <div className="panel-heading">
         <h2>{group.title}</h2>
-        <span className="muted">{group.tasks.length} Aufgaben</span>
+        <span className="muted">{group.tasks.length}</span>
       </div>
 
       {group.tasks.length === 0 ? (
         <div className="empty-state">
-          <strong>{group.key === "completed" ? "Noch keine Historie" : "Keine dringenden Arbeiten"}</strong>
+          <strong>{group.key === "completed" ? "Keine Historie" : "Alles ruhig"}</strong>
         </div>
       ) : (
         <div className="task-list">
@@ -573,7 +570,7 @@ function FocusedTaskPanel({ locale, task, onComplete }: FocusedTaskPanelProps) {
     <section className="panel focused-task-panel">
       <div>
         <h2>{task.title}</h2>
-        <p>{isCompleted ? "Erledigt." : "Aus Tagesstand."}</p>
+        <p>{isCompleted ? "Erledigt" : "Tagesstand"}</p>
       </div>
       <div className="focused-task-actions">
         {!isCompleted ? (
@@ -974,7 +971,7 @@ function getTaskElementId(taskId: string): string {
 }
 
 function createCompletionSuccessMessage(hasNextTask: boolean, stockWarnings: string[]): string {
-  const baseMessage = hasNextTask ? "Erledigt. Neuer Termin." : "Erledigt.";
+  const baseMessage = hasNextTask ? "Erledigt. Neuer Termin" : "Erledigt";
 
   if (stockWarnings.length === 0) {
     return baseMessage;

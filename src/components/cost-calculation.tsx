@@ -65,7 +65,6 @@ export function CostCalculation() {
         <div>
           <span>Maschinenkosten</span>
           <h2>{health.label}</h2>
-          <p>{health.reasons[0]}</p>
         </div>
         <div className="cost-kpi-grid">
           <CostKpi label="je Stunde" value={result.costPerOperatingHour} suffix="/h" />
@@ -127,8 +126,7 @@ export function CostCalculation() {
         </div>
         {comparisonItems.length === 0 ? (
           <div className="empty-state">
-            <strong>Noch keine Kostendaten vorhanden.</strong>
-            <p>Kosten koennen nach Eingabe der Maschinendaten berechnet werden.</p>
+            <strong>Keine Kostendaten</strong>
           </div>
         ) : (
           <div className="cost-comparison-list">

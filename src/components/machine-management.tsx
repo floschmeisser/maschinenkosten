@@ -102,7 +102,6 @@ export function MachineManagement({ locale }: MachineManagementProps) {
               Neue Maschine
             </button>
           </div>
-          <p className="muted">Grunddaten.</p>
         </section>
       )}
 
@@ -112,7 +111,6 @@ export function MachineManagement({ locale }: MachineManagementProps) {
             <h2>Stand aktualisieren</h2>
             <span className="muted">{usageMachine.name}</span>
           </div>
-          <p className="muted">Stunden. Kilometer.</p>
           <UsageUpdateForm
             key={usageMachine.id}
             machine={usageMachine}
@@ -281,11 +279,11 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
       <section className="panel">
         <div className="panel-heading">
           <h2>Naechste Wartung</h2>
-          <span className="muted">{maintenanceTasks.length} Aufgaben</span>
+          <span className="muted">{maintenanceTasks.length}</span>
         </div>
         {maintenanceTasks.length === 0 ? (
           <div className="empty-state">
-            <strong>Keine Wartung offen.</strong>
+            <strong>Keine Wartung offen</strong>
           </div>
         ) : (
           <div className="maintenance-card-list">
@@ -406,7 +404,7 @@ function MachineSparePartUsageHistory({ machineId }: MachineSparePartUsageHistor
 
       {historyItems.length === 0 ? (
         <div className="empty-state">
-          <strong>Noch kein Verbrauch erfasst.</strong>
+          <strong>Kein Verbrauch</strong>
         </div>
       ) : (
         <div className="usage-history-list">

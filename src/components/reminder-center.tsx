@@ -102,7 +102,6 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
         <div className="page-header-actions">
           <div>
             <h1>Erinnerungen</h1>
-            <p>Wartung, Pickerl/TUEV, Lager und Kosten.</p>
           </div>
           <button
             className="button primary"
@@ -124,7 +123,6 @@ export function ReminderCenter({ locale }: ReminderCenterProps) {
       ) : reminders.length === 0 ? (
         <section className="empty-state">
           <strong>Keine offenen Erinnerungen</strong>
-          <p>Alles im Blick.</p>
         </section>
       ) : (
         <section className="reminder-groups" aria-label="Offene Erinnerungen">

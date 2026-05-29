@@ -10,7 +10,7 @@ export function MaintenanceTable({ tasks }: MaintenanceTableProps) {
     <section className="panel">
       <div className="panel-heading">
         <h2>Wartungsplan</h2>
-        <span className="muted">{tasks.length} Aufgaben</span>
+        <span className="muted">{tasks.length}</span>
       </div>
       <div className="table-wrap">
         <table>

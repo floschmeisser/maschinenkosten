@@ -50,7 +50,6 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
-  const helper = onSave ? "Pflichtfelder ausfuellen und speichern." : "Speichern ist hier nicht verfuegbar.";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
   const canCancel = Boolean(onCancel);
 
@@ -81,7 +80,6 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
     <section className={className}>
       <div className="panel-heading">
         <h2>{title}</h2>
-        <span className="muted">{helper}</span>
       </div>
 
       <form className="form-grid" onSubmit={handleSubmit}>

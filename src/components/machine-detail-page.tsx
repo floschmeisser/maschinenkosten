@@ -6,6 +6,7 @@ import { formatDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSummary } from "@/lib/app/machines";
 import {
   formatMachineReading,
+  getMachineById as getPlaceholderMachineById,
   getMachineCurrentReading,
   getMachineUnitLabel,
   toMachineSummary,
@@ -61,17 +62,29 @@ type MachineDetailPageClientProps = {
 };
 
 export function MachineDetailPageClient({ locale, machineId }: MachineDetailPageClientProps) {
-  const [machine, setMachine] = useState<MachineSummary | null>(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [machine, setMachine] = useState<MachineSummary | null>(
+    () => getPlaceholderMachineById(machineId) ?? null
+  );
+  const [hasLoaded, setHasLoaded] = useState(
+    () => getPlaceholderMachineById(machineId) !== undefined
+  );
 
   useEffect(() => {
-    async function load() {
-      const data = await getMachineById(machineId);
-      setMachine(data ? toMachineSummary(data) : null);
-      setHasLoaded(true);
-    }
+    let active = true;
 
-    load();
+    getMachineById(machineId)
+      .then((data) => {
+        if (!active) return;
+        setMachine(data ? toMachineSummary(data) : (getPlaceholderMachineById(machineId) ?? null));
+        setHasLoaded(true);
+      })
+      .catch(() => {
+        if (active) setHasLoaded(true);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [machineId]);
 
   if (!hasLoaded) {
@@ -86,6 +99,7 @@ export function MachineDetailPageClient({ locale, machineId }: MachineDetailPage
     return (
       <main className="page">
         <h1>Maschine nicht gefunden</h1>
+        <p className="muted">ID: {machineId}</p>
       </main>
     );
   }

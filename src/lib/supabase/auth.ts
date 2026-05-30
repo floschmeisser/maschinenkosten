@@ -1,4 +1,4 @@
-import { getSupabaseClient, isSupabaseConfigured, warnSupabaseFallback } from "./client";
+import { getSupabaseClient, isSupabaseConfigured, warnSupabaseFallback, type SupabaseUser } from "./client";
 
 export async function isSupabaseAuthAvailable(): Promise<boolean> {
   if (!isSupabaseConfigured()) {
@@ -16,7 +16,13 @@ export async function getCurrentUser() {
   }
 
   try {
-    const { data } = await supabase.auth.getUser();
+    const timeout = new Promise<{ data: { user: null } }>((resolve) =>
+      setTimeout(() => resolve({ data: { user: null } }), 3000)
+    );
+    const { data } = await Promise.race([
+      supabase.auth.getUser() as Promise<{ data: { user: SupabaseUser | null } }>,
+      timeout
+    ]);
     return data.user;
   } catch (error) {
     warnSupabaseFallback("Benutzer konnte nicht geladen werden.", error);

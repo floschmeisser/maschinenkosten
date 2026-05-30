@@ -18,6 +18,7 @@ import {
   getMachineCurrentReading,
   getMachineUnitLabel,
   getMachines as getPlaceholderMachines,
+  placeholderFarmId,
   toMachineSummary
 } from "@/lib/app/machines";
 import { getMachines as loadMachines } from "@/lib/app/machines-database";
@@ -123,7 +124,7 @@ export function Dashboard({ locale }: DashboardProps) {
           machines={machines}
           maintenanceTasks={maintenanceTasks}
           calendarEvents={calendarEvents}
-          farmId={machines[0]?.farmId ?? ""}
+          farmId={machines[0]?.farmId ?? placeholderFarmId}
           onEventCreated={handleEventCreated}
         />
       </section>
@@ -200,14 +201,13 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
     setSelectedDate((prev) => (prev === dateStr ? null : dateStr));
   }
 
-  async function handleEventSave(input: { title: string; note: string; machineId: string }) {
-    if (!selectedDate || !farmId) return;
+  async function handleEventSave(input: { date: string; time: string; title: string; note: string; machineId: string }) {
     const created = await createCalendarEvent({
       farmId,
       machineId: input.machineId || null,
       title: input.title,
-      eventDate: selectedDate,
-      eventTime: null,
+      eventDate: input.date,
+      eventTime: input.time || null,
       note: input.note || null,
       source: "manual",
       reminderKey: null
@@ -227,6 +227,13 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
         <button className="calendar-nav-btn" type="button" onClick={goBack}>◀</button>
         <span className="calendar-nav-label">{navLabel}</span>
         <button className="calendar-nav-btn" type="button" onClick={goForward}>▶</button>
+        <button
+          className="button primary calendar-add-btn"
+          type="button"
+          onClick={() => setSelectedDate(toDateString(new Date()))}
+        >
+          + Termin
+        </button>
         <div className="calendar-view-toggle">
           <button
             className={`calendar-view-btn${view === "week" ? " active" : ""}`}
@@ -367,11 +374,13 @@ function MonthView({ year, month, events, selectedDate, onDayClick }: MonthViewP
 type CreateEventFormProps = {
   date: string;
   machines: MachineSummary[];
-  onSave: (input: { title: string; note: string; machineId: string }) => Promise<void>;
+  onSave: (input: { date: string; time: string; title: string; note: string; machineId: string }) => Promise<void>;
   onCancel: () => void;
 };
 
 function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormProps) {
+  const [eventDate, setEventDate] = useState(date);
+  const [eventTime, setEventTime] = useState("");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [machineId, setMachineId] = useState("");
@@ -382,7 +391,7 @@ function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormPr
     if (!title.trim()) return;
     setIsSaving(true);
     try {
-      await onSave({ title: title.trim(), note: note.trim(), machineId });
+      await onSave({ date: eventDate, time: eventTime, title: title.trim(), note: note.trim(), machineId });
     } finally {
       setIsSaving(false);
     }
@@ -390,7 +399,24 @@ function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormPr
 
   return (
     <form className="calendar-create-form" onSubmit={handleSubmit}>
-      <strong className="calendar-create-date">{formatDisplayDate(date)}</strong>
+      <strong className="calendar-create-date">Neuer Termin</strong>
+      <label>
+        Datum
+        <input
+          type="date"
+          value={eventDate}
+          required
+          onChange={(e) => setEventDate(e.target.value)}
+        />
+      </label>
+      <label>
+        Uhrzeit (optional)
+        <input
+          type="time"
+          value={eventTime}
+          onChange={(e) => setEventTime(e.target.value)}
+        />
+      </label>
       <label>
         Titel
         <input

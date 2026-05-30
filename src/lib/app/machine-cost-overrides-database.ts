@@ -71,7 +71,22 @@ type DataSource = {
 const fallbackOverrides = new Map<string, MachineCostOverride>();
 
 export async function getMachineCostOverride(machineId: string): Promise<MachineCostOverride | null> {
-  return fallbackOverrides.get(machineId) ?? null;
+  const cached = fallbackOverrides.get(machineId);
+  if (cached) return cached;
+
+  const source = await getDataSource();
+  if (!source) return null;
+
+  const result = await runSupabaseQuery(
+    () => source.table.select("*").eq("machine_id", machineId),
+    "Kosteneinstellungen konnten nicht geladen werden."
+  );
+
+  if (!result?.data?.[0]) return null;
+
+  const override = mapRowToOverride(result.data[0]);
+  fallbackOverrides.set(machineId, override);
+  return override;
 }
 
 export async function upsertMachineCostOverride(input: UpsertMachineCostOverrideInput): Promise<MachineCostOverride> {

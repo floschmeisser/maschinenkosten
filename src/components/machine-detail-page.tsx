@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
-import { formatDate } from "@/lib/app/format";
+import { formatDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSummary } from "@/lib/app/machines";
 import {
   formatMachineReading,
@@ -13,8 +13,8 @@ import {
   validateMachineUsageUpdate
 } from "@/lib/app/machines";
 import { getMachineById, updateMachine } from "@/lib/app/machines-database";
-import { getMachineSpareParts } from "@/lib/app/machine-spare-parts-database";
-import type { MachineSparePart } from "@/lib/app/machines";
+import { createMachineSparePart, getMachineSpareParts, updateMachineSparePart } from "@/lib/app/machine-spare-parts-database";
+import type { CreateMachineSparePartInput, MachineSparePart } from "@/lib/app/machines";
 import {
   completeMaintenanceTask,
   createMaintenanceTask,
@@ -33,14 +33,13 @@ import {
   type MaintenanceTask,
   type MaintenanceType
 } from "@/lib/app/maintenance";
-import { MachineSpareParts } from "./machine-spare-parts";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
 import type { MachineCostInput } from "@/lib/app/financials";
 
-type Tab = "wartung" | "kosten";
+type Tab = "wartung" | "ersatzteile" | "kosten";
 
 const STANDARD_TYPES: MaintenanceType[] = [
   "oil_engine",
@@ -207,6 +206,13 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
           Wartung
         </button>
         <button
+          className={activeTab === "ersatzteile" ? "tab-button active" : "tab-button"}
+          type="button"
+          onClick={() => setActiveTab("ersatzteile")}
+        >
+          Ersatzteile
+        </button>
+        <button
           className={activeTab === "kosten" ? "tab-button active" : "tab-button"}
           type="button"
           onClick={() => setActiveTab("kosten")}
@@ -225,6 +231,8 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
           onCompleteTask={handleCompleteTask}
           onCreateTask={handleCreateTask}
         />
+      ) : activeTab === "ersatzteile" ? (
+        <SparePartsTabContent machine={machine} />
       ) : (
         <MachineKostenModule machine={machine} />
       )}
@@ -252,8 +260,6 @@ function MachineWartungModule({
   onCreateTask
 }: WartungModuleProps) {
   const [isUpdatingStand, setIsUpdatingStand] = useState(false);
-  const [showSparePartsKey, setShowSparePartsKey] = useState(0);
-  const [showSpareParts, setShowSpareParts] = useState(false);
   const currentReading = getMachineCurrentReading(machine);
   const unit = getMachineUnitLabel(machine.unit);
 
@@ -386,24 +392,6 @@ function MachineWartungModule({
         />
       </section>
 
-      <section className="spare-parts-section">
-        <button
-          className="spare-parts-toggle"
-          type="button"
-          onClick={() => {
-            setShowSpareParts((v) => !v);
-            if (!showSpareParts) {
-              setShowSparePartsKey((k) => k + 1);
-            }
-          }}
-        >
-          <span>Ersatzteile</span>
-          <span className="toggle-arrow">{showSpareParts ? "▲" : "▼"}</span>
-        </button>
-        {showSpareParts ? (
-          <MachineSpareParts key={showSparePartsKey} createSignal={showSparePartsKey} machine={machine} />
-        ) : null}
-      </section>
     </>
   );
 }
@@ -1123,4 +1111,286 @@ function buildNewTaskInput(
     actualCost: null,
     notes: null
   };
+}
+
+// ─── Ersatzteile Tab ───────────────────────────────────────────────────────
+
+type AdjustMode = "consume" | "add";
+
+type SparePartsTabContentProps = {
+  machine: MachineSummary;
+};
+
+function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
+  const [parts, setParts] = useState<MachineSparePart[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [adjusting, setAdjusting] = useState<{ id: string; mode: AdjustMode } | null>(null);
+
+  const loadParts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setParts(await getMachineSpareParts(machine.id));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [machine.id]);
+
+  useEffect(() => {
+    loadParts();
+  }, [loadParts]);
+
+  async function handleAdjust(part: MachineSparePart, amount: number, mode: AdjustMode) {
+    const newQty = mode === "consume"
+      ? Math.max(0, part.stockQuantity - amount)
+      : part.stockQuantity + amount;
+    await updateMachineSparePart(part.id, { stockQuantity: newQty });
+    await loadParts();
+    setAdjusting(null);
+  }
+
+  async function handleAddPart(input: CreateMachineSparePartInput) {
+    await createMachineSparePart(input);
+    await loadParts();
+    setShowAddForm(false);
+  }
+
+  return (
+    <section className="spare-parts-tab">
+      <div className="spare-parts-tab-header">
+        <span className="spare-parts-tab-title">
+          Ersatzteile
+          {parts.length > 0 && (
+            <span className="spare-parts-tab-count">{parts.length}</span>
+          )}
+        </span>
+        {!showAddForm && (
+          <button className="button small" type="button" onClick={() => setShowAddForm(true)}>
+            + Hinzufügen
+          </button>
+        )}
+      </div>
+
+      {showAddForm && (
+        <SparePartAddForm
+          machine={machine}
+          onSave={handleAddPart}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
+
+      {isLoading ? (
+        <p className="preference-hint">Laden...</p>
+      ) : parts.length === 0 && !showAddForm ? (
+        <div className="spare-parts-tab-empty">
+          <p>Noch keine Ersatzteile eingetragen.</p>
+          <button className="button" type="button" onClick={() => setShowAddForm(true)}>
+            + Ersatzteil hinzufügen
+          </button>
+        </div>
+      ) : (
+        <div className="spare-parts-tab-list">
+          {parts.map((part) => {
+            const isLow = part.minimumStockQuantity > 0 && part.stockQuantity <= part.minimumStockQuantity;
+            const isAdjusting = adjusting?.id === part.id;
+
+            return (
+              <div key={part.id} className={`spare-part-tab-row${isLow ? " low-stock" : ""}`}>
+                <div className="spare-part-tab-main">
+                  <div className="spare-part-tab-identity">
+                    <strong className="spare-part-tab-name">{part.name}</strong>
+                    {(part.partNumber ?? part.manufacturer) ? (
+                      <span className="spare-part-tab-number">
+                        {part.partNumber ?? part.manufacturer}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="spare-part-tab-stock">
+                    <strong className="spare-part-tab-qty">{formatNumber(part.stockQuantity)}</strong>
+                    <span className="spare-part-tab-unit">{part.unit}</span>
+                    {isLow && <span className="spare-part-low-badge">Bestand niedrig</span>}
+                  </div>
+                </div>
+                {isAdjusting ? (
+                  <ConsumeAddInlineForm
+                    mode={adjusting.mode}
+                    onSave={(amount) => handleAdjust(part, amount, adjusting.mode)}
+                    onCancel={() => setAdjusting(null)}
+                  />
+                ) : (
+                  <div className="spare-part-tab-actions">
+                    <button
+                      className="button small"
+                      type="button"
+                      onClick={() => setAdjusting({ id: part.id, mode: "consume" })}
+                    >
+                      − Verbrauchen
+                    </button>
+                    <button
+                      className="button small"
+                      type="button"
+                      onClick={() => setAdjusting({ id: part.id, mode: "add" })}
+                    >
+                      + Hinzufügen
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+type ConsumeAddInlineFormProps = {
+  mode: AdjustMode;
+  onSave: (amount: number) => Promise<void>;
+  onCancel: () => void;
+};
+
+function ConsumeAddInlineForm({ mode, onSave, onCancel }: ConsumeAddInlineFormProps) {
+  const [amount, setAmount] = useState("1");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const num = Number(amount);
+    if (!Number.isFinite(num) || num <= 0) return;
+    setIsSaving(true);
+    await onSave(num);
+    setIsSaving(false);
+  }
+
+  return (
+    <form className="spare-part-inline-form" onSubmit={handleSubmit}>
+      <label className="spare-part-inline-label">
+        {mode === "consume" ? "Menge verbrauchen" : "Menge hinzufügen"}
+        <input
+          autoFocus
+          inputMode="decimal"
+          min="0.01"
+          step="0.01"
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </label>
+      <div className="spare-part-inline-actions">
+        <button className="button small" type="button" onClick={onCancel}>Abbrechen</button>
+        <button className="button primary small" type="submit" disabled={isSaving}>
+          {isSaving ? "..." : "Bestätigen"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const SPARE_PART_UNITS = ["Stk.", "Liter", "kg", "m", "Paar"] as const;
+
+type SparePartAddFormProps = {
+  machine: MachineSummary;
+  onSave: (input: CreateMachineSparePartInput) => Promise<void>;
+  onCancel: () => void;
+};
+
+function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) {
+  const [name, setName] = useState("");
+  const [partNumber, setPartNumber] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("1");
+  const [unit, setUnit] = useState<string>("Stk.");
+  const [minimumStockQuantity, setMinimumStockQuantity] = useState("0");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!name.trim()) { setError("Bezeichnung eintragen."); return; }
+    const qty = Number(stockQuantity);
+    if (!Number.isFinite(qty) || qty < 0) { setError("Lagerbestand prüfen."); return; }
+    setIsSaving(true);
+    try {
+      await onSave({
+        farmId: machine.farmId,
+        machineId: machine.id,
+        name: name.trim(),
+        category: "other",
+        partNumber: partNumber.trim() || null,
+        originalPartNumber: null,
+        manufacturer: manufacturer.trim() || null,
+        supplier: null,
+        stockQuantity: qty,
+        minimumStockQuantity: Number(minimumStockQuantity) || 0,
+        unit: unit || "Stk.",
+        storageLocation: null,
+        purchasePrice: null,
+        notes: null
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <form className="spare-part-add-form" onSubmit={handleSubmit}>
+      <h4 className="spare-part-add-form-title">Neues Ersatzteil</h4>
+      <label>
+        Bezeichnung
+        <input
+          required
+          placeholder="z.B. Ölfilter"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+        />
+      </label>
+      <label>
+        Teilenummer / Seriennummer (optional)
+        <input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} />
+      </label>
+      <label>
+        Hersteller (optional)
+        <input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} />
+      </label>
+      <div className="spare-part-add-stock-row">
+        <label>
+          Lagerbestand
+          <input
+            inputMode="decimal"
+            min="0"
+            required
+            type="number"
+            value={stockQuantity}
+            onChange={(e) => { setStockQuantity(e.target.value); setError(null); }}
+          />
+        </label>
+        <label>
+          Einheit
+          <select value={unit} onChange={(e) => setUnit(e.target.value)}>
+            {SPARE_PART_UNITS.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label>
+        Mindestbestand (optional)
+        <input
+          inputMode="decimal"
+          min="0"
+          type="number"
+          value={minimumStockQuantity}
+          onChange={(e) => setMinimumStockQuantity(e.target.value)}
+        />
+      </label>
+      {error && <p className="field-error">{error}</p>}
+      <div className="form-actions">
+        <button className="button" type="button" onClick={onCancel}>Abbrechen</button>
+        <button className="button primary" type="submit" disabled={isSaving}>
+          {isSaving ? "Speichern..." : "Speichern"}
+        </button>
+      </div>
+    </form>
+  );
 }

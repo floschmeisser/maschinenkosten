@@ -3674,6 +3674,216 @@ td span {
   flex-wrap: wrap;
 }
 
+/* ─── Ersatzteile Tab ─── */
+
+.spare-parts-tab {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.spare-parts-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.spare-parts-tab-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--primary-dark);
+}
+
+.spare-parts-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.spare-parts-tab-empty {
+  display: grid;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+}
+
+.spare-parts-tab-empty p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.spare-parts-tab-list {
+  display: grid;
+  gap: 8px;
+}
+
+.spare-part-tab-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.spare-part-tab-row.low-stock {
+  border-color: #e8a84a;
+  background: #fef9ec;
+}
+
+.spare-part-tab-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.spare-part-tab-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.spare-part-tab-name {
+  font-weight: 900;
+  color: var(--primary-dark);
+  font-size: 15px;
+}
+
+.spare-part-tab-number {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.spare-part-tab-stock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.spare-part-tab-qty {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.spare-part-tab-unit {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.spare-part-low-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef9ec;
+  border: 1px solid #e8a84a;
+  color: #b07c10;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.spare-part-tab-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spare-part-inline-form {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--primary-soft);
+  border-radius: 6px;
+}
+
+.spare-part-inline-label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.spare-part-inline-label input {
+  min-height: 42px;
+  max-width: 120px;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.spare-part-inline-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.spare-part-add-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+
+.spare-part-add-form-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--primary-dark);
+  margin: 0;
+}
+
+.spare-part-add-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.spare-part-add-form input,
+.spare-part-add-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.spare-part-add-stock-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 @media (min-width: 760px) {
   .task-card-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));

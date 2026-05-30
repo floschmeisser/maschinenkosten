@@ -1,19 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
-import { createMachineCostComparison } from "@/lib/app/cost-calculation";
-import { getActiveFarmConfig, type FarmAppConfig, type FarmProfileKey } from "@/lib/app/farm-config";
 import { formatCurrency } from "@/lib/app/format";
-import type { MachineSparePart, MachineSummary } from "@/lib/app/machines";
-import { getMachineSparePartStockStatus, getMachines as getPlaceholderMachines, toMachineSummary } from "@/lib/app/machines";
-import { getMachines as loadMachines } from "@/lib/app/machines-database";
-import { getLowStockSpareParts } from "@/lib/app/machine-spare-parts-database";
 import {
+  getCalendarEventsForMonth,
+  getCalendarEventsForWeek,
+  getWeekStart,
+  placeholderCalendarEvents,
+  type CalendarEvent
+} from "@/lib/app/calendar-events";
+import { createCalendarEvent, getCalendarEvents } from "@/lib/app/calendar-events-database";
+import type { MachineSummary } from "@/lib/app/machines";
+import {
+  formatMachineReading,
+  getMachineCurrentReading,
+  getMachineUnitLabel,
+  getMachines as getPlaceholderMachines,
+  toMachineSummary
+} from "@/lib/app/machines";
+import { getMachines as loadMachines } from "@/lib/app/machines-database";
+import {
+  getDashboardDueText,
   getMaintenanceDisplayStatus,
   getMaintenanceTasks as getPlaceholderMaintenanceTasks,
-  sortMaintenanceTasksByUrgency,
+  getMaintenanceTypeLabel,
+  getTopUrgentTasks,
   type MaintenanceTask
 } from "@/lib/app/maintenance";
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
@@ -25,26 +38,13 @@ type DashboardProps = {
 };
 
 export function Dashboard({ locale }: DashboardProps) {
-  const [farmKey, setFarmKey] = useState<FarmProfileKey>("default");
-  const farmConfig = getActiveFarmConfig(farmKey);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
-  const [lowStockSpareParts, setLowStockSpareParts] = useState<MachineSparePart[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => [...placeholderCalendarEvents]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    function syncFarmProfile() {
-      setFarmKey(getFarmProfilePreference());
-    }
-
-    syncFarmProfile();
-    window.addEventListener("maschinenkosten.farmProfileChanged", syncFarmProfile);
-    window.addEventListener("storage", syncFarmProfile);
-
-    return () => {
-      window.removeEventListener("maschinenkosten.farmProfileChanged", syncFarmProfile);
-      window.removeEventListener("storage", syncFarmProfile);
-    };
+    getFarmProfilePreference();
   }, []);
 
   useEffect(() => {
@@ -52,20 +52,20 @@ export function Dashboard({ locale }: DashboardProps) {
       setIsLoading(true);
 
       try {
-        const [machineData, taskData, lowStockSpareParts] = await Promise.all([
+        const [machineData, taskData, eventData] = await Promise.all([
           loadMachines(),
           loadMaintenanceTasks(),
-          getLowStockSpareParts()
+          getCalendarEvents()
         ]);
 
         setMachines(machineData.map(toMachineSummary));
         setMaintenanceTasks(taskData);
-        setLowStockSpareParts(lowStockSpareParts);
+        setCalendarEvents(eventData);
         void syncRemindersFromCurrentData().catch(() => undefined);
       } catch {
         setMachines(getPlaceholderMachines().map(toMachineSummary));
         setMaintenanceTasks(getPlaceholderMaintenanceTasks());
-        setLowStockSpareParts([]);
+        setCalendarEvents([...placeholderCalendarEvents]);
       } finally {
         setIsLoading(false);
       }
@@ -74,276 +74,402 @@ export function Dashboard({ locale }: DashboardProps) {
     loadDashboardData();
   }, []);
 
-  const sortedMaintenanceTasks = sortMaintenanceTasksByUrgency(maintenanceTasks, machines);
-  const dueMaintenanceCount = sortedMaintenanceTasks.filter((task) => {
-    const machine = machines.find((item) => item.id === task.machineId);
-    return getMaintenanceDisplayStatus(task, machine) === "due";
-  }).length;
-  const activeMachineCount = machines.filter((machine) => machine.status === "active").length;
-  const costComparisonItems = createMachineCostComparison(machines, maintenanceTasks);
-  const mostExpensiveMachine = costComparisonItems[0];
-  const importantItems = createImportantItems({
-    farmConfig,
-    locale,
-    lowStockSpareParts,
-    machines,
-    maintenanceTasks: sortedMaintenanceTasks
-  });
-  const mostImportantItem = importantItems[0] ?? null;
-  const dashboardCards = createDailyCards({
-    activeMachineCount,
-    dueMaintenanceCount,
-    farmConfig,
-    lowStockSparePartsCount: lowStockSpareParts.length,
-    locale,
-    mostExpensiveCost: mostExpensiveMachine?.result.costPerOperatingHour ?? null
-  });
-  const quickActions = createDashboardQuickActions({ farmConfig, locale });
+  const topTasks = getTopUrgentTasks(maintenanceTasks, machines, 3);
+
+  function handleEventCreated(event: CalendarEvent) {
+    setCalendarEvents((prev) => [...prev, event]);
+  }
 
   return (
     <main className="page dashboard-page">
-      <section className="dashboard-date" aria-label="Datum">
+      <section className="dashboard-date-header" aria-label="Datum">
         <strong>{formatDashboardDate(new Date())}</strong>
+        {isLoading ? <span className="muted">Laden...</span> : null}
       </section>
 
-      <section className="dashboard-important" aria-label="Wichtig">
-        {isLoading ? (
-          <div className="dashboard-empty">
-            <strong>Laden...</strong>
-          </div>
-        ) : mostImportantItem ? (
-          <Link className={`important-item ${mostImportantItem.tone}`} href={mostImportantItem.href}>
-            <strong>{mostImportantItem.title}</strong>
-            <small>{mostImportantItem.meta}</small>
-          </Link>
-        ) : (
+      <section className="dashboard-section" aria-label="Nächste Aufgaben">
+        <h2 className="dashboard-section-title">Was steht an?</h2>
+        {topTasks.length === 0 ? (
           <div className="dashboard-empty">
             <strong>Alles erledigt</strong>
+            <span className="muted">Keine offenen Aufgaben</span>
+          </div>
+        ) : (
+          <div className="task-card-list">
+            {topTasks.map((task) => {
+              const machine = machines.find((m) => m.id === task.machineId);
+              const dueText = getDashboardDueText(task, machine);
+              const status = getMaintenanceDisplayStatus(task, machine);
+              return (
+                <Link
+                  key={task.id}
+                  className={`task-card ${status}`}
+                  href={`/${locale}/machines/${task.machineId}`}
+                >
+                  <span className="task-card-machine">{machine?.name ?? "Maschine"}</span>
+                  <strong className="task-card-title">{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
+                  <span className="task-card-due">{dueText}</span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
 
-      <section className="dashboard-focus-grid" aria-label="Betriebsuebersicht">
-        {dashboardCards.map((card) => (
-          <DashboardFocusCard {...card} key={card.id} />
-        ))}
+      <section className="dashboard-section" aria-label="Kalender">
+        <h2 className="dashboard-section-title">Kalender</h2>
+        <CalendarWidget
+          locale={locale}
+          machines={machines}
+          maintenanceTasks={maintenanceTasks}
+          calendarEvents={calendarEvents}
+          farmId={machines[0]?.farmId ?? ""}
+          onEventCreated={handleEventCreated}
+        />
       </section>
 
-      <section className="dashboard-actions" aria-label="Schnellaktionen">
-        {quickActions.map((action, index) => (
-          <Link className={index === 0 ? "button primary large-action" : "button large-action"} href={action.href} key={action.href}>
-            {action.label}
-          </Link>
-        ))}
+      <section className="dashboard-section" aria-label="Meine Maschinen">
+        <h2 className="dashboard-section-title">Meine Maschinen</h2>
+        <div className="machine-reading-list">
+          {machines.map((machine) => {
+            const machineTasks = maintenanceTasks.filter((t) => t.machineId === machine.id);
+            const hasDue = machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "due");
+            const hasSoon = !hasDue && machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "soon");
+            const reading = getMachineCurrentReading(machine);
+            const unitLabel = getMachineUnitLabel(machine.unit);
+            return (
+              <Link
+                key={machine.id}
+                className={`machine-reading-card${hasDue ? " has-due" : hasSoon ? " has-soon" : ""}`}
+                href={`/${locale}/machines/${machine.id}`}
+              >
+                <div className="machine-reading-card-header">
+                  <strong className="machine-reading-name">{machine.name}</strong>
+                  {hasDue ? <span className="machine-reading-badge due">Wartung!</span> : null}
+                  {hasSoon ? <span className="machine-reading-badge soon">Bald</span> : null}
+                </div>
+                <div className="machine-reading-value">
+                  <span className="machine-reading-number">{reading.toLocaleString("de-DE", { maximumFractionDigits: 0 })}</span>
+                  <span className="machine-reading-unit">{unitLabel}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
     </main>
   );
 }
 
-type DashboardFocusCardProps = {
-  helper: string;
-  href: string;
-  id: DashboardCardId;
-  label: string;
-  tone: DashboardCardTone;
-  value: string;
+type CalendarView = "week" | "month";
+
+type CalendarWidgetProps = {
+  locale: Locale;
+  machines: MachineSummary[];
+  maintenanceTasks: MaintenanceTask[];
+  calendarEvents: CalendarEvent[];
+  farmId: string;
+  onEventCreated: (event: CalendarEvent) => void;
 };
 
-type DashboardCardId = "maintenance" | "spareParts" | "machines" | "costs";
-type DashboardCardTone = "primary" | "good" | "warning" | "danger" | "earth";
+function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, farmId, onEventCreated }: CalendarWidgetProps) {
+  const [view, setView] = useState<CalendarView>("week");
+  const [cursorDate, setCursorDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-function DashboardFocusCard({ helper, href, label, tone, value }: Omit<DashboardFocusCardProps, "id">) {
+  const weekStart = getWeekStart(cursorDate);
+  const allEvents = mergeCalendarSources(maintenanceTasks, calendarEvents);
+
+  function goBack() {
+    const d = new Date(cursorDate);
+    if (view === "week") d.setDate(d.getDate() - 7);
+    else d.setMonth(d.getMonth() - 1);
+    setCursorDate(d);
+    setSelectedDate(null);
+  }
+
+  function goForward() {
+    const d = new Date(cursorDate);
+    if (view === "week") d.setDate(d.getDate() + 7);
+    else d.setMonth(d.getMonth() + 1);
+    setCursorDate(d);
+    setSelectedDate(null);
+  }
+
+  function handleDayClick(dateStr: string) {
+    setSelectedDate((prev) => (prev === dateStr ? null : dateStr));
+  }
+
+  async function handleEventSave(input: { title: string; note: string; machineId: string }) {
+    if (!selectedDate || !farmId) return;
+    const created = await createCalendarEvent({
+      farmId,
+      machineId: input.machineId || null,
+      title: input.title,
+      eventDate: selectedDate,
+      eventTime: null,
+      note: input.note || null,
+      source: "manual",
+      reminderKey: null
+    });
+    onEventCreated(created);
+    setSelectedDate(null);
+  }
+
+  const navLabel =
+    view === "week"
+      ? `${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`
+      : new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(cursorDate);
+
   return (
-    <Link className={`dashboard-focus-card ${tone}`} href={href}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{helper}</small>
-    </Link>
+    <div className="calendar-widget">
+      <div className="calendar-nav">
+        <button className="calendar-nav-btn" type="button" onClick={goBack}>◀</button>
+        <span className="calendar-nav-label">{navLabel}</span>
+        <button className="calendar-nav-btn" type="button" onClick={goForward}>▶</button>
+        <div className="calendar-view-toggle">
+          <button
+            className={`calendar-view-btn${view === "week" ? " active" : ""}`}
+            type="button"
+            onClick={() => { setView("week"); setSelectedDate(null); }}
+          >
+            Woche
+          </button>
+          <button
+            className={`calendar-view-btn${view === "month" ? " active" : ""}`}
+            type="button"
+            onClick={() => { setView("month"); setSelectedDate(null); }}
+          >
+            Monat
+          </button>
+        </div>
+      </div>
+
+      {view === "week" ? (
+        <WeekView
+          weekStart={weekStart}
+          events={getCalendarEventsForWeek(allEvents, weekStart)}
+          selectedDate={selectedDate}
+          onDayClick={handleDayClick}
+        />
+      ) : (
+        <MonthView
+          year={cursorDate.getFullYear()}
+          month={cursorDate.getMonth()}
+          events={getCalendarEventsForMonth(allEvents, cursorDate.getFullYear(), cursorDate.getMonth())}
+          selectedDate={selectedDate}
+          onDayClick={handleDayClick}
+        />
+      )}
+
+      {selectedDate !== null ? (
+        <CreateEventForm
+          date={selectedDate}
+          machines={machines}
+          onSave={handleEventSave}
+          onCancel={() => setSelectedDate(null)}
+        />
+      ) : null}
+    </div>
   );
 }
 
-type DashboardCardInput = {
-  activeMachineCount: number;
-  dueMaintenanceCount: number;
-  farmConfig: FarmAppConfig;
-  lowStockSparePartsCount: number;
-  locale: Locale;
-  mostExpensiveCost: number | null;
+type WeekViewProps = {
+  weekStart: Date;
+  events: CalendarEvent[];
+  selectedDate: string | null;
+  onDayClick: (dateStr: string) => void;
 };
 
-function createDailyCards({
-  activeMachineCount,
-  dueMaintenanceCount,
-  farmConfig,
-  lowStockSparePartsCount,
-  locale,
-  mostExpensiveCost
-}: DashboardCardInput): DashboardFocusCardProps[] {
-  const cards: DashboardFocusCardProps[] = [
-    {
-      id: "maintenance",
-      tone: dueMaintenanceCount > 0 ? "danger" : "good",
-      label: "Wartung",
-      value: dueMaintenanceCount.toString(),
-      helper: "offen",
-      href: `/${locale}/maintenance?filter=due`
-    },
-    {
-      id: "spareParts",
-      tone: lowStockSparePartsCount > 0 ? "warning" : "good",
-      label: "Lager",
-      value: lowStockSparePartsCount.toString(),
-      helper: "niedrig",
-      href: `/${locale}/machines`
-    },
-    {
-      id: "machines",
-      tone: "earth",
-      label: "Maschinen",
-      value: activeMachineCount.toString(),
-      helper: "aktiv",
-      href: `/${locale}/machines`
-    },
-    {
-      id: "costs",
-      tone: "primary",
-      label: "Kosten",
-      value: mostExpensiveCost === null ? "-" : `${formatCurrency(mostExpensiveCost)}/h`,
-      helper: "hoechste",
-      href: `/${locale}/costs`
-    }
-  ];
+function WeekView({ weekStart, events, selectedDate, onDayClick }: WeekViewProps) {
+  const todayStr = toDateString(new Date());
+  const dayLabels = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-  return cards.filter((card) => isDashboardCardEnabled(card.id, farmConfig));
+  return (
+    <div className="calendar-week">
+      {Array.from({ length: 7 }, (_, i) => {
+        const day = addDays(weekStart, i);
+        const dateStr = toDateString(day);
+        const dayEvents = events.filter((e) => e.eventDate === dateStr);
+        const isToday = dateStr === todayStr;
+        const isSelected = dateStr === selectedDate;
+        return (
+          <button
+            key={dateStr}
+            className={`calendar-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}`}
+            type="button"
+            onClick={() => onDayClick(dateStr)}
+          >
+            <span className="calendar-day-label">{dayLabels[i]}</span>
+            <span className="calendar-day-num">{day.getDate()}</span>
+            <div className="calendar-day-events">
+              {dayEvents.slice(0, 3).map((event) => (
+                <span key={event.id} className={`calendar-event-dot ${event.source}`} title={event.title} />
+              ))}
+              {dayEvents.length > 3 ? <span className="calendar-event-more">+{dayEvents.length - 3}</span> : null}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-type DashboardQuickAction = {
-  href: string;
-  label: string;
-  module: keyof FarmAppConfig["enabledModules"];
+type MonthViewProps = {
+  year: number;
+  month: number;
+  events: CalendarEvent[];
+  selectedDate: string | null;
+  onDayClick: (dateStr: string) => void;
 };
 
-function createDashboardQuickActions({ farmConfig, locale }: Pick<DashboardCardInput, "farmConfig" | "locale">): DashboardQuickAction[] {
-  const actions: DashboardQuickAction[] = [
-    { label: "Tagesstand", href: `/${locale}/daily-usage`, module: "dailyUsage" },
-    { label: "Wartung", href: `/${locale}/maintenance`, module: "maintenance" },
-    { label: "Maschine", href: `/${locale}/machines`, module: "machines" }
-  ];
+function MonthView({ year, month, events, selectedDate, onDayClick }: MonthViewProps) {
+  const todayStr = toDateString(new Date());
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
 
-  return actions.filter((action) => farmConfig.enabledModules[action.module]);
+  return (
+    <div className="calendar-month">
+      {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((d) => (
+        <span key={d} className="calendar-month-head">{d}</span>
+      ))}
+      {Array.from({ length: totalCells }, (_, i) => {
+        const dayNum = i - startOffset + 1;
+        if (dayNum < 1 || dayNum > daysInMonth) {
+          return <span key={i} className="calendar-month-cell empty" />;
+        }
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+        const dayEvents = events.filter((e) => e.eventDate === dateStr);
+        const isToday = dateStr === todayStr;
+        const isSelected = dateStr === selectedDate;
+        return (
+          <button
+            key={dateStr}
+            className={`calendar-month-cell${isToday ? " today" : ""}${isSelected ? " selected" : ""}${dayEvents.length > 0 ? " has-events" : ""}`}
+            type="button"
+            onClick={() => onDayClick(dateStr)}
+          >
+            <span className="calendar-month-day-num">{dayNum}</span>
+            <div className="calendar-month-dots">
+              {dayEvents.slice(0, 3).map((event) => (
+                <span key={event.id} className={`calendar-event-dot ${event.source}`} />
+              ))}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-function isDashboardCardEnabled(id: DashboardFocusCardProps["id"], farmConfig: FarmAppConfig): boolean {
-  const enabledModules: Record<DashboardCardId, boolean> = {
-    maintenance: farmConfig.enabledModules.maintenance,
-    spareParts: farmConfig.enabledModules.machines,
-    machines: farmConfig.enabledModules.machines,
-    costs: farmConfig.enabledModules.costs
-  };
-
-  return enabledModules[id];
-}
-
-type ImportantItem = {
-  href: string;
-  id: string;
-  meta: string;
-  title: string;
-  tone: "danger" | "warning" | "neutral";
-};
-
-type ImportantItemInput = {
-  farmConfig: FarmAppConfig;
-  locale: Locale;
-  lowStockSpareParts: MachineSparePart[];
+type CreateEventFormProps = {
+  date: string;
   machines: MachineSummary[];
-  maintenanceTasks: MaintenanceTask[];
+  onSave: (input: { title: string; note: string; machineId: string }) => Promise<void>;
+  onCancel: () => void;
 };
 
-function createImportantItems({
-  farmConfig,
-  locale,
-  lowStockSpareParts,
-  machines,
-  maintenanceTasks
-}: ImportantItemInput): ImportantItem[] {
-  const items: ImportantItem[] = [];
+function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormProps) {
+  const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [machineId, setMachineId] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  if (farmConfig.enabledModules.maintenance) {
-    for (const task of maintenanceTasks) {
-      const machine = machines.find((item) => item.id === task.machineId);
-      const status = getMaintenanceDisplayStatus(task, machine);
-
-      if (status !== "due" && !isDueToday(task)) {
-        continue;
-      }
-
-      items.push({
-        id: `maintenance-${task.id}`,
-        tone: isOverdue(task, machine) ? "danger" : "warning",
-        title: task.title,
-        meta: machine?.name ?? "Wartung",
-        href: `/${locale}/maintenance?filter=due&taskId=${task.id}`
-      });
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) return;
+    setIsSaving(true);
+    try {
+      await onSave({ title: title.trim(), note: note.trim(), machineId });
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  if (farmConfig.enabledModules.machines) {
-    for (const part of lowStockSpareParts) {
-      const machine = machines.find((item) => item.id === part.machineId);
-      const stockStatus = getMachineSparePartStockStatus(part);
-      const isCritical = stockStatus === "critical" || stockStatus === "empty";
-      items.push({
-        id: `spare-part-${part.id}`,
-        tone: isCritical ? "danger" : "warning",
-        title: part.name,
-        meta: machine ? `${machine.name} / ${part.storageLocation || "Lager"}` : part.partNumber ?? "Ersatzteil",
-        href: `/${locale}/machines/${part.machineId}`
-      });
-    }
-  }
+  return (
+    <form className="calendar-create-form" onSubmit={handleSubmit}>
+      <strong className="calendar-create-date">{formatDisplayDate(date)}</strong>
+      <label>
+        Titel
+        <input
+          type="text"
+          value={title}
+          autoFocus
+          required
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </label>
+      <label>
+        Maschine (optional)
+        <select value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+          <option value="">— keine —</option>
+          {machines.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Notiz
+        <textarea value={note} rows={2} onChange={(e) => setNote(e.target.value)} />
+      </label>
+      <div className="calendar-create-actions">
+        <button className="button" type="button" onClick={onCancel}>Abbrechen</button>
+        <button className="button primary" type="submit" disabled={isSaving || !title.trim()}>
+          {isSaving ? "Speichern..." : "Eintrag anlegen"}
+        </button>
+      </div>
+    </form>
+  );
+}
 
-  return items.slice(0, 1);
+function mergeCalendarSources(tasks: MaintenanceTask[], events: CalendarEvent[]): CalendarEvent[] {
+  const taskEvents: CalendarEvent[] = tasks
+    .filter((t) => t.dueDate && t.status !== "completed" && t.status !== "cancelled")
+    .map((t) => ({
+      id: `task-${t.id}`,
+      farmId: t.farmId,
+      machineId: t.machineId,
+      title: t.title,
+      eventDate: t.dueDate!,
+      eventTime: null,
+      note: null,
+      source: "maintenance" as const,
+      reminderKey: null,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt
+    }));
+
+  return [...taskEvents, ...events.filter((e) => e.source === "manual")];
 }
 
 function formatDashboardDate(date: Date): string {
   return new Intl.DateTimeFormat("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit"
+    weekday: "long",
+    day: "numeric",
+    month: "long"
   }).format(date);
 }
 
-function isDueToday(task: MaintenanceTask): boolean {
-  if (!task.dueDate || task.status === "completed" || task.status === "cancelled") {
-    return false;
-  }
-
-  return startOfDay(task.dueDate).getTime() === startOfDay().getTime();
+function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit" }).format(date);
 }
 
-function isOverdue(task: MaintenanceTask, machine?: MachineSummary): boolean {
-  if (task.status === "completed" || task.status === "cancelled") {
-    return false;
-  }
-
-  if (task.dueDate && startOfDay(task.dueDate).getTime() < startOfDay().getTime()) {
-    return true;
-  }
-
-  if (machine && task.dueOperatingHours !== null && task.dueOperatingHours <= machine.currentOperatingHours) {
-    return true;
-  }
-
-  if (machine && task.dueKilometers !== null && machine.currentKilometers !== null && task.dueKilometers <= machine.currentKilometers) {
-    return true;
-  }
-
-  return false;
+function formatDisplayDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "numeric", month: "long" }).format(d);
 }
 
-function startOfDay(value?: string): Date {
-  const date = value ? new Date(value) : new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function toDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

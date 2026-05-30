@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
-import { formatDate, formatNumber } from "@/lib/app/format";
+import { formatDate } from "@/lib/app/format";
 import type { Machine, MachineSummary } from "@/lib/app/machines";
 import {
   formatMachineReading,
@@ -56,6 +56,26 @@ const STANDARD_TYPES: MaintenanceType[] = [
   "ac_service",
   "general_check"
 ];
+
+function getMaintenanceTypeIcon(type: MaintenanceType): string {
+  const icons: Partial<Record<MaintenanceType, string>> = {
+    oil_engine: "🛢",
+    oil_hydraulic: "💧",
+    filter_air: "💨",
+    filter_fuel: "⛽",
+    filter_hydraulic: "🔩",
+    filter_cabin: "🌬",
+    lubrication: "🔧",
+    service: "⚙",
+    inspection_57a: "📋",
+    brakes_tires: "⭕",
+    ac_service: "❄",
+    general_check: "✓",
+    custom: "📌",
+    other: "📌",
+  };
+  return icons[type] ?? "⚙";
+}
 
 type MachineDetailPageClientProps = {
   locale: Locale;
@@ -237,7 +257,7 @@ function MachineWartungModule({
   const currentReading = getMachineCurrentReading(machine);
   const unit = getMachineUnitLabel(machine.unit);
 
-  const standardCards = STANDARD_TYPES.map((type) => {
+  const standardCardData = STANDARD_TYPES.map((type) => {
     const typeTasks = tasks.filter((t) => t.type === type && t.status !== "cancelled");
     const activeTasks = typeTasks.filter((t) => t.status !== "completed");
     const completedTasks = typeTasks.filter((t) => t.status === "completed");
@@ -245,13 +265,20 @@ function MachineWartungModule({
     const lastCompleted = [...completedTasks].sort((a, b) =>
       (b.completedAt ?? "").localeCompare(a.completedAt ?? "")
     )[0] ?? null;
+    const urgency: MaintenanceDisplayStatus = activeTask
+      ? getMaintenanceDisplayStatus(activeTask, machine)
+      : "planned";
 
-    return { type, activeTask, lastCompleted };
+    return { type, activeTask, lastCompleted, urgency };
   });
 
-  const customTasks = tasks.filter(
-    (t) => t.type === "custom" || (t.type === "other" && t.status !== "cancelled")
+  const urgentCards = standardCardData.filter(
+    (c) => c.activeTask && (c.urgency === "due" || c.urgency === "soon")
   );
+  const otherActiveCards = standardCardData.filter(
+    (c) => (c.activeTask || c.lastCompleted) && !(c.activeTask && (c.urgency === "due" || c.urgency === "soon"))
+  );
+  const inactiveCards = standardCardData.filter((c) => !c.activeTask && !c.lastCompleted);
 
   return (
     <>
@@ -298,7 +325,46 @@ function MachineWartungModule({
             <p>Wähle einen Typ und tippe auf "Einrichten" um Fälligkeiten zu verfolgen.</p>
           </div>
         ) : null}
-        {standardCards.map(({ type, activeTask, lastCompleted }) => (
+
+        {urgentCards.length > 0 && (
+          <>
+            <h3 className="maintenance-group-header">Fällig / Bald fällig</h3>
+            {urgentCards.map(({ type, activeTask, lastCompleted }) => (
+              <MaintenanceTypeCard
+                key={type}
+                type={type}
+                machine={machine}
+                activeTask={activeTask}
+                lastCompleted={lastCompleted}
+                onComplete={onCompleteTask}
+                onCreate={(months, hours, km) =>
+                  onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+                }
+              />
+            ))}
+          </>
+        )}
+
+        {otherActiveCards.length > 0 && (
+          <>
+            <h3 className="maintenance-group-header">Weitere Wartungen</h3>
+            {otherActiveCards.map(({ type, activeTask, lastCompleted }) => (
+              <MaintenanceTypeCard
+                key={type}
+                type={type}
+                machine={machine}
+                activeTask={activeTask}
+                lastCompleted={lastCompleted}
+                onComplete={onCompleteTask}
+                onCreate={(months, hours, km) =>
+                  onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+                }
+              />
+            ))}
+          </>
+        )}
+
+        {inactiveCards.map(({ type, activeTask, lastCompleted }) => (
           <MaintenanceTypeCard
             key={type}
             type={type}
@@ -312,14 +378,12 @@ function MachineWartungModule({
           />
         ))}
 
-        {customTasks.length > 0 || true ? (
-          <AddCustomMaintenanceCard
-            machine={machine}
-            onAdd={(title, months, hours, km) =>
-              onCreateTask(buildNewTaskInput(machine, "custom", title, title, months, hours, km))
-            }
-          />
-        ) : null}
+        <AddCustomMaintenanceCard
+          machine={machine}
+          onAdd={(title, months, hours, km) =>
+            onCreateTask(buildNewTaskInput(machine, "custom", title, title, months, hours, km))
+          }
+        />
       </section>
 
       <section className="spare-parts-section">
@@ -427,7 +491,7 @@ function MaintenanceTypeCard({
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const label = getMaintenanceTypeLabel(type);
-  const unit = getMachineUnitLabel(machine.unit);
+  const icon = getMaintenanceTypeIcon(type);
   const urgency: MaintenanceDisplayStatus = activeTask
     ? getMaintenanceDisplayStatus(activeTask, machine)
     : "planned";
@@ -436,9 +500,12 @@ function MaintenanceTypeCard({
     return (
       <article className="maintenance-type-card inactive">
         <div className="type-card-head">
-          <span className="type-card-label">{label}</span>
-          <button className="button" type="button" onClick={() => setIsAdding(true)}>
-            Aktivieren
+          <div className="type-card-icon-label">
+            <span className="type-card-icon">{icon}</span>
+            <span className="type-card-label">{label}</span>
+          </div>
+          <button className="button small" type="button" onClick={() => setIsAdding(true)}>
+            Einrichten
           </button>
         </div>
       </article>
@@ -449,7 +516,10 @@ function MaintenanceTypeCard({
     return (
       <article className="maintenance-type-card">
         <div className="type-card-head">
-          <span className="type-card-label">{label}</span>
+          <div className="type-card-icon-label">
+            <span className="type-card-icon">{icon}</span>
+            <span className="type-card-label">{label}</span>
+          </div>
         </div>
         <QuickAddForm
           machine={machine}
@@ -470,7 +540,10 @@ function MaintenanceTypeCard({
     return (
       <article className="maintenance-type-card">
         <div className="type-card-head">
-          <span className="type-card-label">{label}</span>
+          <div className="type-card-icon-label">
+            <span className="type-card-icon">{icon}</span>
+            <span className="type-card-label">{label}</span>
+          </div>
         </div>
         <QuickCompleteForm
           machine={machine}
@@ -491,50 +564,50 @@ function MaintenanceTypeCard({
   return (
     <article className={`maintenance-type-card ${urgency}`}>
       <div className="type-card-head">
-        <span className="type-card-label">{label}</span>
+        <div className="type-card-icon-label">
+          <span className="type-card-icon">{icon}</span>
+          <span className="type-card-label">{label}</span>
+        </div>
         {activeTask ? (
           <span className={`urgency-chip ${urgency}`}>
-            {urgency === "due" ? "Faellig" : urgency === "soon" ? "Bald" : ""}
+            {urgency === "due" ? "Fällig" : urgency === "soon" ? "Bald fällig" : "Geplant"}
           </span>
         ) : null}
       </div>
 
-      <dl className="type-card-info">
-        <div>
-          <dt>Zuletzt</dt>
-          <dd>
+      <div className="type-card-info-grid">
+        <div className="type-card-info-cell">
+          <span className="type-card-info-label">Zuletzt erledigt</span>
+          <span className="type-card-info-value">
             {lastCompleted
-              ? `${lastCompleted.completedAt ? formatDate(lastCompleted.completedAt) : "-"}${lastCompleted.lastDoneReading !== null ? ` / ${formatNumber(lastCompleted.lastDoneReading)} ${unit}` : ""}`
-              : "Noch nicht erledigt"}
-          </dd>
+              ? (lastCompleted.completedAt ? formatDate(lastCompleted.completedAt) : "–")
+              : <em className="type-card-info-empty">Noch nicht</em>}
+          </span>
         </div>
-        <div>
-          <dt>Naechste Faelligkeit</dt>
-          <dd>
-            {activeTask
-              ? getMostRelevantDueLabel(activeTask, machine)
-              : "-"}
-          </dd>
+        <div className="type-card-info-cell">
+          <span className="type-card-info-label">Nächste Fälligkeit</span>
+          <span className="type-card-info-value">
+            {activeTask ? getMostRelevantDueLabel(activeTask, machine) : "–"}
+          </span>
         </div>
-        {activeTask && (activeTask.intervalMonths !== null || activeTask.intervalOperatingHours !== null || activeTask.intervalKilometers !== null) ? (
-          <div>
-            <dt>Intervall</dt>
-            <dd>{getMaintenanceRecurrenceLabel(activeTask)}</dd>
-          </div>
-        ) : null}
-      </dl>
+      </div>
+
+      {activeTask && (activeTask.intervalMonths !== null || activeTask.intervalOperatingHours !== null || activeTask.intervalKilometers !== null) ? (
+        <div className="type-card-interval-row">
+          <span className="interval-dot" />
+          <span className="type-card-interval-text">{getMaintenanceRecurrenceLabel(activeTask)}</span>
+        </div>
+      ) : null}
 
       <div className="type-card-actions">
-        {activeTask && urgency !== "completed" ? (
-          <button className="button primary large-action" type="button" onClick={() => setIsCompleting(true)}>
-            Erledigt
+        {activeTask ? (
+          <button className="button primary" type="button" onClick={() => setIsCompleting(true)}>
+            ✓ Erledigt
           </button>
         ) : null}
-        {!activeTask ? (
-          <button className="button" type="button" onClick={() => setIsAdding(true)}>
-            Aktivieren
-          </button>
-        ) : null}
+        <button className="button" type="button" onClick={() => setIsAdding(true)}>
+          Bearbeiten
+        </button>
       </div>
     </article>
   );
@@ -739,8 +812,7 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
   const [override, setOverride] = useState<MachineCostOverride | null>(null);
   const [form, setForm] = useState<KostenFormState>(() => buildKostenFormState(machine, null));
   const [isSaving, setIsSaving] = useState(false);
-  const [showFixedDetail, setShowFixedDetail] = useState(false);
-  const [showVariableDetail, setShowVariableDetail] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -753,7 +825,7 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
   const costInput = buildCostInputFromForm(machine, form);
   const result = calculateMachineCosts(costInput);
   const primaryKpi = isKm ? result.costPerKilometer : result.costPerOperatingHour;
-  const primaryLabel = isKm ? "€/km" : "€/h";
+  const hasValues = result.totalAnnualCosts > 0;
 
   function updateField(key: keyof KostenFormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -821,81 +893,117 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
 
   return (
     <section className="kosten-module">
-      <div className="kosten-kpi-hero">
-        <span className="kosten-kpi-label">{primaryLabel}</span>
-        <strong className="kosten-kpi-value">
-          {primaryKpi === null ? "—" : formatCurrency(primaryKpi)}
-        </strong>
-        <span className="kosten-kpi-sub">{formatCurrency(result.totalAnnualCosts)} / Jahr</span>
+      <div className="kosten-kpi-grid">
+        <div className="kosten-kpi-block">
+          <span className="kosten-kpi-label">Kosten je {isKm ? "km" : "Stunde"}</span>
+          <strong className="kosten-kpi-value">
+            {!hasValues || primaryKpi === null ? "—" : formatCurrency(primaryKpi)}
+          </strong>
+        </div>
+        <div className="kosten-kpi-block">
+          <span className="kosten-kpi-label">Kosten je Jahr</span>
+          <strong className="kosten-kpi-value">
+            {!hasValues ? "—" : formatCurrency(result.totalAnnualCosts)}
+          </strong>
+        </div>
       </div>
 
-      <form className="kosten-form" onSubmit={handleSave}>
-        <div className="kosten-section-head">
-          <label className="kosten-oekl-label">
-            ÖKL-Kategorie
-            <select
-              value={form.oeklCategory}
-              onChange={(e) => applyOeklCategory(e.target.value)}
-            >
-              <option value="">— eigene Eingabe —</option>
-              {oeklCategoryOptions.map((opt) => (
-                <option key={opt.key} value={opt.key}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
+      {!hasValues ? (
+        <div className="kosten-empty-hint">
+          <p>Noch keine Kostenwerte hinterlegt.</p>
+          <button className="button" type="button" onClick={() => setShowForm(true)}>
+            Jetzt einrichten →
+          </button>
         </div>
-
-        <fieldset className="kosten-fieldset">
-          <legend>Anschaffung &amp; Abschreibung</legend>
-          <KostenField label="Kaufpreis" value={form.purchasePrice} unit="€" onChange={(v) => updateField("purchasePrice", v)} />
-          <KostenField label="Restwert" value={form.residualValue} unit="€" onChange={(v) => updateField("residualValue", v)} />
-          <KostenField label="Nutzungsdauer" value={form.expectedUsefulLifeYears} unit="Jahre" onChange={(v) => updateField("expectedUsefulLifeYears", v)} />
-          <KostenField label={annualUsageLabel} value={isKm ? form.annualKilometers : form.annualOperatingHours} unit={isKm ? "km" : "h"} onChange={(v) => updateField(isKm ? "annualKilometers" : "annualOperatingHours", v)} />
-          {!isKm && (
-            <KostenField label="Hektar/h" value={form.hectaresPerHour} unit="ha/h" onChange={(v) => updateField("hectaresPerHour", v)} />
-          )}
-        </fieldset>
-
-        <div className="kosten-result-row">
-          <button className="kosten-detail-toggle" type="button" onClick={() => setShowFixedDetail((v) => !v)}>
+      ) : (
+        <div className="kosten-breakdown">
+          <div className="kosten-breakdown-row">
             <span>Fixkosten/Jahr</span>
             <strong>{formatCurrency(result.fixedCosts.annualFixedCosts)}</strong>
-            <span>{showFixedDetail ? "▲" : "▼"}</span>
-          </button>
-          {showFixedDetail && (
-            <div className="kosten-detail-grid">
-              <KostenField label="Versicherung/Jahr" value={form.insurancePerYear} unit="€" onChange={(v) => updateField("insurancePerYear", v)} />
-              <KostenField label="Steuer/Jahr" value={form.taxPerYear} unit="€" onChange={(v) => updateField("taxPerYear", v)} />
-              <KostenField label="Unterstand/Jahr" value={form.storagePerYear} unit="€" onChange={(v) => updateField("storagePerYear", v)} />
-              <KostenField label="Sonstige Fix/Jahr" value={form.otherFixedCostsPerYear} unit="€" onChange={(v) => updateField("otherFixedCostsPerYear", v)} />
-            </div>
-          )}
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Variable Kosten/Jahr</span>
+            <strong>{formatCurrency(result.variableCosts.annualVariableCosts)}</strong>
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Abschreibung/Jahr</span>
+            <strong>{formatCurrency(result.fixedCosts.annualDepreciation)}</strong>
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Auslastung</span>
+            <strong>
+              {isKm
+                ? `${costInput.annualKilometers ?? 0} km/Jahr`
+                : `${costInput.annualOperatingHours} h/Jahr`}
+            </strong>
+          </div>
         </div>
+      )}
 
-        <div className="kosten-result-row">
-          <button className="kosten-detail-toggle" type="button" onClick={() => setShowVariableDetail((v) => !v)}>
-            <span>Variable Kosten{perUnitLabel}</span>
-            <strong>{formatCurrency(result.variableCosts.variableCostsPerHour)}</strong>
-            <span>{showVariableDetail ? "▲" : "▼"}</span>
-          </button>
-          {showVariableDetail && (
-            <div className="kosten-detail-grid">
-              <KostenField label={`Wartung/Jahr`} value={form.maintenanceCostsPerYear} unit="€" onChange={(v) => updateField("maintenanceCostsPerYear", v)} />
-              <KostenField label={`Reparatur/Jahr`} value={form.repairCostsPerYear} unit="€" onChange={(v) => updateField("repairCostsPerYear", v)} />
-              <KostenField label={`Diesel${perUnitLabel}`} value={form.fuelCostsPerUnit} unit="€" onChange={(v) => updateField("fuelCostsPerUnit", v)} />
-              <KostenField label={`Fahrer${perUnitLabel}`} value={form.operatorCostsPerUnit} unit="€" onChange={(v) => updateField("operatorCostsPerUnit", v)} />
-              <KostenField label={`Sonstiges${perUnitLabel}`} value={form.otherVariableCostsPerUnit} unit="€" onChange={(v) => updateField("otherVariableCostsPerUnit", v)} />
-            </div>
-          )}
-        </div>
+      <button
+        className="kosten-form-toggle"
+        type="button"
+        onClick={() => setShowForm((v) => !v)}
+      >
+        <span>Werte anpassen (ÖKL / manuell)</span>
+        <span>{showForm ? "▲" : "▼"}</span>
+      </button>
 
-        <div className="kosten-form-actions">
-          {savedAt !== null && <span className="muted">Gespeichert {savedAt}</span>}
-          <button className="button primary" type="submit" disabled={isSaving}>
-            {isSaving ? "Speichern..." : "Werte speichern"}
-          </button>
-        </div>
-      </form>
+      {showForm && (
+        <form className="kosten-form" onSubmit={handleSave}>
+          <div className="kosten-section-head">
+            <label className="kosten-oekl-label">
+              ÖKL-Kategorie
+              <select
+                value={form.oeklCategory}
+                onChange={(e) => applyOeklCategory(e.target.value)}
+              >
+                <option value="">— eigene Eingabe —</option>
+                {oeklCategoryOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <fieldset className="kosten-fieldset">
+            <legend>Anschaffung &amp; Abschreibung</legend>
+            <KostenField label="Kaufpreis" value={form.purchasePrice} unit="€" onChange={(v) => updateField("purchasePrice", v)} />
+            <KostenField label="Restwert" value={form.residualValue} unit="€" onChange={(v) => updateField("residualValue", v)} />
+            <KostenField label="Nutzungsdauer" value={form.expectedUsefulLifeYears} unit="Jahre" onChange={(v) => updateField("expectedUsefulLifeYears", v)} />
+            <KostenField label={annualUsageLabel} value={isKm ? form.annualKilometers : form.annualOperatingHours} unit={isKm ? "km" : "h"} onChange={(v) => updateField(isKm ? "annualKilometers" : "annualOperatingHours", v)} />
+            {!isKm && (
+              <KostenField label="Hektar/h" value={form.hectaresPerHour} unit="ha/h" onChange={(v) => updateField("hectaresPerHour", v)} />
+            )}
+          </fieldset>
+
+          <fieldset className="kosten-fieldset">
+            <legend>Fixkosten</legend>
+            <KostenField label="Versicherung/Jahr" value={form.insurancePerYear} unit="€" onChange={(v) => updateField("insurancePerYear", v)} />
+            <KostenField label="Steuer/Jahr" value={form.taxPerYear} unit="€" onChange={(v) => updateField("taxPerYear", v)} />
+            <KostenField label="Unterstand/Jahr" value={form.storagePerYear} unit="€" onChange={(v) => updateField("storagePerYear", v)} />
+            <KostenField label="Sonstige Fix/Jahr" value={form.otherFixedCostsPerYear} unit="€" onChange={(v) => updateField("otherFixedCostsPerYear", v)} />
+          </fieldset>
+
+          <fieldset className="kosten-fieldset">
+            <legend>Variable Kosten</legend>
+            <KostenField label="Wartung/Jahr" value={form.maintenanceCostsPerYear} unit="€" onChange={(v) => updateField("maintenanceCostsPerYear", v)} />
+            <KostenField label="Reparatur/Jahr" value={form.repairCostsPerYear} unit="€" onChange={(v) => updateField("repairCostsPerYear", v)} />
+            <KostenField label={`Diesel${perUnitLabel}`} value={form.fuelCostsPerUnit} unit="€" onChange={(v) => updateField("fuelCostsPerUnit", v)} />
+            <KostenField label={`Fahrer${perUnitLabel}`} value={form.operatorCostsPerUnit} unit="€" onChange={(v) => updateField("operatorCostsPerUnit", v)} />
+            <KostenField label={`Sonstiges${perUnitLabel}`} value={form.otherVariableCostsPerUnit} unit="€" onChange={(v) => updateField("otherVariableCostsPerUnit", v)} />
+          </fieldset>
+
+          <div className="kosten-form-actions">
+            {savedAt !== null && <span className="muted">Gespeichert {savedAt}</span>}
+            <button className="button primary" type="submit" disabled={isSaving}>
+              {isSaving ? "Speichern..." : "Werte speichern"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <p className="kosten-footer-note">Berechnung nach ÖKL-Methodik. Werte manuell anpassbar.</p>
     </section>
   );
 }

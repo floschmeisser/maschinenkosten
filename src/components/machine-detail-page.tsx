@@ -29,6 +29,7 @@ import {
   type CompleteMaintenanceTaskInput,
   type CreateMaintenanceTaskInput,
   type MaintenanceDisplayStatus,
+  type MaintenanceIntervalType,
   type MaintenanceTask,
   type MaintenanceType
 } from "@/lib/app/maintenance";
@@ -296,25 +297,7 @@ function MachineWartungModule({
             lastCompleted={lastCompleted}
             onComplete={onCompleteTask}
             onCreate={(months, hours, km) =>
-              onCreateTask({
-                farmId: machine.farmId,
-                machineId: machine.id,
-                title: getMaintenanceTypeLabel(type),
-                type,
-                customTitle: null,
-                status: "open",
-                dueDate: null,
-                dueOperatingHours: hours ?? null,
-                dueKilometers: km ?? null,
-                intervalType: months !== null ? "months" : hours !== null || km !== null ? "operating_hours" : "none",
-                intervalDays: null,
-                intervalMonths: months ?? null,
-                intervalOperatingHours: hours ?? null,
-                intervalKilometers: km ?? null,
-                estimatedCost: 0,
-                actualCost: null,
-                notes: null
-              })
+              onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
             }
           />
         ))}
@@ -323,25 +306,7 @@ function MachineWartungModule({
           <AddCustomMaintenanceCard
             machine={machine}
             onAdd={(title, months, hours, km) =>
-              onCreateTask({
-                farmId: machine.farmId,
-                machineId: machine.id,
-                title,
-                type: "custom",
-                customTitle: title,
-                status: "open",
-                dueDate: null,
-                dueOperatingHours: hours ?? null,
-                dueKilometers: km ?? null,
-                intervalType: months !== null ? "months" : hours !== null || km !== null ? "operating_hours" : "none",
-                intervalDays: null,
-                intervalMonths: months ?? null,
-                intervalOperatingHours: hours ?? null,
-                intervalKilometers: km ?? null,
-                estimatedCost: 0,
-                actualCost: null,
-                notes: null
-              })
+              onCreateTask(buildNewTaskInput(machine, "custom", title, title, months, hours, km))
             }
           />
         ) : null}
@@ -995,5 +960,49 @@ function buildCostInputFromForm(machine: Machine, form: KostenFormState): Machin
     operatorCostsPerHour: n(form.operatorCostsPerUnit),
     otherVariableCostsPerHour: n(form.otherVariableCostsPerUnit),
     annualKilometers: nOpt(form.annualKilometers)
+  };
+}
+
+function buildNewTaskInput(
+  machine: Machine,
+  type: MaintenanceType,
+  title: string,
+  customTitle: string | null,
+  months: number | null,
+  hours: number | null,
+  km: number | null
+): CreateMaintenanceTaskInput {
+  const now = new Date();
+  const dueDate =
+    months !== null
+      ? (() => { const d = new Date(now); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0, 10); })()
+      : null;
+  const currentReading = getMachineCurrentReading(machine);
+  const dueOperatingHours = hours !== null ? currentReading + hours : null;
+  const dueKilometers = km !== null ? currentReading + km : null;
+  const intervalType: MaintenanceIntervalType =
+    months !== null && (hours !== null || km !== null) ? "combined"
+    : months !== null ? "months"
+    : hours !== null || km !== null ? "operating_hours"
+    : "none";
+
+  return {
+    farmId: machine.farmId,
+    machineId: machine.id,
+    title,
+    type,
+    customTitle,
+    status: "open",
+    dueDate,
+    dueOperatingHours,
+    dueKilometers,
+    intervalType,
+    intervalDays: null,
+    intervalMonths: months ?? null,
+    intervalOperatingHours: hours ?? null,
+    intervalKilometers: km ?? null,
+    estimatedCost: 0,
+    actualCost: null,
+    notes: null
   };
 }

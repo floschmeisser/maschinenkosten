@@ -2583,6 +2583,22 @@ td span {
   color: var(--text);
 }
 
+.machine-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.machine-status-dot.due {
+  background: var(--danger);
+}
+
+.machine-status-dot.soon {
+  background: var(--warning);
+}
+
 .machine-reading-value {
   display: flex;
   align-items: baseline;
@@ -2717,11 +2733,11 @@ td span {
 }
 
 .calendar-event-dot.maintenance {
-  background: var(--warning);
+  background: var(--primary);
 }
 
 .calendar-event-dot.manual {
-  background: var(--primary);
+  background: var(--highlight);
 }
 
 .calendar-event-more {

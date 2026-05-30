@@ -15,6 +15,7 @@ import { createCalendarEvent, getCalendarEvents } from "@/lib/app/calendar-event
 import type { MachineSummary } from "@/lib/app/machines";
 import {
   formatMachineReading,
+  getMachineAnnualUsage,
   getMachineCurrentReading,
   getMachineUnitLabel,
   getMachines as getPlaceholderMachines,
@@ -146,8 +147,8 @@ export function Dashboard({ locale }: DashboardProps) {
               >
                 <div className="machine-reading-card-header">
                   <strong className="machine-reading-name">{machine.name}</strong>
-                  {hasDue ? <span className="machine-reading-badge due">Wartung!</span> : null}
-                  {hasSoon ? <span className="machine-reading-badge soon">Bald</span> : null}
+                  {hasDue ? <span className="machine-status-dot due" aria-label="Wartung fällig" /> : null}
+                  {hasSoon ? <span className="machine-status-dot soon" aria-label="Bald fällig" /> : null}
                 </div>
                 <div className="machine-reading-value">
                   <span className="machine-reading-number">{reading.toLocaleString("de-DE", { maximumFractionDigits: 0 })}</span>
@@ -179,7 +180,7 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const weekStart = getWeekStart(cursorDate);
-  const allEvents = mergeCalendarSources(maintenanceTasks, calendarEvents);
+  const allEvents = mergeCalendarSources(maintenanceTasks, calendarEvents, machines);
 
   function goBack() {
     const d = new Date(cursorDate);
@@ -450,22 +451,49 @@ function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormPr
   );
 }
 
-function mergeCalendarSources(tasks: MaintenanceTask[], events: CalendarEvent[]): CalendarEvent[] {
+function getTaskEventDate(task: MaintenanceTask, machines: MachineSummary[]): string | null {
+  if (task.dueDate) return task.dueDate.slice(0, 10);
+
+  const dueReading = task.dueOperatingHours ?? task.dueKilometers;
+  if (!dueReading) return null;
+
+  const machine = machines.find((m) => m.id === task.machineId);
+  if (!machine) return null;
+
+  const annualUsage = getMachineAnnualUsage(machine);
+  if (!annualUsage) return null;
+
+  const currentReading = getMachineCurrentReading(machine);
+  const remaining = dueReading - currentReading;
+
+  if (remaining <= 0) return toDateString(new Date());
+
+  const daysUntilDue = Math.round((remaining / annualUsage) * 365);
+  const estimatedDate = new Date();
+  estimatedDate.setDate(estimatedDate.getDate() + daysUntilDue);
+  return toDateString(estimatedDate);
+}
+
+function mergeCalendarSources(tasks: MaintenanceTask[], events: CalendarEvent[], machines: MachineSummary[]): CalendarEvent[] {
   const taskEvents: CalendarEvent[] = tasks
-    .filter((t) => t.dueDate && t.status !== "completed" && t.status !== "cancelled")
-    .map((t) => ({
-      id: `task-${t.id}`,
-      farmId: t.farmId,
-      machineId: t.machineId,
-      title: t.title,
-      eventDate: t.dueDate!,
-      eventTime: null,
-      note: null,
-      source: "maintenance" as const,
-      reminderKey: null,
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt
-    }));
+    .filter((t) => t.status !== "completed" && t.status !== "cancelled")
+    .flatMap((t) => {
+      const eventDate = getTaskEventDate(t, machines);
+      if (!eventDate) return [];
+      return [{
+        id: `task-${t.id}`,
+        farmId: t.farmId,
+        machineId: t.machineId,
+        title: t.title,
+        eventDate,
+        eventTime: null,
+        note: null,
+        source: "maintenance" as const,
+        reminderKey: null,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt
+      }];
+    });
 
   return [...taskEvents, ...events.filter((e) => e.source === "manual")];
 }

@@ -9,11 +9,22 @@ export type MaintenanceType =
   | "wear_part"
   | "inspection"
   | "cleaning"
-  | "other";
+  | "other"
+  | "oil_engine"
+  | "oil_hydraulic"
+  | "filter_air"
+  | "filter_fuel"
+  | "filter_hydraulic"
+  | "filter_cabin"
+  | "inspection_57a"
+  | "brakes_tires"
+  | "ac_service"
+  | "general_check"
+  | "custom";
 
 export type MaintenanceStatus = "open" | "planned" | "in_progress" | "completed" | "cancelled";
 
-export type MaintenanceIntervalType = "none" | "days" | "operating_hours" | "kilometers";
+export type MaintenanceIntervalType = "none" | "days" | "months" | "operating_hours" | "kilometers" | "combined";
 
 export type MaintenanceTask = {
   id: string;
@@ -21,14 +32,17 @@ export type MaintenanceTask = {
   machineId: string;
   title: string;
   type: MaintenanceType;
+  customTitle: string | null;
   status: MaintenanceStatus;
   dueDate: string | null;
   dueOperatingHours: number | null;
   dueKilometers: number | null;
   intervalType: MaintenanceIntervalType;
   intervalDays: number | null;
+  intervalMonths: number | null;
   intervalOperatingHours: number | null;
   intervalKilometers: number | null;
+  lastDoneReading: number | null;
   estimatedCost: number;
   actualCost: number | null;
   notes: string | null;
@@ -37,7 +51,7 @@ export type MaintenanceTask = {
   updatedAt: string;
 };
 
-export type CreateMaintenanceTaskInput = Omit<MaintenanceTask, "id" | "completedAt" | "createdAt" | "updatedAt">;
+export type CreateMaintenanceTaskInput = Omit<MaintenanceTask, "id" | "completedAt" | "createdAt" | "updatedAt" | "lastDoneReading">;
 export type UpdateMaintenanceTaskInput = Partial<Omit<MaintenanceTask, "id" | "createdAt" | "updatedAt">>;
 export type CompleteMaintenanceTaskInput = {
   actualCost?: number | null;
@@ -71,16 +85,19 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     farmId: placeholderFarmId,
     machineId: "11111111-1111-4111-8111-111111111111",
-    title: "Oel und Filter pruefen",
-    type: "oil_change",
+    title: "Motoroelwechsel",
+    type: "oil_engine",
+    customTitle: null,
     status: "planned",
     dueDate: "2026-06-15",
     dueOperatingHours: 2500,
     dueKilometers: null,
-    intervalType: "operating_hours",
+    intervalType: "combined",
     intervalDays: null,
+    intervalMonths: 12,
     intervalOperatingHours: 250,
     intervalKilometers: null,
+    lastDoneReading: 2250,
     estimatedCost: 360,
     actualCost: null,
     notes: "Motor- und Hydraulikoelstand kontrollieren.",
@@ -92,19 +109,46 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     farmId: placeholderFarmId,
     machineId: "22222222-2222-4222-8222-222222222222",
-    title: "Schmierstellen kontrollieren",
+    title: "Abschmieren",
     type: "lubrication",
+    customTitle: null,
     status: "open",
     dueDate: "2026-06-01",
     dueOperatingHours: 900,
     dueKilometers: null,
     intervalType: "operating_hours",
     intervalDays: null,
+    intervalMonths: null,
     intervalOperatingHours: 100,
     intervalKilometers: null,
+    lastDoneReading: 800,
     estimatedCost: 80,
     actualCost: null,
     notes: "Alle Schmiernippel abschmieren.",
+    completedAt: null,
+    createdAt: "2026-05-01T08:00:00.000Z",
+    updatedAt: "2026-05-01T08:00:00.000Z"
+  },
+  {
+    id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    farmId: placeholderFarmId,
+    machineId: "11111111-1111-4111-8111-111111111111",
+    title: "Jahresinspektion",
+    type: "service",
+    customTitle: null,
+    status: "open",
+    dueDate: "2026-10-01",
+    dueOperatingHours: null,
+    dueKilometers: null,
+    intervalType: "months",
+    intervalDays: null,
+    intervalMonths: 12,
+    intervalOperatingHours: null,
+    intervalKilometers: null,
+    lastDoneReading: null,
+    estimatedCost: 580,
+    actualCost: null,
+    notes: null,
     completedAt: null,
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
@@ -220,16 +264,27 @@ export function isMaintenanceSoon(task: MaintenanceTask, machine?: Machine): boo
   return false;
 }
 
-export function getMaintenanceTypeLabel(type: MaintenanceType): string {
+export function getMaintenanceTypeLabel(type: MaintenanceType, customTitle?: string | null): string {
   const labels: Record<MaintenanceType, string> = {
     oil_change: "Oelwechsel",
-    service: "Service",
-    lubrication: "Schmieren",
+    service: "Service / Jahresinspektion",
+    lubrication: "Abschmieren",
     repair: "Reparatur",
     wear_part: "Verschleissteil",
-    inspection: "Kontrolle",
+    inspection: "Allgemeine Kontrolle",
     cleaning: "Reinigung",
-    other: "Sonstiges"
+    other: "Sonstiges",
+    oil_engine: "Motoroelwechsel",
+    oil_hydraulic: "Hydraulik-/Getriebeoelwechsel",
+    filter_air: "Luftfilterwechsel",
+    filter_fuel: "Kraftstofffilterwechsel",
+    filter_hydraulic: "Hydraulikfilterwechsel",
+    filter_cabin: "Innenraumfilterwechsel",
+    inspection_57a: "§57a Begutachtung (Pickerl)",
+    brakes_tires: "Bremsen-/Reifenpruefung",
+    ac_service: "Klimaservice",
+    general_check: "Allgemeine Ueberprüfung",
+    custom: customTitle || "Eigene Wartung"
   };
 
   return labels[type];
@@ -367,7 +422,10 @@ export function createNextRecurringMaintenanceTask(
   }
 
   const completedAt = completedTask.completedAt ?? new Date().toISOString();
-  const dueDate = calculateNextDueDate(completedAt, completedTask.intervalDays);
+  const dueDate =
+    completedTask.intervalMonths !== null && completedTask.intervalMonths > 0
+      ? calculateNextDueDateByMonths(completedAt, completedTask.intervalMonths)
+      : calculateNextDueDate(completedAt, completedTask.intervalDays);
   const dueOperatingHours =
     machine && completedTask.intervalOperatingHours !== null
       ? machine.currentOperatingHours + completedTask.intervalOperatingHours
@@ -386,12 +444,14 @@ export function createNextRecurringMaintenanceTask(
     machineId: completedTask.machineId,
     title: completedTask.title,
     type: completedTask.type,
+    customTitle: completedTask.customTitle,
     status: "planned",
     dueDate,
     dueOperatingHours,
     dueKilometers,
     intervalType: completedTask.intervalType,
     intervalDays: completedTask.intervalDays,
+    intervalMonths: completedTask.intervalMonths,
     intervalOperatingHours: completedTask.intervalOperatingHours,
     intervalKilometers: completedTask.intervalKilometers,
     estimatedCost: completedTask.estimatedCost,
@@ -418,8 +478,10 @@ export function getMaintenanceIntervalLabel(intervalType: MaintenanceIntervalTyp
   const labels: Record<MaintenanceIntervalType, string> = {
     none: "Keine Wiederholung",
     days: "Nach Tagen",
+    months: "Nach Monaten",
     operating_hours: "Nach Stunden",
-    kilometers: "Nach Kilometern"
+    kilometers: "Nach Kilometern",
+    combined: "Zeit + Nutzung"
   };
 
   return labels[intervalType];
@@ -428,7 +490,9 @@ export function getMaintenanceIntervalLabel(intervalType: MaintenanceIntervalTyp
 export function getMaintenanceRecurrenceLabel(task: MaintenanceTask): string {
   const values: string[] = [];
 
-  if (task.intervalDays !== null && task.intervalDays > 0) {
+  if (task.intervalMonths !== null && task.intervalMonths > 0) {
+    values.push(`Alle ${task.intervalMonths} Monate`);
+  } else if (task.intervalDays !== null && task.intervalDays > 0) {
     values.push(`Alle ${formatNumber(task.intervalDays)} Tage`);
   }
 
@@ -552,6 +616,21 @@ function calculateNextDueDate(completedAt: string, intervalDays: number | null):
   }
 
   date.setDate(date.getDate() + intervalDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateNextDueDateByMonths(completedAt: string, intervalMonths: number): string | null {
+  if (intervalMonths <= 0) {
+    return null;
+  }
+
+  const date = new Date(completedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setMonth(date.getMonth() + intervalMonths);
   return date.toISOString().slice(0, 10);
 }
 

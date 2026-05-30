@@ -388,3 +388,135 @@ with check (
     and farms.owner_id = auth.uid()
   )
 );
+
+-- ============================================================
+-- v2 additive changes — no existing columns removed
+-- ============================================================
+
+-- machines: unit field ('hours' = Betriebsstunden, 'km' = Kilometer)
+alter table public.machines add column if not exists unit text not null default 'hours';
+alter table public.machines drop constraint if exists machines_unit_check;
+alter table public.machines add constraint machines_unit_check
+  check (unit in ('hours', 'km'));
+
+-- machines: extended category set (old values remain valid)
+alter table public.machines drop constraint if exists machines_category_check;
+alter table public.machines add constraint machines_category_check check (
+  category in (
+    'tractor', 'loader', 'harvester', 'grassland', 'tillage', 'transport',
+    'sprayer', 'slurry', 'trailer', 'press', 'chainsaw', 'vehicle', 'other'
+  )
+);
+
+-- maintenance_tasks: interval_months for month-based recurrence
+alter table public.maintenance_tasks add column if not exists interval_months integer;
+-- maintenance_tasks: reading at last completion (h or km)
+alter table public.maintenance_tasks add column if not exists last_done_reading numeric(12,1);
+-- maintenance_tasks: label for custom maintenance type
+alter table public.maintenance_tasks add column if not exists custom_title text;
+
+-- maintenance_tasks: extended type set (old values remain valid)
+alter table public.maintenance_tasks drop constraint if exists maintenance_tasks_type_check;
+alter table public.maintenance_tasks add constraint maintenance_tasks_type_check check (
+  type in (
+    'oil_change', 'service', 'lubrication', 'repair', 'wear_part',
+    'inspection', 'cleaning', 'other',
+    'oil_engine', 'oil_hydraulic',
+    'filter_air', 'filter_fuel', 'filter_hydraulic', 'filter_cabin',
+    'inspection_57a', 'brakes_tires', 'ac_service', 'general_check', 'custom'
+  )
+);
+
+-- maintenance_tasks: extended interval_type set
+alter table public.maintenance_tasks drop constraint if exists maintenance_tasks_interval_type_check;
+alter table public.maintenance_tasks add constraint maintenance_tasks_interval_type_check check (
+  interval_type in ('none', 'days', 'months', 'operating_hours', 'kilometers', 'combined')
+);
+
+-- calendar_events: manual and maintenance-derived calendar entries
+create table if not exists public.calendar_events (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  machine_id uuid references public.machines(id) on delete set null,
+  title text not null,
+  event_date date not null,
+  event_time time,
+  note text,
+  source text not null default 'manual',
+  reminder_key text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint calendar_events_source_check check (source in ('maintenance', 'manual'))
+);
+
+create index if not exists calendar_events_farm_id_idx on public.calendar_events(farm_id);
+create index if not exists calendar_events_event_date_idx on public.calendar_events(event_date);
+create index if not exists calendar_events_machine_id_idx on public.calendar_events(machine_id);
+create unique index if not exists calendar_events_reminder_key_idx
+  on public.calendar_events(farm_id, reminder_key) where reminder_key is not null;
+
+drop trigger if exists calendar_events_set_updated_at on public.calendar_events;
+create trigger calendar_events_set_updated_at
+  before update on public.calendar_events
+  for each row execute function public.set_updated_at();
+
+alter table public.calendar_events enable row level security;
+
+create policy "Farm owners can manage calendar events"
+  on public.calendar_events for all to authenticated
+  using (exists (
+    select 1 from public.farms
+    where farms.id = calendar_events.farm_id and farms.owner_id = auth.uid()
+  ))
+  with check (exists (
+    select 1 from public.farms
+    where farms.id = calendar_events.farm_id and farms.owner_id = auth.uid()
+  ));
+
+-- machine_cost_overrides: user-set cost parameters per machine (ÖKL defaults as baseline)
+create table if not exists public.machine_cost_overrides (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  machine_id uuid not null references public.machines(id) on delete cascade,
+  oekl_category text,
+  purchase_price numeric(12,2),
+  residual_value numeric(12,2),
+  expected_useful_life_years integer,
+  annual_operating_hours numeric(10,1),
+  annual_kilometers numeric(12,1),
+  insurance_per_year numeric(12,2),
+  tax_per_year numeric(12,2),
+  storage_per_year numeric(12,2),
+  other_fixed_costs_per_year numeric(12,2),
+  maintenance_costs_per_year numeric(12,2),
+  repair_costs_per_year numeric(12,2),
+  fuel_costs_per_hour numeric(10,2),
+  operator_costs_per_hour numeric(10,2),
+  other_variable_costs_per_hour numeric(10,2),
+  hectares_per_hour numeric(8,2),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists machine_cost_overrides_machine_idx
+  on public.machine_cost_overrides(machine_id);
+create index if not exists machine_cost_overrides_farm_id_idx
+  on public.machine_cost_overrides(farm_id);
+
+drop trigger if exists machine_cost_overrides_set_updated_at on public.machine_cost_overrides;
+create trigger machine_cost_overrides_set_updated_at
+  before update on public.machine_cost_overrides
+  for each row execute function public.set_updated_at();
+
+alter table public.machine_cost_overrides enable row level security;
+
+create policy "Farm owners can manage cost overrides"
+  on public.machine_cost_overrides for all to authenticated
+  using (exists (
+    select 1 from public.farms
+    where farms.id = machine_cost_overrides.farm_id and farms.owner_id = auth.uid()
+  ))
+  with check (exists (
+    select 1 from public.farms
+    where farms.id = machine_cost_overrides.farm_id and farms.owner_id = auth.uid()
+  ));

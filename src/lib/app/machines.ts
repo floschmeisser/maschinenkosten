@@ -7,9 +7,17 @@ export type MachineCategory =
   | "grassland"
   | "tillage"
   | "transport"
+  | "sprayer"
+  | "slurry"
+  | "trailer"
+  | "press"
+  | "chainsaw"
+  | "vehicle"
   | "other";
 
 export type MachineStatus = "active" | "maintenance" | "inactive" | "sold";
+
+export type MachineUnit = "hours" | "km";
 
 export type UsageUnit = "operating_hours" | "kilometers" | "hectares";
 
@@ -32,6 +40,7 @@ export type Machine = {
   farmId: string;
   name: string;
   category: MachineCategory;
+  unit: MachineUnit;
   manufacturer: string;
   model: string;
   yearOfManufacture: number;
@@ -201,6 +210,7 @@ export const placeholderMachines: Machine[] = [
     farmId: placeholderFarmId,
     name: "Traktor 120 PS",
     category: "tractor",
+    unit: "hours",
     manufacturer: "Fendt",
     model: "Favorit 512",
     yearOfManufacture: 2018,
@@ -235,6 +245,7 @@ export const placeholderMachines: Machine[] = [
     farmId: placeholderFarmId,
     name: "Hoflader",
     category: "loader",
+    unit: "hours",
     manufacturer: "Weidemann",
     model: "1160",
     yearOfManufacture: 2021,
@@ -269,6 +280,7 @@ export const placeholderMachines: Machine[] = [
     farmId: placeholderFarmId,
     name: "Frontmaehwerk",
     category: "grassland",
+    unit: "hours",
     manufacturer: "Poettinger",
     model: "Novacat 301",
     yearOfManufacture: 2020,
@@ -307,7 +319,18 @@ const categoryLabels: Record<MachineCategory, string> = {
   grassland: "Gruenland",
   tillage: "Bodenbearbeitung",
   transport: "Transport",
+  sprayer: "Spritze",
+  slurry: "Guelletechnik",
+  trailer: "Anhaenger",
+  press: "Presse",
+  chainsaw: "Motorsaege",
+  vehicle: "PKW/Transporter",
   other: "Sonstige"
+};
+
+const unitLabels: Record<MachineUnit, string> = {
+  hours: "h",
+  km: "km"
 };
 
 const sparePartCategoryLabels: Record<MachineSparePartCategory, string> = {
@@ -344,6 +367,24 @@ const documentTypePriority: Record<MachineDocumentType, number> = {
 
 export function getMachineCategoryLabel(category: MachineCategory): string {
   return categoryLabels[category];
+}
+
+export function getMachineUnitLabel(unit: MachineUnit): string {
+  return unitLabels[unit];
+}
+
+export function getMachineCurrentReading(machine: Machine): number {
+  return machine.unit === "km" ? (machine.currentKilometers ?? 0) : machine.currentOperatingHours;
+}
+
+export function formatMachineReading(machine: Machine, value?: number): string {
+  const reading = value ?? getMachineCurrentReading(machine);
+  const label = getMachineUnitLabel(machine.unit);
+  return `${reading.toLocaleString("de-DE", { maximumFractionDigits: 0 })} ${label}`;
+}
+
+export function getMachineAnnualUsage(machine: Machine): number {
+  return machine.unit === "km" ? (machine.annualKilometers ?? 0) : machine.annualOperatingHours;
 }
 
 export function getMachineSparePartCategoryLabel(category: MachineSparePartCategory): string {

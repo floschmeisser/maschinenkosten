@@ -23,14 +23,17 @@ type MaintenanceTaskRow = {
   machine_id: string;
   title: string;
   type: MaintenanceTask["type"];
+  custom_title: string | null;
   status: MaintenanceTask["status"];
   due_date: string | null;
   due_operating_hours: number | null;
   due_kilometers: number | null;
   interval_type: MaintenanceTask["intervalType"];
   interval_days: number | null;
+  interval_months: number | null;
   interval_operating_hours: number | null;
   interval_kilometers: number | null;
+  last_done_reading: number | null;
   estimated_cost: number;
   actual_cost: number | null;
   notes: string | null;
@@ -100,6 +103,7 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
     farmId,
     id: crypto.randomUUID(),
     completedAt: null,
+    lastDoneReading: null,
     createdAt: now,
     updatedAt: now
   };
@@ -270,14 +274,17 @@ function mapMaintenanceTaskRowToTask(row: MaintenanceTaskRow): MaintenanceTask {
     machineId: row.machine_id,
     title: row.title,
     type: row.type,
+    customTitle: row.custom_title,
     status: row.status,
     dueDate: row.due_date,
     dueOperatingHours: row.due_operating_hours,
     dueKilometers: row.due_kilometers,
     intervalType: row.interval_type,
     intervalDays: row.interval_days,
+    intervalMonths: row.interval_months,
     intervalOperatingHours: row.interval_operating_hours,
     intervalKilometers: row.interval_kilometers,
+    lastDoneReading: row.last_done_reading,
     estimatedCost: row.estimated_cost,
     actualCost: row.actual_cost,
     notes: row.notes,
@@ -294,14 +301,17 @@ function mapMaintenanceTaskToRow(task: MaintenanceTask): MaintenanceTaskRow {
     machine_id: task.machineId,
     title: task.title,
     type: task.type,
+    custom_title: task.customTitle,
     status: task.status,
     due_date: task.dueDate,
     due_operating_hours: task.dueOperatingHours,
     due_kilometers: task.dueKilometers,
     interval_type: task.intervalType,
     interval_days: task.intervalDays,
+    interval_months: task.intervalMonths,
     interval_operating_hours: task.intervalOperatingHours,
     interval_kilometers: task.intervalKilometers,
+    last_done_reading: task.lastDoneReading,
     estimated_cost: task.estimatedCost,
     actual_cost: task.actualCost,
     notes: task.notes,
@@ -312,21 +322,24 @@ function mapMaintenanceTaskToRow(task: MaintenanceTask): MaintenanceTaskRow {
 }
 
 function mapMaintenanceTaskInputToRow(
-  input: Partial<CreateMaintenanceTaskInput & Pick<MaintenanceTask, "completedAt" | "updatedAt">>
+  input: Partial<CreateMaintenanceTaskInput & Pick<MaintenanceTask, "completedAt" | "lastDoneReading" | "updatedAt">>
 ): Partial<MaintenanceTaskRow> {
   return {
     farm_id: input.farmId,
     machine_id: input.machineId,
     title: input.title,
     type: input.type,
+    custom_title: input.customTitle,
     status: input.status,
     due_date: input.dueDate,
     due_operating_hours: input.dueOperatingHours,
     due_kilometers: input.dueKilometers,
     interval_type: input.intervalType,
     interval_days: input.intervalDays,
+    interval_months: input.intervalMonths,
     interval_operating_hours: input.intervalOperatingHours,
     interval_kilometers: input.intervalKilometers,
+    last_done_reading: input.lastDoneReading,
     estimated_cost: input.estimatedCost,
     actual_cost: input.actualCost,
     notes: input.notes,

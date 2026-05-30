@@ -286,6 +286,7 @@ function createMachineInput(form: FormState, existingMachine?: Machine): CreateM
     farmId: existingMachine?.farmId ?? placeholderFarmId,
     name: form.name.trim(),
     category: form.category,
+    unit: existingMachine?.unit ?? "hours",
     manufacturer: form.manufacturer.trim(),
     model: form.model.trim(),
     yearOfManufacture: toNumber(form.yearOfManufacture) || new Date().getFullYear(),

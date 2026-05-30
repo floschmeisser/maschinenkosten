@@ -14,6 +14,7 @@ type MachineRow = {
   farm_id: string;
   name: string;
   category: Machine["category"];
+  unit: Machine["unit"];
   manufacturer: string;
   model: string;
   year_of_manufacture: number;
@@ -227,6 +228,7 @@ function mapMachineRowToMachine(row: MachineRow): Machine {
     farmId: row.farm_id,
     name: row.name,
     category: row.category,
+    unit: row.unit ?? "hours",
     manufacturer: row.manufacturer,
     model: row.model,
     yearOfManufacture: row.year_of_manufacture,
@@ -264,6 +266,7 @@ function mapMachineToRow(machine: Machine): MachineRow {
     farm_id: machine.farmId,
     name: machine.name,
     category: machine.category,
+    unit: machine.unit,
     manufacturer: machine.manufacturer,
     model: machine.model,
     year_of_manufacture: machine.yearOfManufacture,
@@ -300,6 +303,7 @@ function mapMachineInputToRow(input: Partial<CreateMachineInput & Pick<Machine, 
     farm_id: input.farmId,
     name: input.name,
     category: input.category,
+    unit: input.unit,
     manufacturer: input.manufacturer,
     model: input.model,
     year_of_manufacture: input.yearOfManufacture,

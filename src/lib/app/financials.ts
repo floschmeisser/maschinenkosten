@@ -1,4 +1,5 @@
 export type MachineCostInput = {
+  unit?: "hours" | "km";
   purchasePrice: number;
   currentValue: number;
   residualValue: number;
@@ -79,8 +80,10 @@ export function calculateFixedCostBreakdown(input: MachineCostInput): FixedCostB
 }
 
 export function calculateVariableCostBreakdown(input: MachineCostInput): VariableCostBreakdown {
-  const maintenanceCostsPerHour = divideOrZero(input.maintenanceCostsPerYear, input.annualOperatingHours);
-  const repairCostsPerHour = divideOrZero(input.repairCostsPerYear, input.annualOperatingHours);
+  const isKm = input.unit === "km";
+  const annualUsage = isKm ? (input.annualKilometers ?? 0) : input.annualOperatingHours;
+  const maintenanceCostsPerHour = divideOrZero(input.maintenanceCostsPerYear, annualUsage);
+  const repairCostsPerHour = divideOrZero(input.repairCostsPerYear, annualUsage);
   const variableCostsPerHour =
     maintenanceCostsPerHour +
     repairCostsPerHour +
@@ -95,7 +98,7 @@ export function calculateVariableCostBreakdown(input: MachineCostInput): Variabl
     operatorCostsPerHour: roundRate(input.operatorCostsPerHour),
     otherVariableCostsPerHour: roundRate(input.otherVariableCostsPerHour),
     variableCostsPerHour: roundRate(variableCostsPerHour),
-    annualVariableCosts: roundMoney(variableCostsPerHour * Math.max(input.annualOperatingHours, 0))
+    annualVariableCosts: roundMoney(variableCostsPerHour * Math.max(annualUsage, 0))
   };
 }
 
@@ -110,8 +113,12 @@ export function calculateWarnings(input: MachineCostInput): string[] {
     warnings.push("Nutzungsdauer muss groesser als 0 sein.");
   }
 
-  if (input.annualOperatingHours <= 0) {
+  if (input.unit !== "km" && input.annualOperatingHours <= 0) {
     warnings.push("Jaehrliche Betriebsstunden fehlen. Kosten je Stunde sind nicht berechenbar.");
+  }
+
+  if (input.unit === "km" && (input.annualKilometers === null || input.annualKilometers <= 0)) {
+    warnings.push("Jaehrliche Kilometer fehlen. Kosten je Kilometer sind nicht berechenbar.");
   }
 
   if (input.residualValue > input.purchasePrice) {

@@ -32,6 +32,11 @@ import {
   type MaintenanceType
 } from "@/lib/app/maintenance";
 import { MachineSpareParts } from "./machine-spare-parts";
+import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
+import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
+import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
+import { formatCurrency } from "@/lib/app/format";
+import type { MachineCostInput } from "@/lib/app/financials";
 
 type Tab = "wartung" | "kosten";
 
@@ -186,7 +191,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
           onCreateTask={handleCreateTask}
         />
       ) : (
-        <MachineKostenModulePlaceholder machine={machine} />
+        <MachineKostenModule machine={machine} />
       )}
     </main>
   );
@@ -714,15 +719,267 @@ function AddCustomMaintenanceCard({ machine, onAdd }: AddCustomMaintenanceCardPr
   );
 }
 
-type MachineKostenModulePlaceholderProps = {
+type KostenFormState = {
+  oeklCategory: string;
+  purchasePrice: string;
+  residualValue: string;
+  expectedUsefulLifeYears: string;
+  annualOperatingHours: string;
+  annualKilometers: string;
+  insurancePerYear: string;
+  taxPerYear: string;
+  storagePerYear: string;
+  otherFixedCostsPerYear: string;
+  maintenanceCostsPerYear: string;
+  repairCostsPerYear: string;
+  fuelCostsPerUnit: string;
+  operatorCostsPerUnit: string;
+  otherVariableCostsPerUnit: string;
+  hectaresPerHour: string;
+};
+
+type MachineKostenModuleProps = {
   machine: Machine;
 };
 
-function MachineKostenModulePlaceholder({ machine }: MachineKostenModulePlaceholderProps) {
+function MachineKostenModule({ machine }: MachineKostenModuleProps) {
+  const isKm = machine.unit === "km";
+  const perUnitLabel = isKm ? "/km" : "/h";
+  const annualUsageLabel = isKm ? "km/Jahr" : "h/Jahr";
+
+  const [override, setOverride] = useState<MachineCostOverride | null>(null);
+  const [form, setForm] = useState<KostenFormState>(() => buildKostenFormState(machine, null));
+  const [isSaving, setIsSaving] = useState(false);
+  const [showFixedDetail, setShowFixedDetail] = useState(false);
+  const [showVariableDetail, setShowVariableDetail] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    getMachineCostOverride(machine.id).then((existing) => {
+      setOverride(existing);
+      setForm(buildKostenFormState(machine, existing));
+    });
+  }, [machine]);
+
+  const costInput = buildCostInputFromForm(machine, form);
+  const result = calculateMachineCosts(costInput);
+  const primaryKpi = isKm ? result.costPerKilometer : result.costPerOperatingHour;
+  const primaryLabel = isKm ? "€/km" : "€/h";
+
+  function updateField(key: keyof KostenFormState, value: string) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setSavedAt(null);
+  }
+
+  function applyOeklCategory(categoryKey: string) {
+    const oekl = oeklCategoryOptions.find((o) => o.key === categoryKey);
+    if (!oekl) return;
+    const updated = { ...form, oeklCategory: categoryKey };
+    const merged = createCostInputFromOverride(machine, override, categoryKey);
+    setForm({
+      ...updated,
+      purchasePrice: merged.purchasePrice > 0 ? String(merged.purchasePrice) : form.purchasePrice,
+      residualValue: String(Math.round(merged.residualValue)),
+      expectedUsefulLifeYears: merged.expectedUsefulLifeYears > 0 ? String(merged.expectedUsefulLifeYears) : form.expectedUsefulLifeYears,
+      annualOperatingHours: merged.annualOperatingHours > 0 ? String(merged.annualOperatingHours) : form.annualOperatingHours,
+      annualKilometers: merged.annualKilometers !== null ? String(merged.annualKilometers) : form.annualKilometers,
+      insurancePerYear: String(merged.insurancePerYear),
+      taxPerYear: String(merged.taxPerYear),
+      storagePerYear: String(merged.storagePerYear),
+      otherFixedCostsPerYear: String(merged.otherFixedCostsPerYear),
+      maintenanceCostsPerYear: String(merged.maintenanceCostsPerYear),
+      repairCostsPerYear: String(merged.repairCostsPerYear),
+      fuelCostsPerUnit: String(merged.fuelCostsPerHour),
+      operatorCostsPerUnit: String(merged.operatorCostsPerHour),
+      otherVariableCostsPerUnit: String(merged.otherVariableCostsPerHour),
+      hectaresPerHour: merged.hectaresPerHour !== null ? String(merged.hectaresPerHour) : form.hectaresPerHour
+    });
+    setSavedAt(null);
+  }
+
+  async function handleSave(event: FormEvent) {
+    event.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const input = buildCostInputFromForm(machine, form);
+      const saved = await upsertMachineCostOverride({
+        farmId: machine.farmId,
+        machineId: machine.id,
+        oeklCategory: form.oeklCategory || null,
+        purchasePrice: input.purchasePrice,
+        residualValue: input.residualValue,
+        expectedUsefulLifeYears: input.expectedUsefulLifeYears,
+        annualOperatingHours: input.annualOperatingHours,
+        annualKilometers: input.annualKilometers,
+        insurancePerYear: input.insurancePerYear,
+        taxPerYear: input.taxPerYear,
+        storagePerYear: input.storagePerYear,
+        otherFixedCostsPerYear: input.otherFixedCostsPerYear,
+        maintenanceCostsPerYear: input.maintenanceCostsPerYear,
+        repairCostsPerYear: input.repairCostsPerYear,
+        fuelCostsPerHour: input.fuelCostsPerHour,
+        operatorCostsPerHour: input.operatorCostsPerHour,
+        otherVariableCostsPerHour: input.otherVariableCostsPerHour,
+        hectaresPerHour: input.hectaresPerHour
+      });
+      setOverride(saved);
+      setSavedAt(new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
-    <section className="panel kosten-placeholder">
-      <p className="muted">Kosten-Modul wird in Schritt 4 integriert.</p>
-      <p className="muted">{machine.name} — {machine.unit === "km" ? "km-basiert" : "stunden-basiert"}</p>
+    <section className="kosten-module">
+      <div className="kosten-kpi-hero">
+        <span className="kosten-kpi-label">{primaryLabel}</span>
+        <strong className="kosten-kpi-value">
+          {primaryKpi === null ? "—" : formatCurrency(primaryKpi)}
+        </strong>
+        <span className="kosten-kpi-sub">{formatCurrency(result.totalAnnualCosts)} / Jahr</span>
+      </div>
+
+      <form className="kosten-form" onSubmit={handleSave}>
+        <div className="kosten-section-head">
+          <label className="kosten-oekl-label">
+            ÖKL-Kategorie
+            <select
+              value={form.oeklCategory}
+              onChange={(e) => applyOeklCategory(e.target.value)}
+            >
+              <option value="">— eigene Eingabe —</option>
+              {oeklCategoryOptions.map((opt) => (
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <fieldset className="kosten-fieldset">
+          <legend>Anschaffung &amp; Abschreibung</legend>
+          <KostenField label="Kaufpreis" value={form.purchasePrice} unit="€" onChange={(v) => updateField("purchasePrice", v)} />
+          <KostenField label="Restwert" value={form.residualValue} unit="€" onChange={(v) => updateField("residualValue", v)} />
+          <KostenField label="Nutzungsdauer" value={form.expectedUsefulLifeYears} unit="Jahre" onChange={(v) => updateField("expectedUsefulLifeYears", v)} />
+          <KostenField label={annualUsageLabel} value={isKm ? form.annualKilometers : form.annualOperatingHours} unit={isKm ? "km" : "h"} onChange={(v) => updateField(isKm ? "annualKilometers" : "annualOperatingHours", v)} />
+          {!isKm && (
+            <KostenField label="Hektar/h" value={form.hectaresPerHour} unit="ha/h" onChange={(v) => updateField("hectaresPerHour", v)} />
+          )}
+        </fieldset>
+
+        <div className="kosten-result-row">
+          <button className="kosten-detail-toggle" type="button" onClick={() => setShowFixedDetail((v) => !v)}>
+            <span>Fixkosten/Jahr</span>
+            <strong>{formatCurrency(result.fixedCosts.annualFixedCosts)}</strong>
+            <span>{showFixedDetail ? "▲" : "▼"}</span>
+          </button>
+          {showFixedDetail && (
+            <div className="kosten-detail-grid">
+              <KostenField label="Versicherung/Jahr" value={form.insurancePerYear} unit="€" onChange={(v) => updateField("insurancePerYear", v)} />
+              <KostenField label="Steuer/Jahr" value={form.taxPerYear} unit="€" onChange={(v) => updateField("taxPerYear", v)} />
+              <KostenField label="Unterstand/Jahr" value={form.storagePerYear} unit="€" onChange={(v) => updateField("storagePerYear", v)} />
+              <KostenField label="Sonstige Fix/Jahr" value={form.otherFixedCostsPerYear} unit="€" onChange={(v) => updateField("otherFixedCostsPerYear", v)} />
+            </div>
+          )}
+        </div>
+
+        <div className="kosten-result-row">
+          <button className="kosten-detail-toggle" type="button" onClick={() => setShowVariableDetail((v) => !v)}>
+            <span>Variable Kosten{perUnitLabel}</span>
+            <strong>{formatCurrency(result.variableCosts.variableCostsPerHour)}</strong>
+            <span>{showVariableDetail ? "▲" : "▼"}</span>
+          </button>
+          {showVariableDetail && (
+            <div className="kosten-detail-grid">
+              <KostenField label={`Wartung/Jahr`} value={form.maintenanceCostsPerYear} unit="€" onChange={(v) => updateField("maintenanceCostsPerYear", v)} />
+              <KostenField label={`Reparatur/Jahr`} value={form.repairCostsPerYear} unit="€" onChange={(v) => updateField("repairCostsPerYear", v)} />
+              <KostenField label={`Diesel${perUnitLabel}`} value={form.fuelCostsPerUnit} unit="€" onChange={(v) => updateField("fuelCostsPerUnit", v)} />
+              <KostenField label={`Fahrer${perUnitLabel}`} value={form.operatorCostsPerUnit} unit="€" onChange={(v) => updateField("operatorCostsPerUnit", v)} />
+              <KostenField label={`Sonstiges${perUnitLabel}`} value={form.otherVariableCostsPerUnit} unit="€" onChange={(v) => updateField("otherVariableCostsPerUnit", v)} />
+            </div>
+          )}
+        </div>
+
+        <div className="kosten-form-actions">
+          {savedAt !== null && <span className="muted">Gespeichert {savedAt}</span>}
+          <button className="button primary" type="submit" disabled={isSaving}>
+            {isSaving ? "Speichern..." : "Werte speichern"}
+          </button>
+        </div>
+      </form>
     </section>
   );
+}
+
+type KostenFieldProps = {
+  label: string;
+  value: string;
+  unit: string;
+  onChange: (value: string) => void;
+};
+
+function KostenField({ label, value, unit, onChange }: KostenFieldProps) {
+  return (
+    <label className="kosten-field">
+      <span className="kosten-field-label">{label}</span>
+      <div className="kosten-field-input-row">
+        <input
+          type="number"
+          min="0"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <span className="kosten-field-unit">{unit}</span>
+      </div>
+    </label>
+  );
+}
+
+function buildKostenFormState(machine: Machine, existing: MachineCostOverride | null): KostenFormState {
+  const input = createCostInputFromOverride(machine, existing);
+  return {
+    oeklCategory: existing?.oeklCategory ?? "",
+    purchasePrice: String(input.purchasePrice),
+    residualValue: String(Math.round(input.residualValue)),
+    expectedUsefulLifeYears: String(input.expectedUsefulLifeYears),
+    annualOperatingHours: String(input.annualOperatingHours),
+    annualKilometers: input.annualKilometers !== null ? String(input.annualKilometers) : "",
+    insurancePerYear: String(input.insurancePerYear),
+    taxPerYear: String(input.taxPerYear),
+    storagePerYear: String(input.storagePerYear),
+    otherFixedCostsPerYear: String(input.otherFixedCostsPerYear),
+    maintenanceCostsPerYear: String(input.maintenanceCostsPerYear),
+    repairCostsPerYear: String(input.repairCostsPerYear),
+    fuelCostsPerUnit: String(input.fuelCostsPerHour),
+    operatorCostsPerUnit: String(input.operatorCostsPerHour),
+    otherVariableCostsPerUnit: String(input.otherVariableCostsPerHour),
+    hectaresPerHour: input.hectaresPerHour !== null ? String(input.hectaresPerHour) : ""
+  };
+}
+
+function buildCostInputFromForm(machine: Machine, form: KostenFormState): MachineCostInput {
+  const n = (v: string) => (v.trim() === "" ? 0 : Number(v) || 0);
+  const nOpt = (v: string): number | null => (v.trim() === "" ? null : Number(v) || null);
+  return {
+    unit: machine.unit,
+    purchasePrice: n(form.purchasePrice),
+    currentValue: machine.currentValue,
+    residualValue: n(form.residualValue),
+    expectedUsefulLifeYears: n(form.expectedUsefulLifeYears),
+    annualOperatingHours: n(form.annualOperatingHours),
+    currentOperatingHours: machine.currentOperatingHours,
+    currentKilometers: machine.currentKilometers,
+    hectaresPerHour: nOpt(form.hectaresPerHour),
+    insurancePerYear: n(form.insurancePerYear),
+    taxPerYear: n(form.taxPerYear),
+    storagePerYear: n(form.storagePerYear),
+    otherFixedCostsPerYear: n(form.otherFixedCostsPerYear),
+    maintenanceCostsPerYear: n(form.maintenanceCostsPerYear),
+    repairCostsPerYear: n(form.repairCostsPerYear),
+    fuelCostsPerHour: n(form.fuelCostsPerUnit),
+    operatorCostsPerHour: n(form.operatorCostsPerUnit),
+    otherVariableCostsPerHour: n(form.otherVariableCostsPerUnit),
+    annualKilometers: nOpt(form.annualKilometers)
+  };
 }

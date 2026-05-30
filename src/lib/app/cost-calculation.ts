@@ -8,7 +8,9 @@ import {
   type MachineCostInput,
   type MachineCostResult
 } from "./financials";
-import type { Machine } from "./machines";
+import type { Machine, MachineUnit } from "./machines";
+import type { MachineCostOverride } from "./machine-cost-overrides-database";
+import { getOeklCategoryDefaults } from "./oekl-reference";
 import {
   calculateAnnualMaintenanceCostForMachine,
   calculateAnnualRepairCostForMachine,
@@ -82,6 +84,7 @@ export function createCostInputFromMachine(machine: Machine, maintenanceTasks?: 
   const derivedRepairCosts = maintenanceTasks === undefined ? null : calculateAnnualRepairCostForMachine(machine.id, maintenanceTasks);
 
   return {
+    unit: machine.unit,
     purchasePrice: machine.purchasePrice,
     currentValue: machine.currentValue,
     residualValue: machine.residualValue,
@@ -101,6 +104,43 @@ export function createCostInputFromMachine(machine: Machine, maintenanceTasks?: 
     operatorCostsPerHour: machine.operatorCostsPerHour ?? 0,
     otherVariableCostsPerHour: machine.otherVariableCostsPerHour ?? 0,
     annualKilometers: machine.annualKilometers ?? null
+  };
+}
+
+export function createCostInputFromOverride(
+  machine: Machine,
+  override: MachineCostOverride | null,
+  oeklCategoryKey: string | null = override?.oeklCategory ?? null
+): MachineCostInput {
+  const base = createCostInputFromMachine(machine);
+  const oekl = oeklCategoryKey ? getOeklCategoryDefaults(oeklCategoryKey) : null;
+  const effectivePurchasePrice = override?.purchasePrice ?? (oekl?.purchasePrice || base.purchasePrice);
+  const residualValue = override?.residualValue !== null && override?.residualValue !== undefined
+    ? override.residualValue
+    : oekl
+      ? effectivePurchasePrice * (oekl.residualValuePct / 100)
+      : base.residualValue;
+
+  return {
+    unit: machine.unit,
+    purchasePrice: effectivePurchasePrice,
+    currentValue: base.currentValue,
+    residualValue,
+    expectedUsefulLifeYears: override?.expectedUsefulLifeYears ?? oekl?.expectedUsefulLifeYears ?? base.expectedUsefulLifeYears,
+    annualOperatingHours: override?.annualOperatingHours ?? oekl?.annualOperatingHours ?? base.annualOperatingHours,
+    currentOperatingHours: base.currentOperatingHours,
+    currentKilometers: base.currentKilometers,
+    hectaresPerHour: override?.hectaresPerHour ?? oekl?.hectaresPerHour ?? base.hectaresPerHour,
+    insurancePerYear: override?.insurancePerYear ?? oekl?.insurancePerYear ?? base.insurancePerYear,
+    taxPerYear: override?.taxPerYear ?? oekl?.taxPerYear ?? base.taxPerYear,
+    storagePerYear: override?.storagePerYear ?? oekl?.storagePerYear ?? base.storagePerYear,
+    otherFixedCostsPerYear: override?.otherFixedCostsPerYear ?? oekl?.otherFixedCostsPerYear ?? base.otherFixedCostsPerYear,
+    maintenanceCostsPerYear: override?.maintenanceCostsPerYear ?? oekl?.maintenanceCostsPerYear ?? base.maintenanceCostsPerYear,
+    repairCostsPerYear: override?.repairCostsPerYear ?? oekl?.repairCostsPerYear ?? base.repairCostsPerYear,
+    fuelCostsPerHour: override?.fuelCostsPerHour ?? oekl?.fuelCostsPerHour ?? base.fuelCostsPerHour,
+    operatorCostsPerHour: override?.operatorCostsPerHour ?? oekl?.operatorCostsPerHour ?? base.operatorCostsPerHour,
+    otherVariableCostsPerHour: override?.otherVariableCostsPerHour ?? oekl?.otherVariableCostsPerHour ?? base.otherVariableCostsPerHour,
+    annualKilometers: override?.annualKilometers ?? oekl?.annualKilometers ?? base.annualKilometers
   };
 }
 

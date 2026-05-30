@@ -18,7 +18,7 @@ export function MaintenanceTable({ tasks }: MaintenanceTableProps) {
             <tr>
               <th>Aufgabe</th>
               <th>Maschine</th>
-              <th>Faellig</th>
+              <th>Fällig</th>
               <th>Kosten</th>
             </tr>
           </thead>

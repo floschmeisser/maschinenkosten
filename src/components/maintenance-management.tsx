@@ -223,11 +223,11 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
         <div>
           <span>Werkstatt</span>
           <h1>Wartung</h1>
-          <p>{isLoadingData ? "Laden..." : dueTaskCount > 0 ? `${dueTaskCount} faellig` : "Alles ruhig"}</p>
+          <p>{isLoadingData ? "Laden..." : dueTaskCount > 0 ? `${dueTaskCount} fällig` : "Alles ruhig"}</p>
         </div>
         <div className="maintenance-hero-stats">
           <div className={dueTaskCount > 0 ? "danger" : "good"}>
-            <span>Faellig</span>
+            <span>Fällig</span>
             <strong>{dueTaskCount}</strong>
           </div>
           <div className={todaysWorkTasks.length > 0 ? "warning" : "good"}>
@@ -534,7 +534,7 @@ type MaintenanceFiltersProps = {
 
 const filterOptions: Array<{ label: string; value: MaintenanceFilter }> = [
   { label: "Heute", value: "today" },
-  { label: "Faellig", value: "due" },
+  { label: "Fällig", value: "due" },
   { label: "Diese Woche", value: "week" },
   { label: "Erledigt", value: "completed" },
   { label: "Alle", value: "all" }
@@ -579,7 +579,7 @@ function FocusedTaskPanel({ locale, task, onComplete }: FocusedTaskPanelProps) {
           </button>
         ) : null}
         <Link className="button large-action" href={`/${locale}/daily-usage`}>
-          Zurueck zum Tagesstand
+          Zurück zum Tagesstand
         </Link>
       </div>
     </section>
@@ -603,7 +603,7 @@ function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
         <dd>{getMaintenanceTypeLabel(task.type)}</dd>
       </div>
       <div>
-        <dt>Faellig</dt>
+        <dt>Fällig</dt>
         <dd>{formatDue(task)}</dd>
       </div>
       <div>
@@ -611,7 +611,7 @@ function MaintenanceDetails({ task, machine }: MaintenanceDetailsProps) {
         <dd>{getMaintenanceRecurrenceLabel(task)}</dd>
       </div>
       <div>
-        <dt>Geschaetzt</dt>
+        <dt>Geschätzt</dt>
         <dd>{formatCurrency(task.estimatedCost)}</dd>
       </div>
       <div>
@@ -731,7 +731,7 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
     const usedParts = parseUsedPartRows(usedPartRows);
 
     if (usedPartRows.length > 0 && usedParts.length !== usedPartRows.length) {
-      setPartsMessage("Ersatzteil und Menge pruefen.");
+      setPartsMessage("Ersatzteil und Menge prüfen.");
       return;
     }
 
@@ -770,7 +770,7 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
     <section className="panel form-panel completion-panel">
       <div className="panel-heading">
         <div>
-          <h2>Abschliessen</h2>
+          <h2>Abschließen</h2>
           <span className="muted">{task.title}</span>
         </div>
       </div>
@@ -931,8 +931,8 @@ function QuickCostForm({ task, onCancel, onSave }: QuickCostFormProps) {
 
 function groupTasks(tasks: MaintenanceTask[], machines: Machine[]): TaskGroup[] {
   const groups: TaskGroup[] = [
-    { key: "due", title: "Faellig", tasks: [] },
-    { key: "soon", title: "Bald faellig", tasks: [] },
+    { key: "due", title: "Fällig", tasks: [] },
+    { key: "soon", title: "Bald fällig", tasks: [] },
     { key: "planned", title: "Geplant", tasks: [] },
     { key: "completed", title: "Erledigt", tasks: [] }
   ];
@@ -977,7 +977,7 @@ function createCompletionSuccessMessage(hasNextTask: boolean, stockWarnings: str
     return baseMessage;
   }
 
-  return `${baseMessage} Lager pruefen.`;
+  return `${baseMessage} Lager prüfen.`;
 }
 
 function parseUsedPartRows(rows: UsedPartFormRow[]): CompletionUsedPartInput[] {
@@ -1005,7 +1005,7 @@ function formatDue(task: MaintenanceTask): string {
     parts.push(`${formatNumber(task.dueKilometers)} km`);
   }
 
-  return parts.length > 0 ? parts.join(" / ") : "Keine Faelligkeit";
+  return parts.length > 0 ? parts.join(" / ") : "Keine Fälligkeit";
 }
 
 function toOptionalNumber(value: string): number | null {

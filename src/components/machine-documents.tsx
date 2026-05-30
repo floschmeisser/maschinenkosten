@@ -75,13 +75,13 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
   }
 
   async function handleDeleteDocument(documentId: string) {
-    if (!window.confirm("Dokument wirklich loeschen?")) {
+    if (!window.confirm("Dokument wirklich löschen?")) {
       return;
     }
 
     setMessage(null);
     const deleted = await deleteMachineDocument(documentId);
-    setMessage(deleted ? "Dokument geloescht." : "Dokument konnte nicht geloescht werden.");
+    setMessage(deleted ? "Dokument gelöscht." : "Dokument konnte nicht gelöscht werden.");
     await refreshDocuments();
   }
 
@@ -184,15 +184,15 @@ export function MachineDocuments({ createSignal = 0, machine }: MachineDocuments
               <div className="machine-document-actions">
                 {document.filePath ? (
                   <button className="button primary" type="button" onClick={() => handleOpenDocument(document)}>
-                    Oeffnen
+                    Öffnen
                   </button>
                 ) : (
                   <button className="button" type="button" disabled title="Keine Datei im Demo-Modus gespeichert.">
-                    Oeffnen
+                    Öffnen
                   </button>
                 )}
                 <button className="button danger" type="button" onClick={() => handleDeleteDocument(document.id)}>
-                  Loeschen
+                  Löschen
                 </button>
               </div>
             </article>

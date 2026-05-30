@@ -279,7 +279,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
               disabled={changedMachineIds.length === 0}
               title={changedMachineIds.length === 0 ? "Keine Aenderungen vorhanden." : undefined}
             >
-              Entwurf loeschen
+              Entwurf löschen
             </button>
             <button
               className="button primary"
@@ -301,7 +301,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
               type="button"
               onClick={() => setShowOnlyAttentionRows(true)}
             >
-              Nur pruefen ({attentionMachineIds.length})
+              Nur prüfen ({attentionMachineIds.length})
             </button>
             <button
               className={showOnlyAttentionRows ? "button" : "button primary"}
@@ -347,7 +347,7 @@ export function DailyUsageEntry({ locale }: DailyUsageEntryProps) {
           <div className="daily-usage-list">
             {attentionMachines.length > 0 ? (
               <section className="daily-attention-group" aria-labelledby="daily-attention-heading" ref={attentionSectionRef}>
-                <h3 id="daily-attention-heading">Bitte pruefen ({attentionMachineIds.length})</h3>
+                <h3 id="daily-attention-heading">Bitte prüfen ({attentionMachineIds.length})</h3>
                 {attentionMachines.map((machine) =>
                   renderDailyUsageRow({
                     machine,
@@ -453,13 +453,13 @@ function renderDailyUsageRow({
       </div>
 
       <div className={predictedDueCount > currentDueCount ? "maintenance-preview warning" : "maintenance-preview"}>
-        <span>Aktuell {formatMaintenanceCount(currentDueCount)} faellig</span>
+        <span>Aktuell {formatMaintenanceCount(currentDueCount)} fällig</span>
         {validationMessages.length > 0 ? (
           <strong>{validationMessages[0]}</strong>
         ) : (
           <>
-            <span>Nach diesem Stand: {formatMaintenanceCount(predictedDueCount)} faellig</span>
-            <strong>{predictedDueCount > currentDueCount ? "Wartung wird faellig." : "Keine neue Wartung."}</strong>
+            <span>Nach diesem Stand: {formatMaintenanceCount(predictedDueCount)} fällig</span>
+            <strong>{predictedDueCount > currentDueCount ? "Wartung wird fällig." : "Keine neue Wartung."}</strong>
           </>
         )}
       </div>
@@ -473,14 +473,14 @@ function renderDailyUsageRow({
                 <small>{getMostRelevantDueLabel(task, machine)}</small>
               </span>
               <span className="predicted-maintenance-tags">
-                {!currentDueTaskIds.has(task.id) ? <em>Neu faellig</em> : null}
-                <b>Faellig</b>
+                {!currentDueTaskIds.has(task.id) ? <em>Neu fällig</em> : null}
+                <b>Fällig</b>
               </span>
             </div>
           ))}
           {hiddenPredictedTaskCount > 0 ? <p className="muted">+ {hiddenPredictedTaskCount} weitere</p> : null}
           <Link className="button" href={maintenanceHref}>
-            Wartung oeffnen
+            Wartung öffnen
           </Link>
         </div>
       ) : null}
@@ -626,7 +626,7 @@ function formatSaveStatusMessage(savedCount: number, reviewCount: number): strin
   }
 
   if (reviewCount > 0) {
-    parts.push(`${reviewCount} bitte pruefen`);
+    parts.push(`${reviewCount} bitte prüfen`);
   }
 
   return parts.length > 0 ? parts.join(", ") : "Keine Aenderungen";

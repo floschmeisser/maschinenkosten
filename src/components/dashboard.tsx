@@ -430,7 +430,7 @@ function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose }:
     <div className="calendar-day-panel">
       <div className="calendar-day-panel-header">
         <strong className="calendar-day-panel-title">{formatLongDate(date)}</strong>
-        <button className="calendar-day-panel-close" type="button" onClick={onClose} aria-label="Schliessen">✕</button>
+        <button className="calendar-day-panel-close" type="button" onClick={onClose} aria-label="Schließen">✕</button>
       </div>
       <ul className="calendar-day-panel-list">
         {events.map((event) => {

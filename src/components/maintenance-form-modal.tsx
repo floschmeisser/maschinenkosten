@@ -128,7 +128,7 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
         </fieldset>
 
         <fieldset className="form-section">
-          <legend>Faelligkeit</legend>
+          <legend>Fälligkeit</legend>
           <label>
             Datum
             <input type="date" value={form.dueDate} onChange={(event) => updateField("dueDate", event.target.value)} />
@@ -179,7 +179,7 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
           </label>
         </fieldset>
 
-        {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder pruefen.</p> : null}
+        {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder prüfen.</p> : null}
 
         <div className="form-actions">
           <button className="button" type="button" onClick={onCancel}>

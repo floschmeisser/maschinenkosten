@@ -52,7 +52,7 @@ export function MachineTable({ locale, machines, onSelect, onUsageUpdate }: Mach
 
               <div className="machine-card-actions">
                 <Link className="button" href={`/${locale}/machines/${machine.id}`}>
-                  Oeffnen
+                  Öffnen
                 </Link>
                 {onUsageUpdate ? (
                   <button className="button primary" type="button" onClick={() => onUsageUpdate(machine)}>

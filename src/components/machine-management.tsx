@@ -239,7 +239,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
             <strong>{currentMachine.currentKilometers === null ? "-" : `${formatNumber(currentMachine.currentKilometers)} km`}</strong>
           </div>
           <div>
-            <span>Naechste Wartung</span>
+            <span>Nächste Wartung</span>
             <strong>{nextMaintenanceTask ? getMostRelevantDueLabel(nextMaintenanceTask, currentMachine) : "Keine"}</strong>
           </div>
         </div>
@@ -254,7 +254,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
         <div className="machine-status-card">
           <span>Heute</span>
           <strong>{nextMaintenanceTasks.length}</strong>
-          <small>{nextMaintenanceTasks.length === 0 ? "Alles ruhig" : "Wartung pruefen"}</small>
+          <small>{nextMaintenanceTasks.length === 0 ? "Alles ruhig" : "Wartung prüfen"}</small>
         </div>
       </section>
 
@@ -276,7 +276,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
             Dokument
           </button>
           <button className="button large-action" type="button" onClick={() => setIsUpdatingUsage((current) => !current)}>
-            {isUpdatingUsage ? "Stand schliessen" : "Stand"}
+            {isUpdatingUsage ? "Stand schließen" : "Stand"}
           </button>
           <button className="button large-action" type="button" onClick={() => setIsEditing(true)}>
             Bearbeiten
@@ -287,7 +287,7 @@ export function MachineDetail({ locale, machine }: MachineDetailProps) {
 
       <section className="panel">
         <div className="panel-heading">
-          <h2>Naechste Wartung</h2>
+          <h2>Nächste Wartung</h2>
           <span className="muted">{maintenanceTasks.length}</span>
         </div>
         {maintenanceTasks.length === 0 ? (

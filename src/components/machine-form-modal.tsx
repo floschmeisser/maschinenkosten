@@ -190,7 +190,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
           </label>
         </fieldset>
 
-        {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder pruefen.</p> : null}
+        {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder prüfen.</p> : null}
 
         <div className="form-actions">
           {canCancel ? (
@@ -199,7 +199,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
             </button>
           ) : null}
           <button className="button primary" type="submit" disabled={isSaving || !onSave}>
-            {!onSave ? "Nicht verfuegbar" : isSaving ? "Speichern..." : "Speichern"}
+            {!onSave ? "Nicht verfügbar" : isSaving ? "Speichern..." : "Speichern"}
           </button>
         </div>
       </form>

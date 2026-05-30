@@ -84,13 +84,13 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
   }
 
   async function handleDeletePart(partId: string) {
-    if (!window.confirm("Ersatzteil wirklich loeschen?")) {
+    if (!window.confirm("Ersatzteil wirklich löschen?")) {
       return;
     }
 
     const deleted = await deleteMachineSparePart(partId);
     await refreshParts();
-    setMessage(deleted ? "Ersatzteil geloescht." : "Ersatzteil konnte nicht geloescht werden.");
+    setMessage(deleted ? "Ersatzteil gelöscht." : "Ersatzteil konnte nicht gelöscht werden.");
   }
 
   const visibleParts = useMemo(() => {
@@ -234,7 +234,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
                     Bearbeiten
                   </button>
                   <button className="button danger" type="button" onClick={() => handleDeletePart(part.id)}>
-                    Loeschen
+                    Löschen
                   </button>
                 </div>
               </article>
@@ -274,7 +274,7 @@ function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) 
     const stockQuantity = toNumber(form.stockQuantity);
 
     if (stockQuantity === null) {
-      setError("Lagerbestand pruefen.");
+      setError("Lagerbestand prüfen.");
       return;
     }
 

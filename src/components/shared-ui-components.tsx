@@ -271,7 +271,7 @@ function getStorageModeLabel(mode: RuntimeStatus["storageMode"] | undefined): st
     case "active": return "Aktiv";
     case "login_required": return "Login erforderlich";
     case "farm_missing": return "Betrieb fehlt";
-    case "unavailable": return "Nicht verfuegbar";
+    case "unavailable": return "Nicht verfügbar";
     default: return "Demo";
   }
 }

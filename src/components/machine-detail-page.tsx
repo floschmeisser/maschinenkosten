@@ -301,7 +301,7 @@ function MachineWartungModule({
             type="button"
             onClick={() => setIsUpdatingStand((v) => !v)}
           >
-            {isUpdatingStand ? "Schliessen" : "Stand aktualisieren"}
+            {isUpdatingStand ? "Schließen" : "Stand aktualisieren"}
           </button>
         </div>
         {isUpdatingStand ? (

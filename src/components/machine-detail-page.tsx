@@ -256,17 +256,21 @@ function MachineWartungModule({
   return (
     <>
       <section className="stand-section">
-        <div className="stand-display">
-          <span className="stand-label">Aktueller Stand</span>
-          <strong className="stand-value">{formatMachineReading(machine)}</strong>
+        <div className="stand-row">
+          <div className="stand-info">
+            <span className="stand-label">
+              {machine.unit === "km" ? "Aktueller Kilometerstand:" : "Aktuelle Betriebsstunden:"}
+            </span>
+            <strong className="stand-value">{formatMachineReading(machine)}</strong>
+          </div>
+          <button
+            className="button primary stand-update-btn"
+            type="button"
+            onClick={() => setIsUpdatingStand((v) => !v)}
+          >
+            {isUpdatingStand ? "Schliessen" : "Stand aktualisieren"}
+          </button>
         </div>
-        <button
-          className="button primary large-action stand-update-btn"
-          type="button"
-          onClick={() => setIsUpdatingStand((v) => !v)}
-        >
-          {isUpdatingStand ? "Schliessen" : "Stand aktualisieren"}
-        </button>
         {isUpdatingStand ? (
           <StandUpdateForm
             machine={machine}

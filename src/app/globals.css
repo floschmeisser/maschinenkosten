@@ -3050,11 +3050,46 @@ td span {
 
 .stand-section {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   padding: 16px;
   border: 2px solid var(--primary);
   border-radius: 8px;
   background: var(--primary-soft);
+}
+
+.stand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.stand-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stand-label {
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.stand-value {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+@media (max-width: 400px) {
+  .stand-info {
+    flex: 1 1 100%;
+  }
 }
 
 .stand-reading {

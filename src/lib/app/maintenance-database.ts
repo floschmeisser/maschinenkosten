@@ -192,6 +192,10 @@ export async function completeMaintenanceTask(
     updateInput.notes = notes;
   }
 
+  if (completionData.currentReading !== undefined && completionData.currentReading !== null) {
+    updateInput.lastDoneReading = completionData.currentReading;
+  }
+
   const completedTask = await updateMaintenanceTask(id, updateInput);
 
   if (!completedTask || wasAlreadyCompleted) {

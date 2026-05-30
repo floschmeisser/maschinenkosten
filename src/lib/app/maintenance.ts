@@ -57,6 +57,7 @@ export type CompleteMaintenanceTaskInput = {
   actualCost?: number | null;
   notes?: string | null;
   completedAt?: string;
+  currentReading?: number | null;
 };
 
 export type MaintenanceUsedPart = {
@@ -509,6 +510,56 @@ export function getMaintenanceRecurrenceLabel(task: MaintenanceTask): string {
   }
 
   return task.intervalType === "none" ? "Einmalig" : "Wiederkehrend";
+}
+
+export function getTopUrgentTasks(tasks: MaintenanceTask[], machines: Machine[], count = 3): MaintenanceTask[] {
+  return sortMaintenanceTasksByUrgency(
+    tasks.filter((task) => task.status !== "completed" && task.status !== "cancelled"),
+    machines
+  ).slice(0, count);
+}
+
+export function getDashboardDueText(task: MaintenanceTask, machine?: Machine): string {
+  const displayStatus = getMaintenanceDisplayStatus(task, machine);
+
+  if (displayStatus === "due") {
+    if (task.dueDate && startOfDay(task.dueDate).getTime() < startOfDay().getTime()) {
+      const days = Math.round((startOfDay().getTime() - startOfDay(task.dueDate).getTime()) / (24 * 60 * 60 * 1000));
+      return days === 0 ? "Heute faellig" : `Seit ${days} Tag${days === 1 ? "" : "en"} ueberfaellig`;
+    }
+
+    if (machine && task.dueOperatingHours !== null && task.dueOperatingHours <= machine.currentOperatingHours) {
+      return `Seit ${(machine.currentOperatingHours - task.dueOperatingHours).toFixed(0)} h ueberfaellig`;
+    }
+
+    if (machine && task.dueKilometers !== null && machine.currentKilometers !== null && task.dueKilometers <= machine.currentKilometers) {
+      return `Seit ${(machine.currentKilometers - task.dueKilometers).toFixed(0)} km ueberfaellig`;
+    }
+
+    return "Faellig";
+  }
+
+  if (displayStatus === "soon") {
+    if (task.dueDate) {
+      const days = Math.round((startOfDay(task.dueDate).getTime() - startOfDay().getTime()) / (24 * 60 * 60 * 1000));
+      if (days <= 1) return "Morgen faellig";
+      return `In ${days} Tagen`;
+    }
+
+    if (machine && task.dueOperatingHours !== null) {
+      const remaining = task.dueOperatingHours - machine.currentOperatingHours;
+      return `Bei ${task.dueOperatingHours.toLocaleString("de-DE")} h (noch ${remaining.toFixed(0)} h)`;
+    }
+
+    if (machine && task.dueKilometers !== null && machine.currentKilometers !== null) {
+      const remaining = task.dueKilometers - machine.currentKilometers;
+      return `Bei ${task.dueKilometers.toLocaleString("de-DE")} km (noch ${remaining.toFixed(0)} km)`;
+    }
+
+    return "Bald faellig";
+  }
+
+  return getMostRelevantDueLabel(task, machine);
 }
 
 export function getMostRelevantDueLabel(task: MaintenanceTask, machine?: Machine): string {

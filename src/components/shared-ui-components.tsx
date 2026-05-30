@@ -203,7 +203,7 @@ export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
           </div>
           <div>
             <span>Betrieb</span>
-            <strong>{runtimeStatus?.currentFarm ? "geladen" : "fehlt"}</strong>
+            <strong>{runtimeStatus?.currentFarm?.name ?? "fehlt"}</strong>
           </div>
         </div>
         {runtimeStatus?.storageMode === "login_required" ? (
@@ -267,13 +267,11 @@ export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
 }
 
 function getStorageModeLabel(mode: RuntimeStatus["storageMode"] | undefined): string {
-  if (mode === "active") {
-    return "Aktiv";
+  switch (mode) {
+    case "active": return "Aktiv";
+    case "login_required": return "Login erforderlich";
+    case "farm_missing": return "Betrieb fehlt";
+    case "unavailable": return "Nicht verfuegbar";
+    default: return "Demo";
   }
-
-  if (mode === "login_required") {
-    return "Login erforderlich";
-  }
-
-  return "Demo";
 }

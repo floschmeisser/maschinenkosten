@@ -65,7 +65,7 @@ export async function runSupabaseQuery<T>(
 async function loadSupabaseCreateClient() {
   try {
     const supabase = (await import("@supabase/supabase-js")) as unknown as {
-      createClient: (url: string, key: string) => SupabaseClientLike;
+      createClient: (url: string, key: string, options?: Record<string, unknown>) => SupabaseClientLike;
     };
     return supabase.createClient;
   } catch (error) {
@@ -106,7 +106,9 @@ async function initializeSupabaseClient(supabaseUrl: string, supabaseAnonKey: st
   }
 
   try {
-    const client = createClient(supabaseUrl, supabaseAnonKey);
+    const client = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { flowType: "implicit" }
+    });
     if (process.env.NODE_ENV === "development") {
       console.info("[Supabase] Singleton client initialized");
     }

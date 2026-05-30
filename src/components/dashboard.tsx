@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
-import { formatCurrency } from "@/lib/app/format";
 import {
   getCalendarEventsForMonth,
   getCalendarEventsForWeek,
@@ -14,7 +13,6 @@ import {
 import { createCalendarEvent, getCalendarEvents } from "@/lib/app/calendar-events-database";
 import type { MachineSummary } from "@/lib/app/machines";
 import {
-  formatMachineReading,
   getMachineAnnualUsage,
   getMachineCurrentReading,
   getMachineUnitLabel,
@@ -174,20 +172,37 @@ type CalendarWidgetProps = {
   onEventCreated: (event: CalendarEvent) => void;
 };
 
+type DayPanelMode = "detail" | "create";
+
 function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, farmId, onEventCreated }: CalendarWidgetProps) {
   const [view, setView] = useState<CalendarView>("week");
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [panelMode, setPanelMode] = useState<DayPanelMode>("create");
 
   const weekStart = getWeekStart(cursorDate);
   const allEvents = mergeCalendarSources(maintenanceTasks, calendarEvents, machines);
+
+  function getDayEvents(dateStr: string): CalendarEvent[] {
+    return allEvents.filter((e) => e.eventDate === dateStr);
+  }
+
+  function openDay(dateStr: string) {
+    const hasEvents = getDayEvents(dateStr).length > 0;
+    setSelectedDate(dateStr);
+    setPanelMode(hasEvents ? "detail" : "create");
+  }
+
+  function closePanel() {
+    setSelectedDate(null);
+  }
 
   function goBack() {
     const d = new Date(cursorDate);
     if (view === "week") d.setDate(d.getDate() - 7);
     else d.setMonth(d.getMonth() - 1);
     setCursorDate(d);
-    setSelectedDate(null);
+    closePanel();
   }
 
   function goForward() {
@@ -195,11 +210,15 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
     if (view === "week") d.setDate(d.getDate() + 7);
     else d.setMonth(d.getMonth() + 1);
     setCursorDate(d);
-    setSelectedDate(null);
+    closePanel();
   }
 
   function handleDayClick(dateStr: string) {
-    setSelectedDate((prev) => (prev === dateStr ? null : dateStr));
+    if (selectedDate === dateStr) {
+      closePanel();
+    } else {
+      openDay(dateStr);
+    }
   }
 
   async function handleEventSave(input: { date: string; time: string; title: string; note: string; machineId: string }) {
@@ -214,7 +233,15 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
       reminderKey: null
     });
     onEventCreated(created);
-    setSelectedDate(null);
+    closePanel();
+  }
+
+  function handleCreateCancel() {
+    if (selectedDate && getDayEvents(selectedDate).length > 0) {
+      setPanelMode("detail");
+    } else {
+      closePanel();
+    }
   }
 
   const navLabel =
@@ -231,7 +258,7 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
         <button
           className="button primary calendar-add-btn"
           type="button"
-          onClick={() => setSelectedDate(toDateString(new Date()))}
+          onClick={() => { setSelectedDate(toDateString(new Date())); setPanelMode("create"); }}
         >
           + Termin
         </button>
@@ -239,14 +266,14 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
           <button
             className={`calendar-view-btn${view === "week" ? " active" : ""}`}
             type="button"
-            onClick={() => { setView("week"); setSelectedDate(null); }}
+            onClick={() => { setView("week"); closePanel(); }}
           >
             Woche
           </button>
           <button
             className={`calendar-view-btn${view === "month" ? " active" : ""}`}
             type="button"
-            onClick={() => { setView("month"); setSelectedDate(null); }}
+            onClick={() => { setView("month"); closePanel(); }}
           >
             Monat
           </button>
@@ -270,12 +297,23 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
         />
       )}
 
-      {selectedDate !== null ? (
+      {selectedDate !== null && panelMode === "detail" ? (
+        <DayDetailPanel
+          date={selectedDate}
+          events={getDayEvents(selectedDate)}
+          machines={machines}
+          locale={locale}
+          onAddClick={() => setPanelMode("create")}
+          onClose={closePanel}
+        />
+      ) : null}
+
+      {selectedDate !== null && panelMode === "create" ? (
         <CreateEventForm
           date={selectedDate}
           machines={machines}
           onSave={handleEventSave}
-          onCancel={() => setSelectedDate(null)}
+          onCancel={handleCreateCancel}
         />
       ) : null}
     </div>
@@ -368,6 +406,58 @@ function MonthView({ year, month, events, selectedDate, onDayClick }: MonthViewP
           </button>
         );
       })}
+    </div>
+  );
+}
+
+type DayDetailPanelProps = {
+  date: string;
+  events: CalendarEvent[];
+  machines: MachineSummary[];
+  locale: Locale;
+  onAddClick: () => void;
+  onClose: () => void;
+};
+
+function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose }: DayDetailPanelProps) {
+  return (
+    <div className="calendar-day-panel">
+      <div className="calendar-day-panel-header">
+        <strong className="calendar-day-panel-title">{formatLongDate(date)}</strong>
+        <button className="calendar-day-panel-close" type="button" onClick={onClose} aria-label="Schliessen">✕</button>
+      </div>
+      <ul className="calendar-day-panel-list">
+        {events.map((event) => {
+          if (event.source === "maintenance") {
+            const machine = machines.find((m) => m.id === event.machineId);
+            return (
+              <li key={event.id} className="calendar-day-event maintenance">
+                <Link href={`/${locale}/machines/${event.machineId}`} className="calendar-day-event-link">
+                  <span className="calendar-event-dot maintenance calendar-day-event-dot" />
+                  <div className="calendar-day-event-body">
+                    <strong>{machine?.name ?? "Maschine"}</strong>
+                    <span className="muted">{event.title}</span>
+                  </div>
+                  <span className="calendar-day-event-arrow" aria-hidden>›</span>
+                </Link>
+              </li>
+            );
+          }
+          return (
+            <li key={event.id} className="calendar-day-event manual">
+              <span className="calendar-event-dot manual calendar-day-event-dot" />
+              <div className="calendar-day-event-body">
+                <strong>{event.title}</strong>
+                {event.eventTime ? <span className="muted">{event.eventTime} Uhr</span> : null}
+                {event.note ? <span className="muted">{event.note}</span> : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="calendar-day-panel-footer">
+        <button className="button primary" type="button" onClick={onAddClick}>+ Termin hinzufügen</button>
+      </div>
     </div>
   );
 }
@@ -513,6 +603,11 @@ function formatShortDate(date: Date): string {
 function formatDisplayDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "numeric", month: "long" }).format(d);
+}
+
+function formatLongDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long" }).format(d);
 }
 
 function addDays(date: Date, days: number): Date {

@@ -7,7 +7,8 @@ import {
   placeholderFarmId,
   type CreateMachineInput,
   type Machine,
-  type MachineCategory
+  type MachineCategory,
+  type MachineUnit
 } from "@/lib/app/machines";
 
 type MachineFormMode = "create" | "edit";
@@ -23,6 +24,9 @@ type MachineFormModalProps = {
 type FormState = {
   name: string;
   category: MachineCategory;
+  unit: MachineUnit;
+  currentReading: string;
+  annualUsage: string;
   manufacturer: string;
   model: string;
   yearOfManufacture: string;
@@ -30,8 +34,6 @@ type FormState = {
   currentValue: string;
   residualValue: string;
   expectedUsefulLifeYears: string;
-  annualOperatingHours: string;
-  currentOperatingHours: string;
   hectaresPerHour: string;
   insurancePerYear: string;
   maintenanceCostsPerYear: string;
@@ -43,7 +45,11 @@ type FormState = {
 
 type FormErrors = Partial<Record<keyof FormState, string>>;
 
-const categories: MachineCategory[] = ["tractor", "loader", "harvester", "grassland", "tillage", "transport", "other"];
+const categories: MachineCategory[] = [
+  "tractor", "loader", "harvester", "grassland", "tillage",
+  "transport", "sprayer", "slurry", "trailer", "press",
+  "chainsaw", "vehicle", "other"
+];
 
 export function MachineFormModal({ mode, formMode = "create", machine, onCancel, onSave }: MachineFormModalProps) {
   const [form, setForm] = useState<FormState>(() => createInitialFormState(machine));
@@ -52,6 +58,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
   const canCancel = Boolean(onCancel);
+  const isKm = form.unit === "km";
 
   function updateField<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -85,7 +92,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
       <form className="form-grid" onSubmit={handleSubmit}>
         <fieldset className="form-section">
           <legend>Stammdaten</legend>
-          <TextField label="Name" value={form.name} error={errors.name} onChange={(value) => updateField("name", value)} />
+          <TextField label="Name *" value={form.name} error={errors.name} onChange={(value) => updateField("name", value)} />
           <label>
             Kategorie
             <select value={form.category} onChange={(event) => updateField("category", event.target.value as MachineCategory)}>
@@ -96,13 +103,8 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
               ))}
             </select>
           </label>
-          <TextField
-            label="Hersteller"
-            value={form.manufacturer}
-            error={errors.manufacturer}
-            onChange={(value) => updateField("manufacturer", value)}
-          />
-          <TextField label="Modell" value={form.model} error={errors.model} onChange={(value) => updateField("model", value)} />
+          <TextField label="Hersteller" value={form.manufacturer} onChange={(value) => updateField("manufacturer", value)} />
+          <TextField label="Modell" value={form.model} onChange={(value) => updateField("model", value)} />
           <NumberField
             label="Baujahr"
             value={form.yearOfManufacture}
@@ -111,31 +113,39 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
         </fieldset>
 
         <fieldset className="form-section">
-          <legend>Nutzung</legend>
+          <legend>Einheit und Stand</legend>
+          <label>
+            Einheit
+            <select value={form.unit} onChange={(event) => updateField("unit", event.target.value as MachineUnit)}>
+              <option value="hours">Betriebsstunden (h)</option>
+              <option value="km">Kilometer (km)</option>
+            </select>
+          </label>
           <NumberField
-            label="Stunden pro Jahr"
-            value={form.annualOperatingHours}
-            error={errors.annualOperatingHours}
-            onChange={(value) => updateField("annualOperatingHours", value)}
+            label={isKm ? "Kilometerstand aktuell *" : "Betriebsstunden aktuell *"}
+            value={form.currentReading}
+            error={errors.currentReading}
+            onChange={(value) => updateField("currentReading", value)}
           />
           <NumberField
-            label="Betriebsstunden aktuell"
-            value={form.currentOperatingHours}
-            onChange={(value) => updateField("currentOperatingHours", value)}
+            label={isKm ? "km pro Jahr" : "Stunden pro Jahr"}
+            value={form.annualUsage}
+            onChange={(value) => updateField("annualUsage", value)}
           />
-          <NumberField
-            label="Hektar pro Stunde"
-            value={form.hectaresPerHour}
-            onChange={(value) => updateField("hectaresPerHour", value)}
-          />
+          {!isKm ? (
+            <NumberField
+              label="Hektar pro Stunde"
+              value={form.hectaresPerHour}
+              onChange={(value) => updateField("hectaresPerHour", value)}
+            />
+          ) : null}
         </fieldset>
 
         <fieldset className="form-section">
-          <legend>Kosten</legend>
+          <legend>Kosten (optional)</legend>
           <NumberField
             label="Anschaffungspreis"
             value={form.purchasePrice}
-            error={errors.purchasePrice}
             onChange={(value) => updateField("purchasePrice", value)}
           />
           <NumberField label="Aktueller Wert" value={form.currentValue} onChange={(value) => updateField("currentValue", value)} />
@@ -143,7 +153,6 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
           <NumberField
             label="Nutzungsdauer Jahre"
             value={form.expectedUsefulLifeYears}
-            error={errors.expectedUsefulLifeYears}
             onChange={(value) => updateField("expectedUsefulLifeYears", value)}
           />
           <NumberField
@@ -162,12 +171,12 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
             onChange={(value) => updateField("repairCostsPerYear", value)}
           />
           <NumberField
-            label="Diesel je Stunde"
+            label={isKm ? "Diesel je km" : "Diesel je Stunde"}
             value={form.fuelCostsPerHour}
             onChange={(value) => updateField("fuelCostsPerHour", value)}
           />
           <NumberField
-            label="Fahrer je Stunde"
+            label={isKm ? "Fahrer je km" : "Fahrer je Stunde"}
             value={form.operatorCostsPerHour}
             onChange={(value) => updateField("operatorCostsPerHour", value)}
           />
@@ -226,18 +235,25 @@ function NumberField({ label, value, error, onChange }: FieldProps) {
 }
 
 function createInitialFormState(machine?: Machine): FormState {
+  const unit: MachineUnit = machine?.unit ?? "hours";
+  const currentReading =
+    unit === "km" ? String(machine?.currentKilometers ?? 0) : String(machine?.currentOperatingHours ?? 0);
+  const annualUsage =
+    unit === "km" ? stringifyOptional(machine?.annualKilometers) : String(machine?.annualOperatingHours ?? "");
+
   return {
     name: machine?.name ?? "",
     category: machine?.category ?? "tractor",
+    unit,
+    currentReading,
+    annualUsage,
     manufacturer: machine?.manufacturer ?? "",
     model: machine?.model ?? "",
     yearOfManufacture: String(machine?.yearOfManufacture ?? new Date().getFullYear()),
-    purchasePrice: String(machine?.purchasePrice ?? ""),
-    currentValue: String(machine?.currentValue ?? ""),
-    residualValue: String(machine?.residualValue ?? ""),
-    expectedUsefulLifeYears: String(machine?.expectedUsefulLifeYears ?? ""),
-    annualOperatingHours: String(machine?.annualOperatingHours ?? ""),
-    currentOperatingHours: String(machine?.currentOperatingHours ?? 0),
+    purchasePrice: stringifyOptional(machine?.purchasePrice || null),
+    currentValue: stringifyOptional(machine?.currentValue || null),
+    residualValue: String(machine?.residualValue ?? 0),
+    expectedUsefulLifeYears: stringifyOptional(machine?.expectedUsefulLifeYears || null),
     hectaresPerHour: stringifyOptional(machine?.hectaresPerHour),
     insurancePerYear: String(machine?.insurancePerYear ?? 0),
     maintenanceCostsPerYear: String(machine?.maintenanceCostsPerYear ?? 0),
@@ -255,50 +271,37 @@ function validateForm(form: FormState): FormErrors {
     errors.name = "Name ist erforderlich.";
   }
 
-  if (!form.manufacturer.trim()) {
-    errors.manufacturer = "Hersteller ist erforderlich.";
-  }
-
-  if (!form.model.trim()) {
-    errors.model = "Modell ist erforderlich.";
-  }
-
-  if (toNumber(form.purchasePrice) <= 0) {
-    errors.purchasePrice = "Anschaffungspreis muss groesser als 0 sein.";
-  }
-
-  if (toNumber(form.expectedUsefulLifeYears) <= 0) {
-    errors.expectedUsefulLifeYears = "Nutzungsdauer muss groesser als 0 sein.";
-  }
-
-  if (toNumber(form.annualOperatingHours) <= 0) {
-    errors.annualOperatingHours = "Stunden pro Jahr muessen groesser als 0 sein.";
+  const reading = toNumber(form.currentReading);
+  if (form.currentReading.trim() !== "" && reading < 0) {
+    errors.currentReading = "Stand darf nicht negativ sein.";
   }
 
   return errors;
 }
 
 function createMachineInput(form: FormState, existingMachine?: Machine): CreateMachineInput {
+  const isKm = form.unit === "km";
   const purchasePrice = toNumber(form.purchasePrice);
   const currentValue = toOptionalNumber(form.currentValue) ?? purchasePrice;
+  const currentReading = toNumber(form.currentReading);
 
   return {
     farmId: existingMachine?.farmId ?? placeholderFarmId,
     name: form.name.trim(),
     category: form.category,
-    unit: existingMachine?.unit ?? "hours",
-    manufacturer: form.manufacturer.trim(),
-    model: form.model.trim(),
+    unit: form.unit,
+    manufacturer: form.manufacturer.trim() || "-",
+    model: form.model.trim() || "-",
     yearOfManufacture: toNumber(form.yearOfManufacture) || new Date().getFullYear(),
     purchaseDate: existingMachine?.purchaseDate ?? null,
     purchasePrice,
     newPrice: existingMachine?.newPrice ?? purchasePrice,
     currentValue,
     residualValue: toNumber(form.residualValue),
-    expectedUsefulLifeYears: toNumber(form.expectedUsefulLifeYears),
-    annualOperatingHours: toNumber(form.annualOperatingHours),
-    currentOperatingHours: toNumber(form.currentOperatingHours),
-    currentKilometers: existingMachine?.currentKilometers ?? null,
+    expectedUsefulLifeYears: toNumber(form.expectedUsefulLifeYears) || 10,
+    annualOperatingHours: isKm ? 0 : toNumber(form.annualUsage),
+    currentOperatingHours: isKm ? 0 : currentReading,
+    currentKilometers: isKm ? currentReading : (existingMachine?.currentKilometers ?? null),
     workingWidthMeters: existingMachine?.workingWidthMeters ?? null,
     hectaresPerHour: toOptionalNumber(form.hectaresPerHour),
     insurancePerYear: toNumber(form.insurancePerYear),
@@ -310,7 +313,7 @@ function createMachineInput(form: FormState, existingMachine?: Machine): CreateM
     fuelCostsPerHour: toNumber(form.fuelCostsPerHour),
     operatorCostsPerHour: toNumber(form.operatorCostsPerHour),
     otherVariableCostsPerHour: existingMachine?.otherVariableCostsPerHour ?? 0,
-    annualKilometers: existingMachine?.annualKilometers ?? null,
+    annualKilometers: isKm ? (toNumber(form.annualUsage) || null) : (existingMachine?.annualKilometers ?? null),
     status: existingMachine?.status ?? "active",
     notes: form.notes.trim() || null
   };

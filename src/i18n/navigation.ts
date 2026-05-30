@@ -8,15 +8,11 @@ export type NavItem = {
 
 export function createNavigation(locale: Locale, farmConfig: FarmAppConfig = getActiveFarmConfig()): NavItem[] {
   const base = `/${locale}`;
-  const { customLabels, enabledModules } = farmConfig;
+  const { enabledModules } = farmConfig;
 
   return [
     { href: `${base}/dashboard`, label: "Dashboard" },
-    { href: `${base}/reminders`, label: "Erinnerungen" },
-    enabledModules.machines ? { href: `${base}/machines`, label: customLabels.machinesLabel } : null,
-    enabledModules.dailyUsage ? { href: `${base}/daily-usage`, label: customLabels.dailyUsageLabel } : null,
-    enabledModules.maintenance ? { href: `${base}/maintenance`, label: customLabels.maintenanceLabel } : null,
-    enabledModules.costs ? { href: `${base}/costs`, label: customLabels.costsLabel } : null,
+    enabledModules.machines ? { href: `${base}/machines`, label: "Maschinen" } : null,
     enabledModules.settings ? { href: `${base}/settings`, label: "Einstellungen" } : null
   ].filter((item): item is NavItem => item !== null);
 }

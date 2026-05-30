@@ -86,7 +86,7 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     farmId: placeholderFarmId,
     machineId: "11111111-1111-4111-8111-111111111111",
-    title: "Motoroelwechsel",
+    title: "Motorölwechsel",
     type: "oil_engine",
     customTitle: null,
     status: "planned",
@@ -267,24 +267,24 @@ export function isMaintenanceSoon(task: MaintenanceTask, machine?: Machine): boo
 
 export function getMaintenanceTypeLabel(type: MaintenanceType, customTitle?: string | null): string {
   const labels: Record<MaintenanceType, string> = {
-    oil_change: "Oelwechsel",
+    oil_change: "Ölwechsel",
     service: "Service / Jahresinspektion",
     lubrication: "Abschmieren",
     repair: "Reparatur",
-    wear_part: "Verschleissteil",
+    wear_part: "Verschleißteil",
     inspection: "Allgemeine Kontrolle",
     cleaning: "Reinigung",
     other: "Sonstiges",
-    oil_engine: "Motoroelwechsel",
-    oil_hydraulic: "Hydraulik-/Getriebeoelwechsel",
+    oil_engine: "Motorölwechsel",
+    oil_hydraulic: "Hydraulik-/Getriebeölwechsel",
     filter_air: "Luftfilterwechsel",
     filter_fuel: "Kraftstofffilterwechsel",
     filter_hydraulic: "Hydraulikfilterwechsel",
     filter_cabin: "Innenraumfilterwechsel",
     inspection_57a: "§57a Begutachtung (Pickerl)",
-    brakes_tires: "Bremsen-/Reifenpruefung",
+    brakes_tires: "Bremsen-/Reifenprüfung",
     ac_service: "Klimaservice",
-    general_check: "Allgemeine Ueberprüfung",
+    general_check: "Allgemeine Überprüfung",
     custom: customTitle || "Eigene Wartung"
   };
 
@@ -468,8 +468,8 @@ export function getMaintenanceStatusLabel(status: MaintenanceStatus | Maintenanc
     in_progress: "In Arbeit",
     completed: "Erledigt",
     cancelled: "Abgebrochen",
-    due: "Faellig",
-    soon: "Bald faellig"
+    due: "Fällig",
+    soon: "Bald fällig"
   };
 
   return labels[status];
@@ -525,24 +525,24 @@ export function getDashboardDueText(task: MaintenanceTask, machine?: Machine): s
   if (displayStatus === "due") {
     if (task.dueDate && startOfDay(task.dueDate).getTime() < startOfDay().getTime()) {
       const days = Math.round((startOfDay().getTime() - startOfDay(task.dueDate).getTime()) / (24 * 60 * 60 * 1000));
-      return days === 0 ? "Heute faellig" : `Seit ${days} Tag${days === 1 ? "" : "en"} ueberfaellig`;
+      return days === 0 ? "Heute fällig" : `Seit ${days} Tag${days === 1 ? "" : "en"} überfällig`;
     }
 
     if (machine && task.dueOperatingHours !== null && task.dueOperatingHours <= machine.currentOperatingHours) {
-      return `Seit ${(machine.currentOperatingHours - task.dueOperatingHours).toFixed(0)} h ueberfaellig`;
+      return `Seit ${(machine.currentOperatingHours - task.dueOperatingHours).toFixed(0)} h überfällig`;
     }
 
     if (machine && task.dueKilometers !== null && machine.currentKilometers !== null && task.dueKilometers <= machine.currentKilometers) {
-      return `Seit ${(machine.currentKilometers - task.dueKilometers).toFixed(0)} km ueberfaellig`;
+      return `Seit ${(machine.currentKilometers - task.dueKilometers).toFixed(0)} km überfällig`;
     }
 
-    return "Faellig";
+    return "Fällig";
   }
 
   if (displayStatus === "soon") {
     if (task.dueDate) {
       const days = Math.round((startOfDay(task.dueDate).getTime() - startOfDay().getTime()) / (24 * 60 * 60 * 1000));
-      if (days <= 1) return "Morgen faellig";
+      if (days <= 1) return "Morgen fällig";
       return `In ${days} Tagen`;
     }
 
@@ -556,7 +556,7 @@ export function getDashboardDueText(task: MaintenanceTask, machine?: Machine): s
       return `Bei ${task.dueKilometers.toLocaleString("de-DE")} km (noch ${remaining.toFixed(0)} km)`;
     }
 
-    return "Bald faellig";
+    return "Bald fällig";
   }
 
   return getMostRelevantDueLabel(task, machine);
@@ -570,7 +570,7 @@ export function getMostRelevantDueLabel(task: MaintenanceTask, machine?: Machine
   ].filter((option): option is { label: string; priority: number } => option !== null);
 
   if (dueOptions.length === 0) {
-    return "Keine Faelligkeit";
+    return "Keine Fälligkeit";
   }
 
   dueOptions.sort((first, second) => first.priority - second.priority);
@@ -581,7 +581,7 @@ export function getMaintenanceUrgencyLabel(task: MaintenanceTask, machine?: Mach
   const status = getMaintenanceDisplayStatus(task, machine);
 
   if (status === "due") {
-    return "Faellig";
+    return "Fällig";
   }
 
   if (status === "soon") {

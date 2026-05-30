@@ -17,8 +17,8 @@ export function getMaintenanceStatus(nextServiceHours: number, currentHours: num
 export function getStatusLabel(status: StatusTone): string {
   const labels: Record<StatusTone, string> = {
     good: "In Ordnung",
-    warning: "Bald faellig",
-    danger: "Faellig",
+    warning: "Bald fällig",
+    danger: "Fällig",
     neutral: "Offen"
   };
 

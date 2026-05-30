@@ -34,11 +34,11 @@ export function generateMaintenanceReminders(machines: Machine[], maintenanceTas
             machine,
             "inspection_due",
             displayStatus === "due" ? "high" : "medium",
-            displayStatus === "due" ? "Pickerl/TUEV faellig" : "Pickerl/TUEV in 30 Tagen"
+            displayStatus === "due" ? "Pickerl/TÜV fällig" : "Pickerl/TÜV in 30 Tagen"
           )
         );
       } else if (displayStatus === "due") {
-        reminders.push(createMaintenanceReminder(task, machine, "maintenance_due", "high", "Wartung faellig"));
+        reminders.push(createMaintenanceReminder(task, machine, "maintenance_due", "high", "Wartung fällig"));
       } else if (displayStatus === "soon" || isDueByDateWindow) {
         reminders.push(createMaintenanceReminder(task, machine, "maintenance_soon", "medium", "Wartung in 7 Tagen"));
       }
@@ -93,7 +93,7 @@ export function generateMachineCostReminders(machines: Machine[], maintenanceTas
         sourceId: machine.id,
         machineId: machine.id,
         title: health.label,
-        message: health.reasons[0] ?? "Maschinenkosten pruefen",
+        message: health.reasons[0] ?? "Maschinenkosten prüfen",
         dueDate: null,
         priority: health.tone === "danger" ? "high" : "medium",
         reminderKey: createReminderKey({ type: "machine_cost_warning", sourceType: "machine", sourceId: machine.id })

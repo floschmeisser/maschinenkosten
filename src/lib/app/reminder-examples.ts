@@ -7,8 +7,8 @@ export const overdueMaintenanceReminderExample: CreateReminderInput = {
   sourceType: "maintenance_task",
   sourceId: "maintenance-overdue-example",
   machineId: "machine-example",
-  title: "Wartung faellig",
-  message: "Oelwechsel / Traktor 6155R",
+  title: "Wartung fällig",
+  message: "Ölwechsel / Traktor 6155R",
   dueDate: "2026-05-01",
   priority: "high",
   reminderKey: createReminderKey({
@@ -42,7 +42,7 @@ export const lowSparePartReminderExample: CreateReminderInput = {
   sourceId: "spare-part-low-example",
   machineId: "machine-example",
   title: "Ersatzteil niedrig",
-  message: "Oelfilter: 1 Stk. auf Lager",
+  message: "Ölfilter: 1 Stk. auf Lager",
   dueDate: null,
   priority: "high",
   reminderKey: createReminderKey({

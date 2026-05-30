@@ -165,7 +165,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     unit: "Stk.",
     storageLocation: "Werkstatt Kiste 3",
     purchasePrice: 7.5,
-    notes: "Vor Schnitt pruefen.",
+    notes: "Vor Schnitt prüfen.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   }
@@ -340,15 +340,15 @@ const sparePartCategoryLabels: Record<MachineSparePartCategory, string> = {
   blade: "Klinge",
   hydraulic: "Hydraulik",
   electrical: "Elektrik",
-  wear_part: "Verschleissteil",
-  fluid: "Fluessigkeit",
+  wear_part: "Verschleißteil",
+  fluid: "Flüssigkeit",
   other: "Sonstiges"
 };
 
 const documentTypeLabels: Record<MachineDocumentType, string> = {
   invoice: "Rechnung",
   service_report: "Service",
-  inspection: "Pickerl/TUEV",
+  inspection: "Pickerl/TÜV",
   manual: "Anleitung",
   warranty: "Garantie",
   photo: "Foto",

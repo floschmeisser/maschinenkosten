@@ -48,8 +48,8 @@ export const placeholderReminders: Reminder[] = [
     sourceType: "maintenance_task",
     sourceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     machineId: "11111111-1111-4111-8111-111111111111",
-    title: "Wartung faellig",
-    message: "Oel und Filter pruefen",
+    title: "Wartung fällig",
+    message: "Öl und Filter prüfen",
     dueDate: "2026-06-15",
     priority: "high",
     status: "open",
@@ -104,7 +104,7 @@ export function getReminderStatusLabel(status: ReminderStatus): string {
 
 export function getReminderSourceLabel(reminder: Pick<Reminder, "sourceType" | "type">): string {
   if (reminder.type === "inspection_due") {
-    return "Pickerl/TUEV";
+    return "Pickerl/TÜV";
   }
 
   const labels: Record<ReminderSourceType, string> = {
@@ -120,9 +120,9 @@ export function getReminderSourceLabel(reminder: Pick<Reminder, "sourceType" | "
 
 export function getReminderTypeLabel(type: ReminderType): string {
   const labels: Record<ReminderType, string> = {
-    maintenance_due: "Wartung faellig",
+    maintenance_due: "Wartung fällig",
     maintenance_soon: "Wartung bald",
-    inspection_due: "Pickerl/TUEV",
+    inspection_due: "Pickerl/TÜV",
     spare_part_low_stock: "Ersatzteil niedrig",
     machine_cost_warning: "Kostenhinweis",
     custom: "Erinnerung"

@@ -24,7 +24,7 @@ export const placeholderCalendarEvents: CalendarEvent[] = [
     id: "calevent-1111-4111-8111-111111111111",
     farmId: placeholderFarmId,
     machineId: "11111111-1111-4111-8111-111111111111",
-    title: "Motoroelwechsel faellig",
+    title: "Motorölwechsel fällig",
     eventDate: "2026-06-15",
     eventTime: null,
     note: "Geplanter Wartungstermin",

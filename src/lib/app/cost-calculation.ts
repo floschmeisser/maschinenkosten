@@ -181,7 +181,7 @@ export function evaluateMachineCostHealth(input: MachineCostInput, result: Machi
     return { label: "Sehr wirtschaftlich", tone: "good", reasons: ["Gute Auslastung"] };
   }
 
-  return { label: "Wirtschaftlich", tone: "neutral", reasons: reasons.length > 0 ? reasons : ["Unauffaellige Kosten"] };
+  return { label: "Wirtschaftlich", tone: "neutral", reasons: reasons.length > 0 ? reasons : ["Unauffällige Kosten"] };
 }
 
 export function createMachineCostComparison(machines: Machine[], maintenanceTasks: MaintenanceTask[]): MachineCostComparisonItem[] {
@@ -204,5 +204,5 @@ export function createMachineCostComparison(machines: Machine[], maintenanceTask
 }
 
 export function getAdditionalCostWarnings(input: MachineCostInput, result: MachineCostResult): string[] {
-  return evaluateMachineCostHealth(input, result).reasons.filter((reason) => reason !== "Unauffaellige Kosten" && reason !== "Gute Auslastung");
+  return evaluateMachineCostHealth(input, result).reasons.filter((reason) => reason !== "Unauffällige Kosten" && reason !== "Gute Auslastung");
 }

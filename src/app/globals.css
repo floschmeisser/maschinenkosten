@@ -2455,3 +2455,877 @@ td span {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* ─── Dashboard (Schritt 5) ─── */
+
+.dashboard-date-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.dashboard-date-header strong {
+  font-size: 24px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.dashboard-section {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-section-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--primary-dark);
+}
+
+.task-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.task-card.due {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.task-card.soon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.task-card-machine {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.task-card-title {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.task-card-due {
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.machine-reading-list {
+  display: grid;
+  gap: 10px;
+}
+
+.machine-reading-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.machine-reading-card.has-due {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.machine-reading-card.has-soon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.machine-reading-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.machine-reading-name {
+  font-size: 17px;
+}
+
+.machine-reading-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+
+.machine-reading-badge.due {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.machine-reading-badge.soon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--text);
+}
+
+.machine-reading-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.machine-reading-number {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.machine-reading-unit {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ─── Calendar Widget ─── */
+
+.calendar-widget {
+  display: grid;
+  gap: 12px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.calendar-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-dark);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.calendar-nav-label {
+  flex: 1;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.calendar-view-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.calendar-view-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-dark);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.calendar-view-btn.active {
+  border-color: var(--primary-dark);
+  background: var(--primary-soft);
+}
+
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar-day {
+  display: grid;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  min-height: 80px;
+  align-content: start;
+}
+
+.calendar-day.today {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.calendar-day.selected {
+  border-color: var(--primary-dark);
+  background: var(--highlight);
+}
+
+.calendar-day-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.calendar-day-num {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.calendar-day-events {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.calendar-event-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.calendar-event-dot.maintenance {
+  background: var(--warning);
+}
+
+.calendar-event-dot.manual {
+  background: var(--primary);
+}
+
+.calendar-event-more {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.calendar-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.calendar-month-head {
+  padding: 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.calendar-month-cell {
+  display: grid;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+  min-height: 48px;
+  align-content: start;
+}
+
+.calendar-month-cell.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.calendar-month-cell.today {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.calendar-month-cell.selected {
+  border-color: var(--primary-dark);
+  background: var(--highlight);
+}
+
+.calendar-month-day-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.calendar-month-dots {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+}
+
+.calendar-create-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--primary-dark);
+  border-radius: 8px;
+  background: var(--highlight);
+}
+
+.calendar-create-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.calendar-create-form input,
+.calendar-create-form select,
+.calendar-create-form textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.calendar-create-date {
+  color: var(--primary-dark);
+  font-size: 16px;
+}
+
+.calendar-create-actions {
+  display: grid;
+  gap: 10px;
+}
+
+/* ─── Machine Detail Page (Schritt 3) ─── */
+
+.machine-detail-page {
+  display: grid;
+  gap: 0;
+}
+
+.machine-detail-header {
+  display: grid;
+  gap: 4px;
+  padding: 16px 16px 12px;
+  background: var(--primary-soft);
+  border-bottom: 2px solid var(--primary);
+}
+
+.machine-detail-category {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.machine-detail-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.machine-detail-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
+}
+
+.tab-btn {
+  flex: 1;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-bottom-color: var(--primary-dark);
+  color: var(--primary-dark);
+}
+
+.machine-wartung-module {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.stand-section {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+
+.stand-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stand-reading-number {
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.stand-reading-unit {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.stand-reading-button {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 2px solid var(--primary-dark);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-dark);
+  font-weight: 900;
+  cursor: pointer;
+  width: 100%;
+}
+
+.stand-update-form {
+  display: grid;
+  gap: 10px;
+}
+
+.stand-update-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.stand-update-form input {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+}
+
+.stand-update-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stand-errors {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.maintenance-types-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.maintenance-type-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.maintenance-type-card.due {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.maintenance-type-card.soon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.maintenance-type-card.inactive {
+  opacity: 0.7;
+  background: var(--surface-muted);
+}
+
+.type-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.type-card-label {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--primary-dark);
+}
+
+.urgency-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+
+.urgency-chip.due {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.urgency-chip.soon {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--text);
+}
+
+.urgency-chip.planned {
+  border-color: var(--border);
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.type-card-history {
+  display: grid;
+  gap: 4px;
+}
+
+.type-card-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.type-card-history-row span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.type-card-history-row strong {
+  color: var(--text);
+}
+
+.type-card-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-add-form,
+.quick-complete-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--highlight);
+}
+
+.quick-add-form label,
+.quick-complete-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.quick-add-form input,
+.quick-add-form textarea,
+.quick-complete-form input,
+.quick-complete-form textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.interval-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.form-row-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.add-custom-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.add-custom-card-head {
+  font-weight: 900;
+  color: var(--primary-dark);
+}
+
+.spare-parts-section {
+  display: grid;
+  gap: 0;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.spare-parts-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 0;
+  background: var(--surface-muted);
+  color: var(--primary-dark);
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.toggle-arrow {
+  font-size: 12px;
+}
+
+/* ─── Kosten Modul (Schritt 4) ─── */
+
+.kosten-module {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.kosten-kpi-hero {
+  display: grid;
+  gap: 4px;
+  padding: 20px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+
+.kosten-kpi-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.kosten-kpi-value {
+  font-size: 52px;
+  line-height: 1;
+  color: var(--primary-dark);
+}
+
+.kosten-kpi-sub {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.kosten-form {
+  display: grid;
+  gap: 14px;
+}
+
+.kosten-section-head {
+  display: grid;
+  gap: 6px;
+}
+
+.kosten-oekl-label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.kosten-oekl-label select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.kosten-fieldset {
+  display: grid;
+  gap: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 0;
+  background: var(--surface);
+}
+
+.kosten-fieldset legend {
+  padding: 0 6px;
+  font-weight: 900;
+  color: var(--primary-dark);
+}
+
+.kosten-field {
+  display: grid;
+  gap: 4px;
+}
+
+.kosten-field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.kosten-field-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kosten-field-input-row input {
+  flex: 1;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.kosten-field-unit {
+  min-width: 32px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--muted);
+  text-align: right;
+}
+
+.kosten-result-row {
+  display: grid;
+  gap: 8px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.kosten-detail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-dark);
+  font-weight: 900;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.kosten-detail-toggle strong {
+  font-size: 18px;
+}
+
+.kosten-detail-grid {
+  display: grid;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.kosten-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 760px) {
+  .task-card-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .machine-reading-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calendar-create-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .maintenance-types-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kosten-fieldset {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kosten-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .interval-row,
+  .form-row-actions,
+  .stand-update-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}

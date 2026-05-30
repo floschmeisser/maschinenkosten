@@ -152,13 +152,13 @@ export async function deleteMachineDocumentFile(filePath: string): Promise<boole
     const result = await bucket.remove([filePath]);
 
     if (result.error) {
-      warnSupabaseFallback("Dokumentdatei konnte nicht geloescht werden.", result.error);
+      warnSupabaseFallback("Dokumentdatei konnte nicht gelöscht werden.", result.error);
       return false;
     }
 
     return true;
   } catch (error) {
-    warnSupabaseFallback("Dokumentdatei konnte nicht geloescht werden.", error);
+    warnSupabaseFallback("Dokumentdatei konnte nicht gelöscht werden.", error);
     return false;
   }
 }

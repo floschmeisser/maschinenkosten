@@ -171,7 +171,7 @@ export async function deleteMachineSparePart(id: string): Promise<boolean> {
 
   const result = await runSupabaseQuery(
     () => source.table.delete().eq("id", id).eq("farm_id", source.farm.id),
-    "Ersatzteil konnte nicht geloescht werden."
+    "Ersatzteil konnte nicht gelöscht werden."
   );
 
   if (!result) {

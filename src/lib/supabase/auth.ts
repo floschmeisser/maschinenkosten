@@ -47,8 +47,8 @@ export async function signInWithEmail(email: string, redirectPath = "/de/dashboa
     });
     return { error: error?.message ?? null };
   } catch (error) {
-    warnSupabaseFallback("Anmeldung konnte nicht ausgefuehrt werden.", error);
-    return { error: "Anmeldung ist gerade nicht verfuegbar." };
+    warnSupabaseFallback("Anmeldung konnte nicht ausgeführt werden.", error);
+    return { error: "Anmeldung ist gerade nicht verfügbar." };
   }
 }
 
@@ -62,6 +62,6 @@ export async function signOut() {
   try {
     await supabase.auth.signOut();
   } catch (error) {
-    warnSupabaseFallback("Abmeldung konnte nicht ausgefuehrt werden.", error);
+    warnSupabaseFallback("Abmeldung konnte nicht ausgeführt werden.", error);
   }
 }

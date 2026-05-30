@@ -69,7 +69,7 @@ async function loadSupabaseCreateClient() {
     };
     return supabase.createClient;
   } catch (error) {
-    warnSupabaseFallback("Paket @supabase/supabase-js nicht verfuegbar.", error);
+    warnSupabaseFallback("Paket @supabase/supabase-js nicht verfügbar.", error);
     return null;
   }
 }

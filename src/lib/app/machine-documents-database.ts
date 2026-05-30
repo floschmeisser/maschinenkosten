@@ -257,7 +257,7 @@ export async function deleteMachineDocument(id: string): Promise<boolean> {
 
   const result = await runSupabaseQuery(
     () => source.table.delete().eq("id", id).eq("farm_id", source.farm.id),
-    "Dokument konnte nicht geloescht werden."
+    "Dokument konnte nicht gelöscht werden."
   );
 
   if (!result) {

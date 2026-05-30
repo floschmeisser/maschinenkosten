@@ -64,7 +64,7 @@ export async function getCalendarEvents(): Promise<CalendarEvent[]> {
 
   const result = await runSupabaseQuery(
     () => source.table.select("*").eq("farm_id", source.farm.id),
-    "Kalendereintraege konnten nicht geladen werden."
+    "Kalendereinträge konnten nicht geladen werden."
   );
 
   if (!result?.data) {
@@ -145,7 +145,7 @@ export async function deleteCalendarEvent(id: string): Promise<boolean> {
 
   const result = await runSupabaseQuery(
     () => source.table.delete().eq("id", id).eq("farm_id", source.farm.id),
-    "Kalendereintrag konnte nicht geloescht werden."
+    "Kalendereintrag konnte nicht gelöscht werden."
   );
 
   if (!result) {

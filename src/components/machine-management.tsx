@@ -60,9 +60,8 @@ export function MachineManagement({ locale }: MachineManagementProps) {
   }, [refreshMachines]);
 
   async function handleCreateMachine(input: CreateMachineInput) {
-    await createMachine(input);
-    await refreshMachines();
-    setIsCreating(false);
+    const newMachine = await createMachine(input);
+    router.push(`/${locale}/machines/${newMachine.id}`);
   }
 
   async function handleListUsageUpdate(input: MachineUsageUpdateInput & { notes?: string | null }) {
@@ -94,6 +93,16 @@ export function MachineManagement({ locale }: MachineManagementProps) {
 
       {isCreating ? (
         <MachineFormModal mode="compact" formMode="create" onSave={handleCreateMachine} onCancel={() => setIsCreating(false)} />
+      ) : !isLoadingMachines && machines.length === 0 ? (
+        <section className="panel">
+          <div className="machine-onboarding-cta">
+            <strong>Erste Maschine anlegen</strong>
+            <p className="muted">Gib deinen Traktor, Anhänger oder jedes andere Gerät ein.</p>
+            <button className="button primary" type="button" onClick={() => setIsCreating(true)}>
+              Maschine hinzufügen
+            </button>
+          </div>
+        </section>
       ) : (
         <section className="panel">
           <div className="panel-heading">

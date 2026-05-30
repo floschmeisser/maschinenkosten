@@ -89,7 +89,13 @@ export function Dashboard({ locale }: DashboardProps) {
 
       <section className="dashboard-section" aria-label="Nächste Aufgaben">
         <h2 className="dashboard-section-title">Was steht an?</h2>
-        {topTasks.length === 0 ? (
+        {machines.length === 0 ? (
+          <div className="dashboard-empty">
+            <strong>Noch keine Maschinen</strong>
+            <span className="muted">Leg deine erste Maschine an, um Wartungen zu verfolgen.</span>
+            <Link className="button primary" href={`/${locale}/machines/new`}>Maschine anlegen</Link>
+          </div>
+        ) : topTasks.length === 0 ? (
           <div className="dashboard-empty">
             <strong>Alles erledigt</strong>
             <span className="muted">Keine offenen Aufgaben</span>

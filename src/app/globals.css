@@ -479,6 +479,11 @@ textarea:disabled {
   line-height: 1.05;
 }
 
+.dashboard-empty .button {
+  justify-self: start;
+  margin-top: 8px;
+}
+
 .dashboard-focus-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -922,6 +927,25 @@ td span {
 
 .machine-list-panel {
   border-color: var(--primary-soft);
+}
+
+.machine-onboarding-cta {
+  display: grid;
+  gap: 10px;
+  padding: 28px 24px;
+  text-align: center;
+  justify-items: center;
+}
+
+.machine-onboarding-cta strong {
+  font-size: 22px;
+  color: var(--primary-dark);
+}
+
+.machine-onboarding-cta p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 300px;
 }
 
 .machine-card-list {
@@ -3001,6 +3025,27 @@ td span {
   display: grid;
   gap: 16px;
   padding: 16px;
+}
+
+.maintenance-onboarding-hint {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+  margin-bottom: 4px;
+}
+
+.maintenance-onboarding-hint strong {
+  font-size: 17px;
+  color: var(--primary-dark);
+}
+
+.maintenance-onboarding-hint p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .stand-section {

@@ -14,8 +14,8 @@ export function NewMachinePageClient({ locale }: NewMachinePageClientProps) {
   const router = useRouter();
 
   async function handleSave(input: CreateMachineInput) {
-    await createMachine(input);
-    router.push(`/${locale}/machines`);
+    const newMachine = await createMachine(input);
+    router.push(`/${locale}/machines/${newMachine.id}`);
   }
 
   return <MachineFormModal mode="page" formMode="create" onSave={handleSave} onCancel={() => router.push(`/${locale}/machines`)} />;

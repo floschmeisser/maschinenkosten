@@ -288,6 +288,12 @@ function MachineWartungModule({
 
       <section className="maintenance-types-section">
         {isLoading ? <p className="preference-hint">Laden...</p> : null}
+        {!isLoading && tasks.length === 0 ? (
+          <div className="maintenance-onboarding-hint">
+            <strong>Wartungsintervalle einrichten</strong>
+            <p>Wähle einen Typ und tippe auf "Einrichten" um Fälligkeiten zu verfolgen.</p>
+          </div>
+        ) : null}
         {standardCards.map(({ type, activeTask, lastCompleted }) => (
           <MaintenanceTypeCard
             key={type}

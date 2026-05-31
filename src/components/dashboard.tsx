@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import React, { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
 import {
   getCalendarEventsForMonth,
@@ -10,7 +10,7 @@ import {
   placeholderCalendarEvents,
   type CalendarEvent
 } from "@/lib/app/calendar-events";
-import { createCalendarEvent, getCalendarEvents } from "@/lib/app/calendar-events-database";
+import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents } from "@/lib/app/calendar-events-database";
 import type { MachineSummary } from "@/lib/app/machines";
 import {
   getMachineAnnualUsage,
@@ -20,7 +20,8 @@ import {
   placeholderFarmId,
   toMachineSummary
 } from "@/lib/app/machines";
-import { getMachines as loadMachines } from "@/lib/app/machines-database";
+import { getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
+import { ConfirmDialog } from "./shared-ui-components";
 import {
   getDashboardDueText,
   getMaintenanceDisplayStatus,
@@ -80,6 +81,11 @@ export function Dashboard({ locale }: DashboardProps) {
     setCalendarEvents((prev) => [...prev, event]);
   }
 
+  async function handleEventDeleted(id: string) {
+    await deleteCalendarEvent(id);
+    setCalendarEvents((prev) => prev.filter((e) => e.id !== id));
+  }
+
   return (
     <main className="page dashboard-page">
       <section className="dashboard-date-header" aria-label="Datum">
@@ -131,6 +137,7 @@ export function Dashboard({ locale }: DashboardProps) {
           calendarEvents={calendarEvents}
           farmId={machines[0]?.farmId ?? placeholderFarmId}
           onEventCreated={handleEventCreated}
+          onEventDeleted={handleEventDeleted}
         />
       </section>
 
@@ -141,24 +148,15 @@ export function Dashboard({ locale }: DashboardProps) {
             const machineTasks = maintenanceTasks.filter((t) => t.machineId === machine.id);
             const hasDue = machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "due");
             const hasSoon = !hasDue && machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "soon");
-            const reading = getMachineCurrentReading(machine);
-            const unitLabel = getMachineUnitLabel(machine.unit);
             return (
-              <Link
+              <MachineReadingCard
                 key={machine.id}
-                className={`machine-reading-card${hasDue ? " has-due" : hasSoon ? " has-soon" : ""}`}
-                href={`/${locale}/machines/${machine.id}`}
-              >
-                <div className="machine-reading-card-header">
-                  <strong className="machine-reading-name">{machine.name}</strong>
-                  {hasDue ? <span className="machine-status-dot due" aria-label="Wartung fällig" /> : null}
-                  {hasSoon ? <span className="machine-status-dot soon" aria-label="Bald fällig" /> : null}
-                </div>
-                <div className="machine-reading-value">
-                  <span className="machine-reading-number">{reading.toLocaleString("de-DE", { maximumFractionDigits: 0 })}</span>
-                  <span className="machine-reading-unit">{unitLabel}</span>
-                </div>
-              </Link>
+                machine={machine}
+                hasDue={hasDue}
+                hasSoon={hasSoon}
+                locale={locale}
+                onReadingUpdated={(updated) => setMachines((prev) => prev.map((m) => m.id === updated.id ? updated : m))}
+              />
             );
           })}
         </div>
@@ -176,11 +174,12 @@ type CalendarWidgetProps = {
   calendarEvents: CalendarEvent[];
   farmId: string;
   onEventCreated: (event: CalendarEvent) => void;
+  onEventDeleted: (id: string) => Promise<void>;
 };
 
 type DayPanelMode = "detail" | "create";
 
-function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, farmId, onEventCreated }: CalendarWidgetProps) {
+function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, farmId, onEventCreated, onEventDeleted }: CalendarWidgetProps) {
   const [view, setView] = useState<CalendarView>("week");
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -311,6 +310,7 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
           locale={locale}
           onAddClick={() => setPanelMode("create")}
           onClose={closePanel}
+          onDeleteEvent={onEventDeleted}
         />
       ) : null}
 
@@ -423,9 +423,20 @@ type DayDetailPanelProps = {
   locale: Locale;
   onAddClick: () => void;
   onClose: () => void;
+  onDeleteEvent?: (id: string) => Promise<void>;
 };
 
-function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose }: DayDetailPanelProps) {
+function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose, onDeleteEvent }: DayDetailPanelProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function handleConfirmDelete(id: string) {
+    setIsDeleting(true);
+    await onDeleteEvent?.(id);
+    setConfirmDeleteId(null);
+    setIsDeleting(false);
+  }
+
   return (
     <div className="calendar-day-panel">
       <div className="calendar-day-panel-header">
@@ -456,6 +467,17 @@ function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose }:
                 <strong>{event.title}</strong>
                 {event.eventTime ? <span className="muted">{event.eventTime} Uhr</span> : null}
                 {event.note ? <span className="muted">{event.note}</span> : null}
+                {onDeleteEvent ? (
+                  confirmDeleteId === event.id ? (
+                    <div className="calendar-day-event-delete">
+                      <span>Termin löschen?</span>
+                      <button className="button small" type="button" disabled={isDeleting} onClick={() => void handleConfirmDelete(event.id)}>Ja</button>
+                      <button className="button small" type="button" onClick={() => setConfirmDeleteId(null)}>Nein</button>
+                    </div>
+                  ) : (
+                    <button className="button small gold" type="button" style={{ marginTop: 4 }} onClick={() => setConfirmDeleteId(event.id)}>Löschen</button>
+                  )
+                ) : null}
               </div>
             </li>
           );
@@ -544,6 +566,85 @@ function CreateEventForm({ date, machines, onSave, onCancel }: CreateEventFormPr
         </button>
       </div>
     </form>
+  );
+}
+
+type MachineReadingCardProps = {
+  machine: MachineSummary;
+  hasDue: boolean;
+  hasSoon: boolean;
+  locale: Locale;
+  onReadingUpdated: (updated: MachineSummary) => void;
+};
+
+function MachineReadingCard({ machine, hasDue, hasSoon, locale, onReadingUpdated }: MachineReadingCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const reading = getMachineCurrentReading(machine);
+  const unitLabel = getMachineUnitLabel(machine.unit);
+
+  function startEdit() {
+    setEditValue(String(Math.round(reading)));
+    setIsEditing(true);
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+  }
+
+  async function saveEdit() {
+    const num = Number(editValue);
+    if (!Number.isFinite(num) || num < 0) return;
+    setIsSaving(true);
+    try {
+      const input = machine.unit === "km" ? { currentKilometers: num } : { currentOperatingHours: num };
+      const updated = await updateMachine(machine.id, input);
+      if (updated) onReadingUpdated(toMachineSummary(updated));
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "Enter") { event.preventDefault(); void saveEdit(); }
+    if (event.key === "Escape") cancelEdit();
+  }
+
+  return (
+    <div className={`machine-reading-card${hasDue ? " has-due" : hasSoon ? " has-soon" : ""}`}>
+      <Link href={`/${locale}/machines/${machine.id}`} className="machine-reading-card-header">
+        <strong className="machine-reading-name">{machine.name}</strong>
+        {hasDue ? <span className="machine-status-dot due" aria-label="Wartung fällig" /> : null}
+        {hasSoon ? <span className="machine-status-dot soon" aria-label="Bald fällig" /> : null}
+      </Link>
+      {isEditing ? (
+        <div className="machine-reading-edit">
+          <input
+            ref={inputRef}
+            autoFocus
+            className="machine-reading-input"
+            inputMode="decimal"
+            min="0"
+            type="number"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <span className="machine-reading-unit">{unitLabel}</span>
+          <button className="machine-reading-action-btn save" type="button" disabled={isSaving} onClick={() => void saveEdit()}>✓</button>
+          <button className="machine-reading-action-btn cancel" type="button" onClick={cancelEdit}>✕</button>
+        </div>
+      ) : (
+        <div className="machine-reading-value">
+          <span className="machine-reading-number">{reading.toLocaleString("de-DE", { maximumFractionDigits: 0 })}</span>
+          <span className="machine-reading-unit">{unitLabel}</span>
+          <button className="machine-reading-edit-btn" type="button" title="Stand bearbeiten" aria-label="Stand bearbeiten" onClick={startEdit}>✎</button>
+        </div>
+      )}
+    </div>
   );
 }
 

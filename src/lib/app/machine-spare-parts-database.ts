@@ -17,14 +17,10 @@ type MachineSparePartRow = {
   machine_id: string;
   name: string;
   part_number: string | null;
-  original_part_number: string | null;
   manufacturer: string | null;
-  supplier: string | null;
   stock_quantity: number;
   minimum_stock_quantity: number;
   unit: string;
-  storage_location: string | null;
-  purchase_price: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -235,14 +231,14 @@ function mapSparePartRowToSparePart(row: MachineSparePartRow): MachineSparePart 
     name: row.name,
     category: "other" as MachineSparePart["category"],
     partNumber: row.part_number,
-    originalPartNumber: row.original_part_number,
+    originalPartNumber: null,
     manufacturer: row.manufacturer,
-    supplier: row.supplier,
+    supplier: null,
     stockQuantity: row.stock_quantity,
     minimumStockQuantity: row.minimum_stock_quantity,
     unit: row.unit,
-    storageLocation: row.storage_location,
-    purchasePrice: row.purchase_price,
+    storageLocation: null,
+    purchasePrice: null,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -256,14 +252,10 @@ function mapSparePartToRow(part: MachineSparePart): MachineSparePartRow {
     machine_id: part.machineId,
     name: part.name,
     part_number: part.partNumber,
-    original_part_number: part.originalPartNumber,
     manufacturer: part.manufacturer,
-    supplier: part.supplier,
     stock_quantity: part.stockQuantity,
     minimum_stock_quantity: part.minimumStockQuantity,
     unit: part.unit,
-    storage_location: part.storageLocation,
-    purchase_price: part.purchasePrice,
     notes: part.notes,
     created_at: part.createdAt,
     updated_at: part.updatedAt
@@ -278,14 +270,10 @@ function mapSparePartInputToRow(
     machine_id: input.machineId,
     name: input.name,
     part_number: input.partNumber,
-    original_part_number: input.originalPartNumber,
     manufacturer: input.manufacturer,
-    supplier: input.supplier,
     stock_quantity: input.stockQuantity,
     minimum_stock_quantity: input.minimumStockQuantity,
     unit: input.unit,
-    storage_location: input.storageLocation,
-    purchase_price: input.purchasePrice,
     notes: input.notes,
     updated_at: input.updatedAt
   };

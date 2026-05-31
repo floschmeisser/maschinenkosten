@@ -35,7 +35,13 @@ export async function signInWithEmail(email: string, redirectPath = "/de/dashboa
   }
 
   try {
-    const emailRedirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}${redirectPath}`;
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : undefined);
+    const emailRedirectTo = origin ? `${origin}${redirectPath}` : undefined;
+
+    console.log("[auth] signInWithOtp redirectTo:", emailRedirectTo);
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

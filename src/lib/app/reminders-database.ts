@@ -91,7 +91,7 @@ export async function createReminder(input: CreateReminderInput): Promise<Remind
     ...input,
     farmId,
     reminderKey: input.reminderKey ?? createReminderKey(input),
-    status: input.status ?? "open",
+    status: "open",
     acknowledgedAt: null,
     dismissedAt: null,
     completedAt: null,

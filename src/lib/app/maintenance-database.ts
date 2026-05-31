@@ -67,6 +67,43 @@ type MaintenanceDataSource = {
   table: SupabaseTableApi<MaintenanceTaskRow>;
 };
 
+const DB_MAINTENANCE_TYPES = new Set(["oil_change", "service", "lubrication", "repair", "wear_part", "inspection", "cleaning", "other"]);
+const EXTENDED_TYPE_KEYS = new Set(["oil_engine", "oil_hydraulic", "filter_air", "filter_fuel", "filter_hydraulic", "filter_cabin", "inspection_57a", "general_check", "brakes_tires", "ac_service", "custom"]);
+
+function mapTypeToDb(type: string): string {
+  if (DB_MAINTENANCE_TYPES.has(type)) return type;
+  const typeMap: Record<string, string> = {
+    oil_engine: "oil_change",
+    oil_hydraulic: "oil_change",
+    filter_air: "wear_part",
+    filter_fuel: "wear_part",
+    filter_hydraulic: "wear_part",
+    filter_cabin: "wear_part",
+    inspection_57a: "inspection",
+    general_check: "inspection",
+    brakes_tires: "inspection",
+    ac_service: "service",
+    custom: "other",
+  };
+  return typeMap[type] ?? "other";
+}
+
+function mapIntervalTypeToDb(intervalType: string): string {
+  if (intervalType === "months") return "days";
+  if (intervalType === "combined") return "operating_hours";
+  const allowed = new Set(["none", "days", "operating_hours", "kilometers"]);
+  return allowed.has(intervalType) ? intervalType : "none";
+}
+
+function deriveIntervalType(row: MaintenanceTaskRow): MaintenanceTask["intervalType"] {
+  if (row.interval_months && row.interval_operating_hours) return "combined";
+  if (row.interval_months) return "months";
+  if (row.interval_operating_hours) return "operating_hours";
+  if (row.interval_kilometers) return "kilometers";
+  if (row.interval_days) return "days";
+  return "none";
+}
+
 let fallbackMaintenanceTasks = [...placeholderMaintenanceTasks];
 
 export async function getMaintenanceTasks(): Promise<MaintenanceTask[]> {
@@ -115,20 +152,27 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
     return fallbackTask;
   }
 
+  const rawType = input.type ?? "service";
+  const rawIntervalType = input.intervalType ?? "none";
+  const isMonthsInterval = rawIntervalType === "months";
+  const isCombinedInterval = rawIntervalType === "combined";
+  const dbIntervalDays = isMonthsInterval ? ((input.intervalMonths ?? 0) * 30 || null) : (input.intervalDays ?? null);
+  const dbIntervalMonths = (isMonthsInterval || isCombinedInterval) ? (input.intervalMonths ?? null) : null;
+
   const payload: Partial<MaintenanceTaskRow> = {
     id,
     farm_id: farmId,
     machine_id: input.machineId,
     title: input.title,
-    type: input.type ?? "service",
-    custom_title: input.customTitle ?? null,
-    status: input.status ?? "open",
+    type: mapTypeToDb(rawType) as MaintenanceTask["type"],
+    custom_title: EXTENDED_TYPE_KEYS.has(rawType) ? rawType : (input.customTitle ?? null),
+    status: "open",
     due_date: input.dueDate ?? null,
     due_operating_hours: input.dueOperatingHours ?? null,
     due_kilometers: input.dueKilometers ?? null,
-    interval_type: input.intervalType ?? "none",
-    interval_days: input.intervalDays ?? null,
-    interval_months: input.intervalMonths ?? null,
+    interval_type: mapIntervalTypeToDb(rawIntervalType) as MaintenanceTask["intervalType"],
+    interval_days: dbIntervalDays,
+    interval_months: dbIntervalMonths,
     interval_operating_hours: input.intervalOperatingHours ?? null,
     interval_kilometers: input.intervalKilometers ?? null,
     last_done_reading: null,
@@ -302,18 +346,23 @@ async function getMaintenanceTasksTable(): Promise<SupabaseTableApi<MaintenanceT
 }
 
 function mapMaintenanceTaskRowToTask(row: MaintenanceTaskRow): MaintenanceTask {
+  const storedCustomTitle = row.custom_title;
+  const isExtendedTypeStored = storedCustomTitle !== null && EXTENDED_TYPE_KEYS.has(storedCustomTitle);
+  const logicalType = isExtendedTypeStored ? (storedCustomTitle as MaintenanceTask["type"]) : row.type;
+  const logicalCustomTitle = isExtendedTypeStored ? null : storedCustomTitle;
+
   return {
     id: row.id,
     farmId: row.farm_id,
     machineId: row.machine_id,
     title: row.title,
-    type: row.type,
-    customTitle: row.custom_title,
+    type: logicalType,
+    customTitle: logicalCustomTitle,
     status: row.status,
     dueDate: row.due_date,
     dueOperatingHours: row.due_operating_hours,
     dueKilometers: row.due_kilometers,
-    intervalType: row.interval_type,
+    intervalType: deriveIntervalType(row),
     intervalDays: row.interval_days,
     intervalMonths: row.interval_months,
     intervalOperatingHours: row.interval_operating_hours,
@@ -328,49 +377,27 @@ function mapMaintenanceTaskRowToTask(row: MaintenanceTaskRow): MaintenanceTask {
   };
 }
 
-function mapMaintenanceTaskToRow(task: MaintenanceTask): MaintenanceTaskRow {
-  return {
-    id: task.id,
-    farm_id: task.farmId,
-    machine_id: task.machineId,
-    title: task.title,
-    type: task.type,
-    custom_title: task.customTitle,
-    status: task.status,
-    due_date: task.dueDate,
-    due_operating_hours: task.dueOperatingHours,
-    due_kilometers: task.dueKilometers,
-    interval_type: task.intervalType,
-    interval_days: task.intervalDays,
-    interval_months: task.intervalMonths,
-    interval_operating_hours: task.intervalOperatingHours,
-    interval_kilometers: task.intervalKilometers,
-    last_done_reading: task.lastDoneReading,
-    estimated_cost: task.estimatedCost,
-    actual_cost: task.actualCost,
-    notes: task.notes,
-    completed_at: task.completedAt,
-    created_at: task.createdAt,
-    updated_at: task.updatedAt
-  };
-}
-
 function mapMaintenanceTaskInputToRow(
   input: Partial<CreateMaintenanceTaskInput & Pick<MaintenanceTask, "completedAt" | "lastDoneReading" | "updatedAt">>
 ): Partial<MaintenanceTaskRow> {
+  const rawType = input.type;
+  const rawIntervalType = input.intervalType;
+  const isMonthsInterval = rawIntervalType === "months";
+  const isCombinedInterval = rawIntervalType === "combined";
+
   return {
     farm_id: input.farmId,
     machine_id: input.machineId,
     title: input.title,
-    type: input.type,
-    custom_title: input.customTitle,
+    type: rawType ? (mapTypeToDb(rawType) as MaintenanceTask["type"]) : undefined,
+    custom_title: rawType && EXTENDED_TYPE_KEYS.has(rawType) ? rawType : input.customTitle,
     status: input.status,
     due_date: input.dueDate,
     due_operating_hours: input.dueOperatingHours,
     due_kilometers: input.dueKilometers,
-    interval_type: input.intervalType,
-    interval_days: input.intervalDays,
-    interval_months: input.intervalMonths,
+    interval_type: rawIntervalType ? (mapIntervalTypeToDb(rawIntervalType) as MaintenanceTask["intervalType"]) : undefined,
+    interval_days: isMonthsInterval ? ((input.intervalMonths ?? 0) * 30 || null) : input.intervalDays,
+    interval_months: (isMonthsInterval || isCombinedInterval) ? (input.intervalMonths ?? null) : input.intervalMonths,
     interval_operating_hours: input.intervalOperatingHours,
     interval_kilometers: input.intervalKilometers,
     last_done_reading: input.lastDoneReading,

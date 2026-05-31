@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSummary } from "@/lib/app/machines";
@@ -12,12 +13,13 @@ import {
   toMachineSummary,
   validateMachineUsageUpdate
 } from "@/lib/app/machines";
-import { getMachineById, updateMachine } from "@/lib/app/machines-database";
-import { createMachineSparePart, getMachineSpareParts, updateMachineSparePart } from "@/lib/app/machine-spare-parts-database";
+import { deleteMachine, getMachineById, updateMachine } from "@/lib/app/machines-database";
+import { createMachineSparePart, deleteMachineSparePart, getMachineSpareParts, updateMachineSparePart } from "@/lib/app/machine-spare-parts-database";
 import type { CreateMachineSparePartInput, MachineSparePart } from "@/lib/app/machines";
 import {
   completeMaintenanceTask,
   createMaintenanceTask,
+  deleteMaintenanceTask,
   getMaintenanceTasksByMachine
 } from "@/lib/app/maintenance-database";
 import {
@@ -34,6 +36,8 @@ import {
   type MaintenanceType
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
+import { MachineFormModal } from "./machine-form-modal";
+import { ConfirmDialog } from "./shared-ui-components";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
@@ -82,6 +86,7 @@ type MachineDetailPageClientProps = {
 };
 
 export function MachineDetailPageClient({ locale, machineId }: MachineDetailPageClientProps) {
+  const router = useRouter();
   const [machine, setMachine] = useState<MachineSummary | null>(
     () => getPlaceholderMachineById(machineId) ?? null
   );
@@ -124,19 +129,30 @@ export function MachineDetailPageClient({ locale, machineId }: MachineDetailPage
     );
   }
 
-  return <MachineDetailPage locale={locale} machine={machine} onMachineUpdated={setMachine} />;
+  return (
+    <MachineDetailPage
+      locale={locale}
+      machine={machine}
+      onMachineUpdated={setMachine}
+      onMachineDeleted={() => router.push(`/${locale}/machines`)}
+    />
+  );
 }
 
 type MachineDetailPageProps = {
   locale: Locale;
   machine: MachineSummary;
   onMachineUpdated: (machine: MachineSummary) => void;
+  onMachineDeleted: () => void;
 };
 
-function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailPageProps) {
+function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted }: MachineDetailPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>("wartung");
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isEditingMachine, setIsEditingMachine] = useState(false);
+  const [confirmDeleteMachine, setConfirmDeleteMachine] = useState(false);
+  const [isDeletingMachine, setIsDeletingMachine] = useState(false);
 
   const refreshTasks = useCallback(async () => {
     setIsLoadingTasks(true);
@@ -187,6 +203,30 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
     await refreshTasks();
   }
 
+  async function handleDeleteTask(taskId: string) {
+    await deleteMaintenanceTask(taskId);
+    await refreshTasks();
+  }
+
+  async function handleEditMachineSave(input: import("@/lib/app/machines").CreateMachineInput) {
+    const updated = await updateMachine(machine.id, input);
+    if (updated) {
+      onMachineUpdated(toMachineSummary(updated));
+      void refreshTasks();
+    }
+    setIsEditingMachine(false);
+  }
+
+  async function handleDeleteMachine() {
+    setIsDeletingMachine(true);
+    try {
+      await deleteMachine(machine.id);
+      onMachineDeleted();
+    } finally {
+      setIsDeletingMachine(false);
+    }
+  }
+
   return (
     <main className="page machine-detail-v2">
       <section className="machine-detail-header">
@@ -195,7 +235,35 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
           <h1 className="machine-detail-name">{machine.name}</h1>
           <p className="machine-detail-meta">{machine.manufacturer} {machine.model} &middot; {machine.yearOfManufacture}</p>
         </div>
+        <div className="machine-detail-header-actions">
+          <button className="button" type="button" onClick={() => setIsEditingMachine((v) => !v)}>
+            {isEditingMachine ? "Schließen" : "Bearbeiten"}
+          </button>
+          <button className="button gold" type="button" onClick={() => setConfirmDeleteMachine(true)}>
+            Löschen
+          </button>
+        </div>
       </section>
+
+      {isEditingMachine ? (
+        <MachineFormModal
+          mode="page"
+          formMode="edit"
+          machine={machine as unknown as Machine}
+          onCancel={() => setIsEditingMachine(false)}
+          onSave={handleEditMachineSave}
+        />
+      ) : null}
+
+      {confirmDeleteMachine ? (
+        <ConfirmDialog
+          title={`${machine.name} wirklich löschen?`}
+          message="Alle Wartungen und Ersatzteile werden ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+          confirmLabel={isDeletingMachine ? "Löschen..." : "Löschen"}
+          onCancel={() => setConfirmDeleteMachine(false)}
+          onConfirm={() => void handleDeleteMachine()}
+        />
+      ) : null}
 
       <nav className="detail-tabs" aria-label="Module">
         <button
@@ -230,6 +298,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated }: MachineDetailP
           onUsageUpdate={handleUsageUpdate}
           onCompleteTask={handleCompleteTask}
           onCreateTask={handleCreateTask}
+          onDeleteTask={handleDeleteTask}
         />
       ) : activeTab === "ersatzteile" ? (
         <SparePartsTabContent machine={machine} />
@@ -248,6 +317,7 @@ type WartungModuleProps = {
   onUsageUpdate: (reading: number) => Promise<string[]>;
   onCompleteTask: (taskId: string, data: CompleteMaintenanceTaskInput) => Promise<void>;
   onCreateTask: (input: CreateMaintenanceTaskInput) => Promise<void>;
+  onDeleteTask: (taskId: string) => Promise<void>;
 };
 
 function MachineWartungModule({
@@ -257,7 +327,8 @@ function MachineWartungModule({
   isLoading,
   onUsageUpdate,
   onCompleteTask,
-  onCreateTask
+  onCreateTask,
+  onDeleteTask
 }: WartungModuleProps) {
   const [isUpdatingStand, setIsUpdatingStand] = useState(false);
   const currentReading = getMachineCurrentReading(machine);
@@ -343,6 +414,7 @@ function MachineWartungModule({
                 activeTask={activeTask}
                 lastCompleted={lastCompleted}
                 onComplete={onCompleteTask}
+                onDelete={onDeleteTask}
                 onCreate={(months, hours, km) =>
                   onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
                 }
@@ -362,6 +434,7 @@ function MachineWartungModule({
                 activeTask={activeTask}
                 lastCompleted={lastCompleted}
                 onComplete={onCompleteTask}
+                onDelete={onDeleteTask}
                 onCreate={(months, hours, km) =>
                   onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
                 }
@@ -378,6 +451,7 @@ function MachineWartungModule({
             activeTask={activeTask}
             lastCompleted={lastCompleted}
             onComplete={onCompleteTask}
+            onDelete={onDeleteTask}
             onCreate={(months, hours, km) =>
               onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
             }
@@ -465,6 +539,7 @@ type MaintenanceTypeCardProps = {
   lastCompleted: MaintenanceTask | null;
   onComplete: (taskId: string, data: CompleteMaintenanceTaskInput) => Promise<void>;
   onCreate: (months: number | null, hours: number | null, km: number | null) => Promise<void>;
+  onDelete: (taskId: string) => Promise<void>;
 };
 
 function MaintenanceTypeCard({
@@ -473,11 +548,13 @@ function MaintenanceTypeCard({
   activeTask,
   lastCompleted,
   onComplete,
-  onCreate
+  onCreate,
+  onDelete
 }: MaintenanceTypeCardProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const label = getMaintenanceTypeLabel(type);
   const icon = getMaintenanceTypeIcon(type);
   const urgency: MaintenanceDisplayStatus = activeTask
@@ -596,7 +673,26 @@ function MaintenanceTypeCard({
         <button className="button" type="button" onClick={() => setIsAdding(true)}>
           Bearbeiten
         </button>
+        {activeTask ? (
+          <button className="button gold" type="button" onClick={() => setConfirmDelete(true)}>
+            Löschen
+          </button>
+        ) : null}
       </div>
+
+      {confirmDelete && activeTask ? (
+        <ConfirmDialog
+          title={`${label} wirklich löschen?`}
+          message="Diese Wartungsaufgabe wird gelöscht."
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            setIsSaving(true);
+            await onDelete(activeTask.id);
+            setIsSaving(false);
+            setConfirmDelete(false);
+          }}
+        />
+      ) : null}
     </article>
   );
 }
@@ -1126,6 +1222,7 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [adjusting, setAdjusting] = useState<{ id: string; mode: AdjustMode } | null>(null);
+  const [deletingPartId, setDeletingPartId] = useState<string | null>(null);
 
   const loadParts = useCallback(async () => {
     setIsLoading(true);
@@ -1153,6 +1250,12 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
     await createMachineSparePart(input);
     await loadParts();
     setShowAddForm(false);
+  }
+
+  async function handleDeletePart(id: string) {
+    await deleteMachineSparePart(id);
+    await loadParts();
+    setDeletingPartId(null);
   }
 
   return (
@@ -1233,6 +1336,13 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
                     >
                       + Hinzufügen
                     </button>
+                    <button
+                      className="button small gold"
+                      type="button"
+                      onClick={() => setDeletingPartId(part.id)}
+                    >
+                      ✕
+                    </button>
                   </div>
                 )}
               </div>
@@ -1240,6 +1350,15 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
           })}
         </div>
       )}
+
+      {deletingPartId !== null ? (
+        <ConfirmDialog
+          title={`${parts.find((p) => p.id === deletingPartId)?.name ?? "Ersatzteil"} wirklich löschen?`}
+          message="Das Ersatzteil wird aus dem Bestand gelöscht."
+          onCancel={() => setDeletingPartId(null)}
+          onConfirm={() => void handleDeletePart(deletingPartId)}
+        />
+      ) : null}
     </section>
   );
 }

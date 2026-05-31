@@ -11,7 +11,7 @@ import {
 } from "./maintenance";
 import { placeholderFarmId } from "./machines";
 import { scheduleReminderSync } from "./reminder-sync-scheduler";
-import { deriveAppIntervalType, isExtendedMaintenanceType, mapMaintenanceTypeToDb, mapIntervalTypeStringToDb } from "./db-mappers";
+import { deriveAppIntervalType, isExtendedMaintenanceType, mapMaintenanceTypeToDb, mapIntervalTypeStringToDb, type DbMaintenanceType } from "./db-mappers";
 import { buildMaintenanceTaskInsertPayload } from "./payload-builders";
 import { DB_CONSTRAINTS } from "./db-schema";
 
@@ -25,7 +25,7 @@ type MaintenanceTaskRow = {
   farm_id: string;
   machine_id: string;
   title: string;
-  type: MaintenanceTask["type"];
+  type: DbMaintenanceType;
   custom_title: string | null;
   status: MaintenanceTask["status"];
   due_date: string | null;
@@ -334,7 +334,7 @@ function mapMaintenanceTaskInputToRow(
   const isMonthsInterval = rawIntervalType === "months";
   const isCombinedInterval = rawIntervalType === "combined";
 
-  const mappedType = rawType ? (mapMaintenanceTypeToDb(rawType) as MaintenanceTask["type"]) : undefined;
+  const mappedType = rawType ? mapMaintenanceTypeToDb(rawType) : undefined;
   const mappedIntervalType = rawIntervalType ? mapIntervalTypeStringToDb(rawIntervalType) : undefined;
 
   assertUpdateDbValue("type", mappedType, DB_CONSTRAINTS.maintenanceTask.typeValues);

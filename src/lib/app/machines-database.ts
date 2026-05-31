@@ -30,16 +30,16 @@ type MachineRow = {
   current_kilometers: number | null;
   working_width_meters: number | null;
   hectares_per_hour: number | null;
-  insurance_per_year?: number;
-  tax_per_year?: number;
-  storage_per_year?: number;
-  other_fixed_costs_per_year?: number;
-  maintenance_costs_per_year?: number;
-  repair_costs_per_year?: number;
-  fuel_costs_per_hour?: number;
-  operator_costs_per_hour?: number;
-  other_variable_costs_per_hour?: number;
-  annual_kilometers?: number | null;
+  insurance_per_year: number | null;
+  tax_per_year: number | null;
+  storage_per_year: number | null;
+  other_fixed_costs_per_year: number | null;
+  maintenance_costs_per_year: number | null;
+  repair_costs_per_year: number | null;
+  fuel_costs_per_hour: number | null;
+  operator_costs_per_hour: number | null;
+  other_variable_costs_per_hour: number | null;
+  annual_kilometers: number | null;
   status: Machine["status"];
   notes: string | null;
   created_at: string;
@@ -243,15 +243,15 @@ function mapMachineRowToMachine(row: MachineRow): Machine {
     currentKilometers: row.current_kilometers,
     workingWidthMeters: row.working_width_meters,
     hectaresPerHour: row.hectares_per_hour,
-    insurancePerYear: row.insurance_per_year,
-    taxPerYear: row.tax_per_year,
-    storagePerYear: row.storage_per_year,
-    otherFixedCostsPerYear: row.other_fixed_costs_per_year,
-    maintenanceCostsPerYear: row.maintenance_costs_per_year,
-    repairCostsPerYear: row.repair_costs_per_year,
-    fuelCostsPerHour: row.fuel_costs_per_hour,
-    operatorCostsPerHour: row.operator_costs_per_hour,
-    otherVariableCostsPerHour: row.other_variable_costs_per_hour,
+    insurancePerYear: row.insurance_per_year ?? undefined,
+    taxPerYear: row.tax_per_year ?? undefined,
+    storagePerYear: row.storage_per_year ?? undefined,
+    otherFixedCostsPerYear: row.other_fixed_costs_per_year ?? undefined,
+    maintenanceCostsPerYear: row.maintenance_costs_per_year ?? undefined,
+    repairCostsPerYear: row.repair_costs_per_year ?? undefined,
+    fuelCostsPerHour: row.fuel_costs_per_hour ?? undefined,
+    operatorCostsPerHour: row.operator_costs_per_hour ?? undefined,
+    otherVariableCostsPerHour: row.other_variable_costs_per_hour ?? undefined,
     annualKilometers: row.annual_kilometers,
     status: row.status,
     notes: row.notes,
@@ -281,16 +281,16 @@ function mapMachineToRow(machine: Machine): MachineRow {
     current_kilometers: machine.currentKilometers,
     working_width_meters: machine.workingWidthMeters,
     hectares_per_hour: machine.hectaresPerHour,
-    insurance_per_year: machine.insurancePerYear,
-    tax_per_year: machine.taxPerYear,
-    storage_per_year: machine.storagePerYear,
-    other_fixed_costs_per_year: machine.otherFixedCostsPerYear,
-    maintenance_costs_per_year: machine.maintenanceCostsPerYear,
-    repair_costs_per_year: machine.repairCostsPerYear,
-    fuel_costs_per_hour: machine.fuelCostsPerHour,
-    operator_costs_per_hour: machine.operatorCostsPerHour,
-    other_variable_costs_per_hour: machine.otherVariableCostsPerHour,
-    annual_kilometers: machine.annualKilometers,
+    insurance_per_year: machine.insurancePerYear ?? null,
+    tax_per_year: machine.taxPerYear ?? null,
+    storage_per_year: machine.storagePerYear ?? null,
+    other_fixed_costs_per_year: machine.otherFixedCostsPerYear ?? null,
+    maintenance_costs_per_year: machine.maintenanceCostsPerYear ?? null,
+    repair_costs_per_year: machine.repairCostsPerYear ?? null,
+    fuel_costs_per_hour: machine.fuelCostsPerHour ?? null,
+    operator_costs_per_hour: machine.operatorCostsPerHour ?? null,
+    other_variable_costs_per_hour: machine.otherVariableCostsPerHour ?? null,
+    annual_kilometers: machine.annualKilometers ?? null,
     status: machine.status,
     notes: machine.notes,
     created_at: machine.createdAt,

@@ -1,8 +1,10 @@
 import { DB_CONSTRAINTS } from "./db-schema";
 
+export type DbMaintenanceType = typeof DB_CONSTRAINTS.maintenanceTask.typeValues[number];
+
 const DB_MAINTENANCE_TYPE_SET = new Set<string>(DB_CONSTRAINTS.maintenanceTask.typeValues);
 
-const APP_TO_DB_TYPE_MAP: Record<string, string> = {
+const APP_TO_DB_TYPE_MAP: Record<string, DbMaintenanceType> = {
   oil_engine: "oil_change",
   oil_hydraulic: "oil_change",
   oil_change: "oil_change",
@@ -24,7 +26,7 @@ const APP_TO_DB_TYPE_MAP: Record<string, string> = {
   other: "other",
 };
 
-export function mapMaintenanceTypeToDb(appType: string): string {
+export function mapMaintenanceTypeToDb(appType: string): DbMaintenanceType {
   return APP_TO_DB_TYPE_MAP[appType] ?? "other";
 }
 

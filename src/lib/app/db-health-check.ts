@@ -37,7 +37,7 @@ export async function checkDatabaseHealth(): Promise<DbHealthResult> {
 
   for (const table of REQUIRED_TABLES) {
     try {
-      const { error } = await supabase.from(table).select("id").limit(0);
+      const { error } = await supabase.from(table).select("id");
       const e = error as { code?: string; message?: string } | null;
 
       if (e?.code === "42P01") {
@@ -56,7 +56,7 @@ export async function checkDatabaseHealth(): Promise<DbHealthResult> {
     if (missing.includes(table)) continue;
 
     try {
-      const { error } = await supabase.from(table).select(column).limit(0);
+      const { error } = await supabase.from(table).select(column);
       const e = error as { code?: string; message?: string } | null;
 
       if (e?.code === "42703") {

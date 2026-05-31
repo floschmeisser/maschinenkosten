@@ -16,7 +16,6 @@ type MachineSparePartRow = {
   farm_id: string;
   machine_id: string;
   name: string;
-  category: MachineSparePart["category"];
   part_number: string | null;
   original_part_number: string | null;
   manufacturer: string | null;
@@ -234,7 +233,7 @@ function mapSparePartRowToSparePart(row: MachineSparePartRow): MachineSparePart 
     farmId: row.farm_id,
     machineId: row.machine_id,
     name: row.name,
-    category: row.category,
+    category: "other" as MachineSparePart["category"],
     partNumber: row.part_number,
     originalPartNumber: row.original_part_number,
     manufacturer: row.manufacturer,
@@ -256,7 +255,6 @@ function mapSparePartToRow(part: MachineSparePart): MachineSparePartRow {
     farm_id: part.farmId,
     machine_id: part.machineId,
     name: part.name,
-    category: part.category,
     part_number: part.partNumber,
     original_part_number: part.originalPartNumber,
     manufacturer: part.manufacturer,
@@ -279,7 +277,6 @@ function mapSparePartInputToRow(
     farm_id: input.farmId,
     machine_id: input.machineId,
     name: input.name,
-    category: input.category,
     part_number: input.partNumber,
     original_part_number: input.originalPartNumber,
     manufacturer: input.manufacturer,

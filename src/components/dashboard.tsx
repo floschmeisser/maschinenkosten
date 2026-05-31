@@ -307,6 +307,7 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
           date={selectedDate}
           events={getDayEvents(selectedDate)}
           machines={machines}
+          maintenanceTasks={maintenanceTasks}
           locale={locale}
           onAddClick={() => setPanelMode("create")}
           onClose={closePanel}
@@ -345,6 +346,8 @@ function WeekView({ weekStart, events, selectedDate, onDayClick }: WeekViewProps
         const dayEvents = events.filter((e) => e.eventDate === dateStr);
         const isToday = dateStr === todayStr;
         const isSelected = dateStr === selectedDate;
+        const visible = dayEvents.slice(0, 2);
+        const overflow = dayEvents.length - visible.length;
         return (
           <button
             key={dateStr}
@@ -354,11 +357,13 @@ function WeekView({ weekStart, events, selectedDate, onDayClick }: WeekViewProps
           >
             <span className="calendar-day-label">{dayLabels[i]}</span>
             <span className="calendar-day-num">{day.getDate()}</span>
-            <div className="calendar-day-events">
-              {dayEvents.slice(0, 3).map((event) => (
-                <span key={event.id} className={`calendar-event-dot ${event.source}`} title={event.title} />
-              ))}
-              {dayEvents.length > 3 ? <span className="calendar-event-more">+{dayEvents.length - 3}</span> : null}
+            <div className="calendar-day-chips">
+              {visible.map((event) => {
+                const urgency = event.source === "maintenance" ? getEventUrgency(event.eventDate) : null;
+                const cls = `cal-event-chip ${event.source}${urgency && urgency !== "ok" ? ` ${urgency}` : ""}`;
+                return <span key={event.id} className={cls} title={event.title}>{event.title}</span>;
+              })}
+              {overflow > 0 ? <span className="cal-event-more">+{overflow}</span> : null}
             </div>
           </button>
         );
@@ -396,6 +401,9 @@ function MonthView({ year, month, events, selectedDate, onDayClick }: MonthViewP
         const dayEvents = events.filter((e) => e.eventDate === dateStr);
         const isToday = dateStr === todayStr;
         const isSelected = dateStr === selectedDate;
+        const hasMaintenanceEvents = dayEvents.some((e) => e.source === "maintenance");
+        const hasDueOrSoonMaintenance = hasMaintenanceEvents && dayEvents.some((e) => e.source === "maintenance" && getEventUrgency(e.eventDate) !== "ok");
+        const barUrgency = hasDueOrSoonMaintenance ? "due" : hasMaintenanceEvents ? "ok" : null;
         return (
           <button
             key={dateStr}
@@ -404,11 +412,8 @@ function MonthView({ year, month, events, selectedDate, onDayClick }: MonthViewP
             onClick={() => onDayClick(dateStr)}
           >
             <span className="calendar-month-day-num">{dayNum}</span>
-            <div className="calendar-month-dots">
-              {dayEvents.slice(0, 3).map((event) => (
-                <span key={event.id} className={`calendar-event-dot ${event.source}`} />
-              ))}
-            </div>
+            {barUrgency !== null ? <span className={`calendar-month-bar ${barUrgency}`} /> : null}
+            {dayEvents.some((e) => e.source === "manual") ? <span className="calendar-month-bar manual" /> : null}
           </button>
         );
       })}
@@ -420,13 +425,14 @@ type DayDetailPanelProps = {
   date: string;
   events: CalendarEvent[];
   machines: MachineSummary[];
+  maintenanceTasks: MaintenanceTask[];
   locale: Locale;
   onAddClick: () => void;
   onClose: () => void;
   onDeleteEvent?: (id: string) => Promise<void>;
 };
 
-function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose, onDeleteEvent }: DayDetailPanelProps) {
+function DayDetailPanel({ date, events, machines, maintenanceTasks, locale, onAddClick, onClose, onDeleteEvent }: DayDetailPanelProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -447,16 +453,24 @@ function DayDetailPanel({ date, events, machines, locale, onAddClick, onClose, o
         {events.map((event) => {
           if (event.source === "maintenance") {
             const machine = machines.find((m) => m.id === event.machineId);
+            const taskId = event.id.startsWith("task-") ? event.id.slice(5) : null;
+            const task = taskId ? maintenanceTasks.find((t) => t.id === taskId) : null;
+            const urgency = getEventUrgency(event.eventDate);
+            const dueText = task ? getDashboardDueText(task, machine ?? undefined) : null;
+            const typeLabel = task ? getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined) : event.title;
             return (
-              <li key={event.id} className="calendar-day-event maintenance">
-                <Link href={`/${locale}/machines/${event.machineId}`} className="calendar-day-event-link">
-                  <span className="calendar-event-dot maintenance calendar-day-event-dot" />
-                  <div className="calendar-day-event-body">
-                    <strong>{machine?.name ?? "Maschine"}</strong>
-                    <span className="muted">{event.title}</span>
-                  </div>
-                  <span className="calendar-day-event-arrow" aria-hidden>›</span>
-                </Link>
+              <li key={event.id} className={`calendar-day-event-card ${urgency}`}>
+                <div className="calendar-day-event-card-body">
+                  <strong className="calendar-day-event-card-type">
+                    <span className="calendar-day-event-card-icon">{getMaintenanceChipIcon(task?.type ?? "")}</span>
+                    {typeLabel}
+                  </strong>
+                  <span className="calendar-day-event-card-meta">
+                    {machine?.name ?? "Maschine"}
+                    {dueText ? <span className="muted"> · {dueText}</span> : null}
+                  </span>
+                </div>
+                <Link href={`/${locale}/machines/${event.machineId}`} className="calendar-day-event-card-link">→ Öffnen</Link>
               </li>
             );
           }
@@ -728,4 +742,24 @@ function toDateString(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function getEventUrgency(eventDate: string): "due" | "soon" | "ok" {
+  const today = toDateString(new Date());
+  if (eventDate <= today) return "due";
+  const daysUntil = Math.round((new Date(eventDate + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000);
+  if (daysUntil <= 30) return "soon";
+  return "ok";
+}
+
+function getMaintenanceChipIcon(type: string): string {
+  switch (type) {
+    case "oil_change": return "🛢";
+    case "filter": return "🔧";
+    case "tire": return "⚙️";
+    case "brake": return "🔴";
+    case "inspection": return "🔍";
+    case "cleaning": return "🧹";
+    default: return "🔧";
+  }
 }

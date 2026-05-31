@@ -1,41 +1,57 @@
 :root {
-  --color-bg: #eef2e8;
-  --color-surface: #ffffff;
-  --color-primary: #2d5a1b;
-  --color-primary-strong: #1a3a0f;
-  --color-warning: #e8a84a;
-  --color-danger: #e8a84a;
-  --color-earth: #243020;
-  --color-text: #1a3a0f;
+  /* Palette */
+  --color-ink: #0f1410;
+  --color-accent: #2d5a1b;
+  --color-accent-2: #4a8c2a;
+  --color-accent-mid: #c4ddb4;
+  --color-accent-light: #eaf2e3;
+  --color-ink-2: #243020;
   --color-muted: #56645a;
+  --color-subtle: #8a9a88;
   --color-border: #d4dbd0;
-  --color-primary-soft: #eaf2e3;
-  --color-warning-soft: #fdf3e0;
-  --color-danger-soft: #fdf3e0;
-  --color-earth-soft: #eef2e8;
-  --color-highlight: #c8dba0;
-  --color-success: #4a8c2a;
-  --color-success-soft: #eaf2e3;
+  --color-surface: #f3f5f0;
+  --color-sand: #f8f7f3;
+  --color-gold: #7a5c2e;
+  --color-gold-soft: #f4ead6;
+  --color-white: #ffffff;
   --color-info: #5b8fc0;
-  --background: var(--color-bg);
-  --surface: var(--color-surface);
-  --surface-muted: #eef2e8;
-  --text: var(--color-text);
+
+  /* Semantic */
+  --background: var(--color-surface);
+  --surface: var(--color-white);
+  --surface-muted: var(--color-surface);
+  --text: var(--color-ink);
   --muted: var(--color-muted);
   --border: var(--color-border);
-  --primary: var(--color-primary);
-  --primary-dark: var(--color-primary-strong);
-  --accent: var(--color-warning);
-  --warning: var(--color-warning);
-  --earth: var(--color-earth);
-  --danger: var(--color-danger);
-  --success: var(--color-success);
-  --success-soft: var(--color-success-soft);
-  --warning-soft: var(--color-warning-soft);
-  --danger-soft: var(--color-danger-soft);
-  --primary-soft: var(--color-primary-soft);
-  --earth-soft: var(--color-earth-soft);
-  --highlight: var(--color-highlight);
+  --primary: var(--color-accent);
+  --primary-dark: var(--color-ink-2);
+  --accent: var(--color-gold);
+  --warning: var(--color-gold);
+  --earth: var(--color-ink-2);
+  --danger: var(--color-gold);
+  --success: var(--color-accent-2);
+  --success-soft: var(--color-accent-light);
+  --warning-soft: var(--color-gold-soft);
+  --danger-soft: var(--color-gold-soft);
+  --primary-soft: var(--color-accent-light);
+  --earth-soft: var(--color-surface);
+  --highlight: var(--color-accent-mid);
+
+  /* Compatibility aliases */
+  --color-bg: var(--color-surface);
+  --color-primary: var(--color-accent);
+  --color-primary-strong: var(--color-ink-2);
+  --color-warning: var(--color-gold);
+  --color-danger: var(--color-gold);
+  --color-earth: var(--color-ink-2);
+  --color-text: var(--color-ink);
+  --color-primary-soft: var(--color-accent-light);
+  --color-warning-soft: var(--color-gold-soft);
+  --color-danger-soft: var(--color-gold-soft);
+  --color-earth-soft: var(--color-surface);
+  --color-highlight: var(--color-accent-mid);
+  --color-success: var(--color-accent-2);
+  --color-success-soft: var(--color-accent-light);
 }
 
 * {
@@ -3183,12 +3199,12 @@ td span {
 }
 
 .maintenance-type-card.due {
-  border-color: #e8a84a;
-  background: #fef9ec;
+  border-color: var(--color-gold);
+  background: var(--color-gold-soft);
 }
 
 .maintenance-type-card.soon {
-  border-color: #e8a84a;
+  border-color: var(--color-gold);
   background: var(--warning-soft);
 }
 
@@ -3222,15 +3238,15 @@ td span {
 }
 
 .urgency-chip.due {
-  border-color: #e8a84a;
-  background: #fef9ec;
-  color: #854f0b;
+  border-color: var(--color-gold);
+  background: var(--color-gold-soft);
+  color: var(--color-gold);
 }
 
 .urgency-chip.soon {
-  border-color: #e8a84a;
-  background: #fef9ec;
-  color: #b07c10;
+  border-color: var(--color-gold);
+  background: var(--color-gold-soft);
+  color: var(--color-gold);
 }
 
 .urgency-chip.planned {
@@ -3741,8 +3757,8 @@ td span {
 }
 
 .spare-part-tab-row.low-stock {
-  border-color: #e8a84a;
-  background: #fef9ec;
+  border-color: var(--color-gold);
+  background: var(--color-gold-soft);
 }
 
 .spare-part-tab-main {
@@ -3796,9 +3812,9 @@ td span {
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #fef9ec;
-  border: 1px solid #e8a84a;
-  color: #b07c10;
+  background: var(--color-gold-soft);
+  border: 1px solid var(--color-gold);
+  color: var(--color-gold);
   font-size: 11px;
   font-weight: 700;
   margin-top: 2px;

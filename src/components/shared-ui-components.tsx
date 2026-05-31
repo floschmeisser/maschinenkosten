@@ -92,7 +92,7 @@ export function LoginPanel({ locale = "de" }: LoginPanelProps) {
         return;
       }
 
-      setMessage("Pruefe dein E-Mail-Postfach.");
+      setMessage("Prüfe dein E-Mail-Postfach.");
     } finally {
       setIsSending(false);
     }

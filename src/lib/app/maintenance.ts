@@ -101,7 +101,7 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     lastDoneReading: 2250,
     estimatedCost: 360,
     actualCost: null,
-    notes: "Motor- und Hydraulikoelstand kontrollieren.",
+    notes: "Motor- und Hydraulikölstand kontrollieren.",
     completedAt: null,
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"

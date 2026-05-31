@@ -8,6 +8,11 @@ export type SupabaseUser = {
   email?: string;
 };
 
+export type SupabaseSession = {
+  user: SupabaseUser;
+  access_token: string;
+};
+
 export type SupabaseClientLike = {
   from: (table: string) => {
     select: (columns?: string) => Promise<SupabaseQueryResult>;
@@ -17,6 +22,7 @@ export type SupabaseClientLike = {
   };
   auth: {
     getUser: () => Promise<{ data: { user: SupabaseUser | null } }>;
+    getSession: () => Promise<{ data: { session: SupabaseSession | null }; error: Error | null }>;
     signInWithOtp: (options: { email: string; options?: { emailRedirectTo?: string } }) => Promise<{ error: Error | null }>;
     signInWithPassword: (credentials: { email: string; password: string }) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
@@ -31,16 +37,14 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function warnSupabaseFallback(message: string, error?: unknown): void {
-  if (process.env.NODE_ENV !== "development") {
-    return;
-  }
-
   if (error) {
-    console.warn(`[MaschinenKosten] Supabase fallback: ${message}`, error);
+    console.error(`[MaschinenKosten] Supabase error: ${message}`, error);
     return;
   }
 
-  console.warn(`[MaschinenKosten] Supabase fallback: ${message}`);
+  if (process.env.NODE_ENV === "development") {
+    console.warn(`[MaschinenKosten] Supabase fallback: ${message}`);
+  }
 }
 
 export async function runSupabaseQuery<T>(

@@ -81,7 +81,10 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
   const now = new Date().toISOString();
   const fallback: CalendarEvent = { ...input, farmId, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
 
+  console.log("[calendar] insert attempt", { farmId, title: input.title, date: input.eventDate, hasSource: !!source });
+
   if (!source) {
+    console.warn("[calendar] no data source — event saved in-memory only (demo mode or auth issue)");
     fallbackEvents = [fallback, ...fallbackEvents];
     return fallback;
   }
@@ -91,7 +94,10 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
     "Kalendereintrag konnte nicht angelegt werden."
   );
 
+  console.log("[calendar] insert result", { ok: !!result?.data, error: result === null ? "query failed" : null });
+
   if (!result?.data) {
+    console.error("[calendar] insert failed — event saved in-memory only, will be lost on reload");
     fallbackEvents = [fallback, ...fallbackEvents];
     return fallback;
   }

@@ -16,14 +16,11 @@ export async function getCurrentUser() {
   }
 
   try {
-    const timeout = new Promise<{ data: { user: null } }>((resolve) =>
-      setTimeout(() => resolve({ data: { user: null } }), 3000)
-    );
-    const { data } = await Promise.race([
-      supabase.auth.getUser() as Promise<{ data: { user: SupabaseUser | null } }>,
-      timeout
-    ]);
-    return data.user;
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
+      return null;
+    }
+    return data.session.user;
   } catch (error) {
     warnSupabaseFallback("Benutzer konnte nicht geladen werden.", error);
     return null;

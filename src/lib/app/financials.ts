@@ -110,31 +110,31 @@ export function calculateWarnings(input: MachineCostInput): string[] {
   }
 
   if (input.expectedUsefulLifeYears <= 0) {
-    warnings.push("Nutzungsdauer muss groesser als 0 sein.");
+    warnings.push("Nutzungsdauer muss größer als 0 sein.");
   }
 
   if (input.unit !== "km" && input.annualOperatingHours <= 0) {
-    warnings.push("Jaehrliche Betriebsstunden fehlen. Kosten je Stunde sind nicht berechenbar.");
+    warnings.push("Jährliche Betriebsstunden fehlen. Kosten je Stunde sind nicht berechenbar.");
   }
 
   if (input.unit === "km" && (input.annualKilometers === null || input.annualKilometers <= 0)) {
-    warnings.push("Jaehrliche Kilometer fehlen. Kosten je Kilometer sind nicht berechenbar.");
+    warnings.push("Jährliche Kilometer fehlen. Kosten je Kilometer sind nicht berechenbar.");
   }
 
   if (input.residualValue > input.purchasePrice) {
-    warnings.push("Restwert ist hoeher als Anschaffungspreis.");
+    warnings.push("Restwert ist höher als Anschaffungspreis.");
   }
 
   if (input.hectaresPerHour !== null && input.hectaresPerHour <= 0) {
-    warnings.push("Hektarleistung muss groesser als 0 sein.");
+    warnings.push("Hektarleistung muss größer als 0 sein.");
   }
 
   if (input.annualKilometers !== null && input.annualKilometers <= 0) {
-    warnings.push("Jaehrliche Kilometer muessen groesser als 0 sein.");
+    warnings.push("Jährliche Kilometer müssen größer als 0 sein.");
   }
 
   if (input.currentValue > input.purchasePrice * 1.25) {
-    warnings.push("Aktueller Wert wirkt ungewoehnlich hoch.");
+    warnings.push("Aktueller Wert wirkt ungewöhnlich hoch.");
   }
 
   if (input.currentOperatingHours < 0 || (input.currentKilometers !== null && input.currentKilometers < 0)) {

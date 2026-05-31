@@ -135,7 +135,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     id: "spare-1111-4111-8111-111111111111",
     farmId: placeholderFarmId,
     machineId: "11111111-1111-4111-8111-111111111111",
-    name: "Oelfilter",
+    name: "Ölfilter",
     category: "filter",
     partNumber: "OF-120",
     originalPartNumber: "FDT-742120",
@@ -154,11 +154,11 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     id: "spare-2222-4222-8222-222222222222",
     farmId: placeholderFarmId,
     machineId: "33333333-3333-4333-8333-333333333333",
-    name: "Maehklinge links",
+    name: "Mähklinge links",
     category: "blade",
     partNumber: "MK-L-301",
     originalPartNumber: null,
-    manufacturer: "Poettinger",
+    manufacturer: "Pöttinger",
     supplier: "Landtechnik",
     stockQuantity: 4,
     minimumStockQuantity: 4,
@@ -183,7 +183,7 @@ export const placeholderMachineDocuments: MachineDocument[] = [
     fileSize: null,
     mimeType: "application/pdf",
     uploadedAt: null,
-    notes: "Metadaten-Beispiel. Datei kann spaeter in Supabase Storage liegen.",
+    notes: "Metadaten-Beispiel. Datei kann später in Supabase Storage liegen.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
@@ -236,7 +236,7 @@ export const placeholderMachines: Machine[] = [
     otherVariableCostsPerHour: 3,
     annualKilometers: null,
     status: "active",
-    notes: "Haupttraktor fuer Feldarbeit und Transport.",
+    notes: "Haupttraktor für Feldarbeit und Transport.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
@@ -271,17 +271,17 @@ export const placeholderMachines: Machine[] = [
     otherVariableCostsPerHour: 2,
     annualKilometers: null,
     status: "active",
-    notes: "Taegliche Stall- und Hofarbeiten.",
+    notes: "Tägliche Stall- und Hofarbeiten.",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
   {
     id: "33333333-3333-4333-8333-333333333333",
     farmId: placeholderFarmId,
-    name: "Frontmaehwerk",
+    name: "Frontmähwerk",
     category: "grassland",
     unit: "hours",
-    manufacturer: "Poettinger",
+    manufacturer: "Pöttinger",
     model: "Novacat 301",
     yearOfManufacture: 2020,
     purchaseDate: "2020-04-20",
@@ -316,14 +316,14 @@ const categoryLabels: Record<MachineCategory, string> = {
   tractor: "Traktor",
   loader: "Lader",
   harvester: "Ernte",
-  grassland: "Gruenland",
+  grassland: "Grünland",
   tillage: "Bodenbearbeitung",
   transport: "Transport",
   sprayer: "Spritze",
-  slurry: "Guelletechnik",
-  trailer: "Anhaenger",
+  slurry: "Gülletechnik",
+  trailer: "Anhänger",
   press: "Presse",
-  chainsaw: "Motorsaege",
+  chainsaw: "Motorsäge",
   vehicle: "PKW/Transporter",
   other: "Sonstige"
 };
@@ -467,7 +467,7 @@ export function validateMachineUsageUpdate(input: MachineUsageUpdateInput, curre
     input.currentOperatingHours !== null &&
     input.currentOperatingHours < currentMachine.currentOperatingHours
   ) {
-    messages.push("Betriebsstunden duerfen nicht niedriger sein als der aktuelle Stand.");
+    messages.push("Betriebsstunden dürfen nicht niedriger sein als der aktuelle Stand.");
   }
 
   if (
@@ -476,7 +476,7 @@ export function validateMachineUsageUpdate(input: MachineUsageUpdateInput, curre
     currentMachine.currentKilometers !== null &&
     input.currentKilometers < currentMachine.currentKilometers
   ) {
-    messages.push("Kilometer duerfen nicht niedriger sein als der aktuelle Stand.");
+    messages.push("Kilometer dürfen nicht niedriger sein als der aktuelle Stand.");
   }
 
   return messages;

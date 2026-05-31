@@ -171,8 +171,8 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
 
         <fieldset className="form-section">
           <legend>Kosten & Notizen</legend>
-          <NumberField label="Geschaetzte Kosten" value={form.estimatedCost} onChange={(value) => updateField("estimatedCost", value)} />
-          <NumberField label="Tatsaechliche Kosten" value={form.actualCost} onChange={(value) => updateField("actualCost", value)} />
+          <NumberField label="Geschätzte Kosten" value={form.estimatedCost} onChange={(value) => updateField("estimatedCost", value)} />
+          <NumberField label="Tatsächliche Kosten" value={form.actualCost} onChange={(value) => updateField("actualCost", value)} />
           <label>
             Notiz
             <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} rows={3} />

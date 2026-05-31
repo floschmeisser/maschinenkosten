@@ -3,9 +3,18 @@ import type { CreateMaintenanceTaskInput } from "./maintenance";
 import type { Reminder } from "./reminders";
 import type { CalendarEvent } from "./calendar-events";
 import { mapMaintenanceTypeToDb, isExtendedMaintenanceType, mapIntervalTypeToDb } from "./db-mappers";
+import { DB_CONSTRAINTS } from "./db-schema";
+
+function assertDbValue(field: string, value: unknown, allowed: readonly string[]): void {
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
+    throw new Error(
+      `[payload-builders] Invalid ${field}: "${value}". Allowed: [${(allowed as readonly string[]).join(", ")}]`
+    );
+  }
+}
 
 export function buildMachineInsertPayload(input: CreateMachineInput, farmId: string) {
-  return {
+  const payload = {
     farm_id: farmId,
     name: input.name.trim(),
     category: input.category ?? "other",
@@ -37,6 +46,10 @@ export function buildMachineInsertPayload(input: CreateMachineInput, farmId: str
     status: input.status ?? "active",
     notes: input.notes ?? null,
   };
+  assertDbValue("machine.status", payload.status, DB_CONSTRAINTS.machine.statusValues);
+  assertDbValue("machine.unit", payload.unit, DB_CONSTRAINTS.machine.unitValues);
+  assertDbValue("machine.category", payload.category, DB_CONSTRAINTS.machine.categoryValues);
+  return payload;
 }
 
 export function buildMaintenanceTaskInsertPayload(input: CreateMaintenanceTaskInput, farmId: string) {
@@ -49,7 +62,7 @@ export function buildMaintenanceTaskInsertPayload(input: CreateMaintenanceTaskIn
     : (input.intervalDays ?? null);
   const dbIntervalMonths = hasMonths ? (input.intervalMonths ?? null) : null;
 
-  return {
+  const payload = {
     farm_id: farmId,
     machine_id: input.machineId,
     title: input.title,
@@ -75,6 +88,10 @@ export function buildMaintenanceTaskInsertPayload(input: CreateMaintenanceTaskIn
     notes: input.notes ?? null,
     completed_at: null as null,
   };
+  assertDbValue("maintenanceTask.type", payload.type, DB_CONSTRAINTS.maintenanceTask.typeValues);
+  assertDbValue("maintenanceTask.interval_type", payload.interval_type, DB_CONSTRAINTS.maintenanceTask.intervalTypeValues);
+  assertDbValue("maintenanceTask.status", payload.status, DB_CONSTRAINTS.maintenanceTask.statusValues);
+  return payload;
 }
 
 export function buildSparePartInsertPayload(input: CreateMachineSparePartInput, farmId: string) {
@@ -97,7 +114,7 @@ export function buildSparePartInsertPayload(input: CreateMachineSparePartInput, 
 }
 
 export function buildCalendarEventInsertPayload(event: CalendarEvent) {
-  return {
+  const payload = {
     id: event.id,
     farm_id: event.farmId,
     machine_id: event.machineId ?? null,
@@ -110,10 +127,12 @@ export function buildCalendarEventInsertPayload(event: CalendarEvent) {
     created_at: event.createdAt,
     updated_at: event.updatedAt,
   };
+  assertDbValue("calendarEvent.source", payload.source, DB_CONSTRAINTS.calendarEvent.sourceValues);
+  return payload;
 }
 
 export function buildReminderInsertPayload(reminder: Reminder) {
-  return {
+  const payload = {
     id: reminder.id,
     farm_id: reminder.farmId,
     reminder_key: reminder.reminderKey,
@@ -132,4 +151,6 @@ export function buildReminderInsertPayload(reminder: Reminder) {
     created_at: reminder.createdAt,
     updated_at: reminder.updatedAt,
   };
+  assertDbValue("reminder.status", payload.status, DB_CONSTRAINTS.reminder.statusValues);
+  return payload;
 }

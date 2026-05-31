@@ -13,6 +13,7 @@ import { placeholderFarmId } from "./machines";
 import { scheduleReminderSync } from "./reminder-sync-scheduler";
 import { deriveAppIntervalType, isExtendedMaintenanceType, mapMaintenanceTypeToDb, mapIntervalTypeStringToDb } from "./db-mappers";
 import { buildMaintenanceTaskInsertPayload } from "./payload-builders";
+import { DB_CONSTRAINTS } from "./db-schema";
 
 export type CompleteMaintenanceTaskResult = {
   completedTask: MaintenanceTask | null;
@@ -316,6 +317,15 @@ function mapMaintenanceTaskRowToTask(row: MaintenanceTaskRow): MaintenanceTask {
   };
 }
 
+function assertUpdateDbValue(field: string, value: unknown, allowed: readonly string[]): void {
+  if (value === undefined) return;
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
+    throw new Error(
+      `[maintenance-database] Invalid ${field} in UPDATE: "${value}". Allowed: [${(allowed as readonly string[]).join(", ")}]`
+    );
+  }
+}
+
 function mapMaintenanceTaskInputToRow(
   input: Partial<CreateMaintenanceTaskInput & Pick<MaintenanceTask, "completedAt" | "lastDoneReading" | "updatedAt">>
 ): Partial<MaintenanceTaskRow> {
@@ -324,17 +334,24 @@ function mapMaintenanceTaskInputToRow(
   const isMonthsInterval = rawIntervalType === "months";
   const isCombinedInterval = rawIntervalType === "combined";
 
+  const mappedType = rawType ? (mapMaintenanceTypeToDb(rawType) as MaintenanceTask["type"]) : undefined;
+  const mappedIntervalType = rawIntervalType ? mapIntervalTypeStringToDb(rawIntervalType) : undefined;
+
+  assertUpdateDbValue("type", mappedType, DB_CONSTRAINTS.maintenanceTask.typeValues);
+  assertUpdateDbValue("interval_type", mappedIntervalType, DB_CONSTRAINTS.maintenanceTask.intervalTypeValues);
+  assertUpdateDbValue("status", input.status, DB_CONSTRAINTS.maintenanceTask.statusValues);
+
   return {
     farm_id: input.farmId,
     machine_id: input.machineId,
     title: input.title,
-    type: rawType ? (mapMaintenanceTypeToDb(rawType) as MaintenanceTask["type"]) : undefined,
+    type: mappedType,
     custom_title: rawType && isExtendedMaintenanceType(rawType) ? rawType : input.customTitle,
     status: input.status,
     due_date: input.dueDate,
     due_operating_hours: input.dueOperatingHours,
     due_kilometers: input.dueKilometers,
-    interval_type: rawIntervalType ? mapIntervalTypeStringToDb(rawIntervalType) : undefined,
+    interval_type: mappedIntervalType,
     interval_days: isMonthsInterval ? ((input.intervalMonths ?? 0) * 30 || null) : input.intervalDays,
     interval_months: (isMonthsInterval || isCombinedInterval) ? (input.intervalMonths ?? null) : input.intervalMonths,
     interval_operating_hours: input.intervalOperatingHours,

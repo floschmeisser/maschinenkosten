@@ -8,6 +8,7 @@ import {
 } from "./machines";
 import { getCurrentFarm, type Farm } from "./farms-database";
 import { scheduleReminderSync } from "./reminder-sync-scheduler";
+import { buildMachineInsertPayload } from "./payload-builders";
 
 type MachineRow = {
   id: string;
@@ -115,45 +116,14 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
     return fallbackMachine;
   }
 
-  const payload: Partial<MachineRow> = {
-    id,
-    farm_id: farmId,
-    name: input.name,
-    category: input.category ?? "other",
-    unit: input.unit ?? "hours",
-    manufacturer: input.manufacturer ?? "",
-    model: input.model ?? "",
-    year_of_manufacture: input.yearOfManufacture ?? new Date().getFullYear(),
-    purchase_date: input.purchaseDate ?? null,
-    purchase_price: input.purchasePrice ?? 0,
-    new_price: input.newPrice ?? input.purchasePrice ?? 0,
-    current_value: input.currentValue ?? 0,
-    residual_value: input.residualValue ?? 0,
-    expected_useful_life_years: input.expectedUsefulLifeYears ?? 10,
-    annual_operating_hours: input.annualOperatingHours ?? 0,
-    current_operating_hours: input.currentOperatingHours ?? 0,
-    current_kilometers: input.currentKilometers ?? null,
-    working_width_meters: input.workingWidthMeters ?? null,
-    hectares_per_hour: input.hectaresPerHour ?? null,
-    insurance_per_year: input.insurancePerYear ?? null,
-    tax_per_year: input.taxPerYear ?? null,
-    storage_per_year: input.storagePerYear ?? null,
-    other_fixed_costs_per_year: input.otherFixedCostsPerYear ?? null,
-    maintenance_costs_per_year: input.maintenanceCostsPerYear ?? null,
-    repair_costs_per_year: input.repairCostsPerYear ?? null,
-    fuel_costs_per_hour: input.fuelCostsPerHour ?? null,
-    operator_costs_per_hour: input.operatorCostsPerHour ?? null,
-    other_variable_costs_per_hour: input.otherVariableCostsPerHour ?? null,
-    annual_kilometers: input.annualKilometers ?? null,
-    status: input.status ?? "active",
-    notes: input.notes ?? null,
-  };
-
-  const { data, error } = await source.table.insert(payload).select("*").single();
+  const { data, error } = await source.table
+    .insert({ id, ...buildMachineInsertPayload(input, farmId) })
+    .select("*")
+    .single();
 
   if (error) {
     const e = error as { message?: string; code?: string; details?: string; hint?: string };
-    console.error("[machines] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, payload });
+    console.error("[machines] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, input, farmId });
     throw new Error(`Maschine konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 

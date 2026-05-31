@@ -8,6 +8,7 @@ import {
   type UpdateCalendarEventInput
 } from "./calendar-events";
 import { scheduleReminderSync } from "./reminder-sync-scheduler";
+import { buildCalendarEventInsertPayload } from "./payload-builders";
 
 type CalendarEventRow = {
   id: string;
@@ -81,28 +82,27 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
   const now = new Date().toISOString();
   const fallback: CalendarEvent = { ...input, farmId, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
 
-  console.log("[calendar] insert attempt", { farmId, title: input.title, date: input.eventDate, hasSource: !!source });
-
   if (!source) {
-    console.warn("[calendar] no data source — event saved in-memory only (demo mode or auth issue)");
     fallbackEvents = [fallback, ...fallbackEvents];
     return fallback;
   }
 
-  const result = await runSupabaseQuery(
-    () => source.table.insert(mapEventToRow(fallback)).select("*").single(),
-    "Kalendereintrag konnte nicht angelegt werden."
-  );
+  const { data, error } = await source.table
+    .insert(buildCalendarEventInsertPayload(fallback))
+    .select("*")
+    .single();
 
-  console.log("[calendar] insert result", { ok: !!result?.data, error: result === null ? "query failed" : null });
-
-  if (!result?.data) {
-    console.error("[calendar] insert failed — event saved in-memory only, will be lost on reload");
-    fallbackEvents = [fallback, ...fallbackEvents];
-    return fallback;
+  if (error) {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[calendar_events] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, title: input.title });
+    throw new Error(`Kalendereintrag konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 
-  const created = mapRowToEvent(result.data);
+  if (!data) {
+    throw new Error("Kalendereintrag angelegt, aber keine Bestätigung vom Server erhalten.");
+  }
+
+  const created = mapRowToEvent(data);
   fallbackEvents = [created, ...fallbackEvents.filter((e) => e.id !== created.id)];
   return created;
 }

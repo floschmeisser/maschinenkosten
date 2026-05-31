@@ -9,6 +9,7 @@ import {
   type UpdateMachineSparePartInput
 } from "./machines";
 import { scheduleReminderSync } from "./reminder-sync-scheduler";
+import { buildSparePartInsertPayload } from "./payload-builders";
 
 type MachineSparePartRow = {
   id: string;
@@ -95,29 +96,14 @@ export async function createMachineSparePart(input: CreateMachineSparePartInput)
     return fallbackPart;
   }
 
-  const payload: Partial<MachineSparePartRow> = {
-    id,
-    farm_id: farmId,
-    machine_id: input.machineId,
-    name: input.name,
-    category: input.category ?? "other",
-    part_number: input.partNumber ?? null,
-    original_part_number: input.originalPartNumber ?? null,
-    manufacturer: input.manufacturer ?? null,
-    supplier: input.supplier ?? null,
-    stock_quantity: input.stockQuantity ?? 0,
-    minimum_stock_quantity: input.minimumStockQuantity ?? 0,
-    unit: input.unit ?? "Stk.",
-    storage_location: input.storageLocation ?? null,
-    purchase_price: input.purchasePrice ?? null,
-    notes: input.notes ?? null,
-  };
-
-  const { data, error } = await source.table.insert(payload).select("*").single();
+  const { data, error } = await source.table
+    .insert({ id, ...buildSparePartInsertPayload(input, farmId) })
+    .select("*")
+    .single();
 
   if (error) {
     const e = error as { message?: string; code?: string; details?: string; hint?: string };
-    console.error("[machine_spare_parts] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, payload });
+    console.error("[machine_spare_parts] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, input, farmId });
     throw new Error(`Ersatzteil konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 

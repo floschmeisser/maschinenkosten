@@ -11,6 +11,7 @@ import {
   type ReminderStatus,
   type UpdateReminderInput
 } from "./reminders";
+import { buildReminderInsertPayload } from "./payload-builders";
 
 type ReminderRow = {
   id: string;
@@ -106,7 +107,7 @@ export async function createReminder(input: CreateReminderInput): Promise<Remind
   }
 
   const result = await runSupabaseQuery(
-    () => source.table.insert(mapReminderToRow(reminder)).select("*").single(),
+    () => source.table.insert(buildReminderInsertPayload(reminder)).select("*").single(),
     "Erinnerung konnte nicht angelegt werden."
   );
 

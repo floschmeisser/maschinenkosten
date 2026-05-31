@@ -106,13 +106,8 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
   const source = await getMachinesDataSource();
   const farmId = source?.farm.id ?? input.farmId;
   const now = new Date().toISOString();
-  const fallbackMachine: Machine = {
-    ...input,
-    farmId,
-    id: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now
-  };
+  const id = crypto.randomUUID();
+  const fallbackMachine: Machine = { ...input, farmId, id, createdAt: now, updatedAt: now };
 
   if (!source) {
     fallbackMachines = [fallbackMachine, ...fallbackMachines];
@@ -120,19 +115,54 @@ export async function createMachine(input: CreateMachineInput): Promise<Machine>
     return fallbackMachine;
   }
 
-  const result = await runSupabaseQuery(
-    () => source.table.insert(mapMachineToRow(fallbackMachine)).select("*").single(),
-    "Maschine konnte nicht angelegt werden."
-  );
+  const payload: Partial<MachineRow> = {
+    id,
+    farm_id: farmId,
+    name: input.name,
+    category: input.category ?? "other",
+    unit: input.unit ?? "hours",
+    manufacturer: input.manufacturer ?? "",
+    model: input.model ?? "",
+    year_of_manufacture: input.yearOfManufacture ?? new Date().getFullYear(),
+    purchase_date: input.purchaseDate ?? null,
+    purchase_price: input.purchasePrice ?? 0,
+    new_price: input.newPrice ?? input.purchasePrice ?? 0,
+    current_value: input.currentValue ?? 0,
+    residual_value: input.residualValue ?? 0,
+    expected_useful_life_years: input.expectedUsefulLifeYears ?? 10,
+    annual_operating_hours: input.annualOperatingHours ?? 0,
+    current_operating_hours: input.currentOperatingHours ?? 0,
+    current_kilometers: input.currentKilometers ?? null,
+    working_width_meters: input.workingWidthMeters ?? null,
+    hectares_per_hour: input.hectaresPerHour ?? null,
+    insurance_per_year: input.insurancePerYear ?? null,
+    tax_per_year: input.taxPerYear ?? null,
+    storage_per_year: input.storagePerYear ?? null,
+    other_fixed_costs_per_year: input.otherFixedCostsPerYear ?? null,
+    maintenance_costs_per_year: input.maintenanceCostsPerYear ?? null,
+    repair_costs_per_year: input.repairCostsPerYear ?? null,
+    fuel_costs_per_hour: input.fuelCostsPerHour ?? null,
+    operator_costs_per_hour: input.operatorCostsPerHour ?? null,
+    other_variable_costs_per_hour: input.otherVariableCostsPerHour ?? null,
+    annual_kilometers: input.annualKilometers ?? null,
+    status: input.status ?? "active",
+    notes: input.notes ?? null,
+  };
 
-  if (!result?.data) {
-    fallbackMachines = [fallbackMachine, ...fallbackMachines];
-    triggerReminderSync();
-    return fallbackMachine;
+  const { data, error } = await source.table.insert(payload).select("*").single();
+
+  if (error) {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[machines] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, payload });
+    throw new Error(`Maschine konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 
-  const createdMachine = mapMachineRowToMachine(result.data);
-  fallbackMachines = [createdMachine, ...fallbackMachines.filter((machine) => machine.id !== createdMachine.id)];
+  if (!data) {
+    throw new Error("Maschine angelegt, aber keine Bestätigung vom Server erhalten.");
+  }
+
+  const createdMachine = mapMachineRowToMachine(data);
+  fallbackMachines = [createdMachine, ...fallbackMachines.filter((m) => m.id !== createdMachine.id)];
   triggerReminderSync();
   return createdMachine;
 }

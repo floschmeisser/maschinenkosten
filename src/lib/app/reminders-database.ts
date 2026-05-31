@@ -111,6 +111,7 @@ export async function createReminder(input: CreateReminderInput): Promise<Remind
   );
 
   if (!result?.data) {
+    console.warn("[reminders] INSERT failed or returned no data", { reminderKey: reminder.reminderKey, type: reminder.type });
     const existingReminder = (await getReminders()).find((item) => item.reminderKey === reminder.reminderKey);
 
     if (existingReminder) {

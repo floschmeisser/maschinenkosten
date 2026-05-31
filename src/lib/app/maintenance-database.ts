@@ -98,10 +98,11 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
   const source = await getMaintenanceDataSource();
   const farmId = source?.farm.id ?? input.farmId;
   const now = new Date().toISOString();
+  const id = crypto.randomUUID();
   const fallbackTask: MaintenanceTask = {
     ...input,
     farmId,
-    id: crypto.randomUUID(),
+    id,
     completedAt: null,
     lastDoneReading: null,
     createdAt: now,
@@ -114,19 +115,43 @@ export async function createMaintenanceTask(input: CreateMaintenanceTaskInput): 
     return fallbackTask;
   }
 
-  const result = await runSupabaseQuery(
-    () => source.table.insert(mapMaintenanceTaskToRow(fallbackTask)).select("*").single(),
-    "Wartung konnte nicht angelegt werden."
-  );
+  const payload: Partial<MaintenanceTaskRow> = {
+    id,
+    farm_id: farmId,
+    machine_id: input.machineId,
+    title: input.title,
+    type: input.type ?? "service",
+    custom_title: input.customTitle ?? null,
+    status: input.status ?? "open",
+    due_date: input.dueDate ?? null,
+    due_operating_hours: input.dueOperatingHours ?? null,
+    due_kilometers: input.dueKilometers ?? null,
+    interval_type: input.intervalType ?? "none",
+    interval_days: input.intervalDays ?? null,
+    interval_months: input.intervalMonths ?? null,
+    interval_operating_hours: input.intervalOperatingHours ?? null,
+    interval_kilometers: input.intervalKilometers ?? null,
+    last_done_reading: null,
+    estimated_cost: input.estimatedCost ?? 0,
+    actual_cost: null,
+    notes: input.notes ?? null,
+    completed_at: null,
+  };
 
-  if (!result?.data) {
-    fallbackMaintenanceTasks = [fallbackTask, ...fallbackMaintenanceTasks];
-    triggerReminderSync();
-    return fallbackTask;
+  const { data, error } = await source.table.insert(payload).select("*").single();
+
+  if (error) {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[maintenance_tasks] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, payload });
+    throw new Error(`Wartung konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 
-  const createdTask = mapMaintenanceTaskRowToTask(result.data);
-  fallbackMaintenanceTasks = [createdTask, ...fallbackMaintenanceTasks.filter((task) => task.id !== createdTask.id)];
+  if (!data) {
+    throw new Error("Wartung angelegt, aber keine Bestätigung vom Server erhalten.");
+  }
+
+  const createdTask = mapMaintenanceTaskRowToTask(data);
+  fallbackMaintenanceTasks = [createdTask, ...fallbackMaintenanceTasks.filter((t) => t.id !== createdTask.id)];
   triggerReminderSync();
   return createdTask;
 }

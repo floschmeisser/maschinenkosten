@@ -414,6 +414,8 @@ alter table public.maintenance_tasks add column if not exists interval_months in
 alter table public.maintenance_tasks add column if not exists last_done_reading numeric(12,1);
 -- maintenance_tasks: label for custom maintenance type
 alter table public.maintenance_tasks add column if not exists custom_title text;
+-- maintenance_tasks: date of last completion (day precision, separate from completed_at timestamp)
+alter table public.maintenance_tasks add column if not exists last_done_at date;
 
 -- maintenance_tasks: extended type set (old values remain valid)
 alter table public.maintenance_tasks drop constraint if exists maintenance_tasks_type_check;

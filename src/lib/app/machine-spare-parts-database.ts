@@ -86,13 +86,8 @@ export async function createMachineSparePart(input: CreateMachineSparePartInput)
   const source = await getSparePartsDataSource();
   const farmId = source?.farm.id ?? input.farmId;
   const now = new Date().toISOString();
-  const fallbackPart: MachineSparePart = {
-    ...input,
-    farmId,
-    id: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now
-  };
+  const id = crypto.randomUUID();
+  const fallbackPart: MachineSparePart = { ...input, farmId, id, createdAt: now, updatedAt: now };
 
   if (!source) {
     fallbackSpareParts = [fallbackPart, ...fallbackSpareParts];
@@ -100,19 +95,38 @@ export async function createMachineSparePart(input: CreateMachineSparePartInput)
     return fallbackPart;
   }
 
-  const result = await runSupabaseQuery(
-    () => source.table.insert(mapSparePartToRow(fallbackPart)).select("*").single(),
-    "Ersatzteil konnte nicht angelegt werden."
-  );
+  const payload: Partial<MachineSparePartRow> = {
+    id,
+    farm_id: farmId,
+    machine_id: input.machineId,
+    name: input.name,
+    category: input.category ?? "other",
+    part_number: input.partNumber ?? null,
+    original_part_number: input.originalPartNumber ?? null,
+    manufacturer: input.manufacturer ?? null,
+    supplier: input.supplier ?? null,
+    stock_quantity: input.stockQuantity ?? 0,
+    minimum_stock_quantity: input.minimumStockQuantity ?? 0,
+    unit: input.unit ?? "Stk.",
+    storage_location: input.storageLocation ?? null,
+    purchase_price: input.purchasePrice ?? null,
+    notes: input.notes ?? null,
+  };
 
-  if (!result?.data) {
-    fallbackSpareParts = [fallbackPart, ...fallbackSpareParts];
-    triggerReminderSync();
-    return fallbackPart;
+  const { data, error } = await source.table.insert(payload).select("*").single();
+
+  if (error) {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    console.error("[machine_spare_parts] INSERT failed:", { message: e.message, code: e.code, details: e.details, hint: e.hint, payload });
+    throw new Error(`Ersatzteil konnte nicht angelegt werden: ${e.message ?? "Unbekannter Fehler"}`);
   }
 
-  const createdPart = mapSparePartRowToSparePart(result.data);
-  fallbackSpareParts = [createdPart, ...fallbackSpareParts.filter((part) => part.id !== createdPart.id)];
+  if (!data) {
+    throw new Error("Ersatzteil angelegt, aber keine Bestätigung vom Server erhalten.");
+  }
+
+  const createdPart = mapSparePartRowToSparePart(data);
+  fallbackSpareParts = [createdPart, ...fallbackSpareParts.filter((p) => p.id !== createdPart.id)];
   triggerReminderSync();
   return createdPart;
 }

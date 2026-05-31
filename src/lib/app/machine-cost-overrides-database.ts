@@ -115,6 +115,7 @@ export async function upsertMachineCostOverride(input: UpsertMachineCostOverride
   );
 
   if (!result?.data) {
+    console.warn("[machine_cost_overrides] UPSERT failed or returned no data", { machineId: input.machineId });
     fallbackOverrides.set(input.machineId, fallback);
     return fallback;
   }

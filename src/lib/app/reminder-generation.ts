@@ -108,7 +108,6 @@ export function generateAllReminders(data: ReminderGenerationData): CreateRemind
   return [
     ...generateMaintenanceReminders(data.machines, data.maintenanceTasks),
     ...generateSparePartReminders(data.spareParts),
-    ...generateMachineCostReminders(data.machines, data.maintenanceTasks)
   ];
 }
 

@@ -141,7 +141,7 @@ export function buildReminderInsertPayload(reminder: Reminder) {
     source_id: reminder.sourceId,
     machine_id: reminder.machineId ?? null,
     title: reminder.title,
-    message: reminder.message ?? null,
+    description: reminder.message ?? null,
     due_date: reminder.dueDate ?? null,
     priority: reminder.priority,
     status: "open" as const,

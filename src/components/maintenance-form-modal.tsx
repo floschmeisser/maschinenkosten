@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 import type { Machine } from "@/lib/app/machines";
 import {
-  getMaintenanceIntervalLabel,
   getMaintenanceStatusLabel,
   getMaintenanceTypeLabel,
   type CreateMaintenanceTaskInput,
@@ -31,7 +30,7 @@ type FormState = {
   dueDate: string;
   dueOperatingHours: string;
   dueKilometers: string;
-  intervalType: MaintenanceIntervalType;
+  intervalMonths: string;
   intervalDays: string;
   intervalOperatingHours: string;
   intervalKilometers: string;
@@ -53,7 +52,6 @@ const maintenanceTypes: MaintenanceType[] = [
   "other"
 ];
 const maintenanceStatuses: MaintenanceStatus[] = ["open", "planned", "in_progress", "completed", "cancelled"];
-const intervalTypes: MaintenanceIntervalType[] = ["none", "days", "operating_hours", "kilometers"];
 
 export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }: MaintenanceFormModalProps) {
   const [form, setForm] = useState<FormState>(() => createInitialFormState(task, machines));
@@ -147,19 +145,7 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
 
         <fieldset className="form-section">
           <legend>Wiederholung</legend>
-          <label>
-            Wiederholung
-            <select
-              value={form.intervalType}
-              onChange={(event) => updateField("intervalType", event.target.value as MaintenanceIntervalType)}
-            >
-              {intervalTypes.map((intervalType) => (
-                <option key={intervalType} value={intervalType}>
-                  {getMaintenanceIntervalLabel(intervalType)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <NumberField label="Alle Monate" value={form.intervalMonths} onChange={(value) => updateField("intervalMonths", value)} />
           <NumberField label="Alle Tage" value={form.intervalDays} onChange={(value) => updateField("intervalDays", value)} />
           <NumberField
             label="Alle Stunden"
@@ -234,7 +220,7 @@ function createInitialFormState(task: MaintenanceTask | undefined, machines: Mac
     dueDate: task?.dueDate ?? "",
     dueOperatingHours: stringifyOptional(task?.dueOperatingHours),
     dueKilometers: stringifyOptional(task?.dueKilometers),
-    intervalType: task?.intervalType ?? "none",
+    intervalMonths: stringifyOptional(task?.intervalMonths),
     intervalDays: stringifyOptional(task?.intervalDays),
     intervalOperatingHours: stringifyOptional(task?.intervalOperatingHours),
     intervalKilometers: stringifyOptional(task?.intervalKilometers),
@@ -259,10 +245,6 @@ function validateForm(form: FormState): FormErrors {
     errors.type = "Art ist erforderlich.";
   }
 
-  if (!form.intervalType) {
-    errors.intervalType = "Wiederholung ist erforderlich.";
-  }
-
   return errors;
 }
 
@@ -272,6 +254,19 @@ function createMaintenanceTaskInput(
   existingTask?: MaintenanceTask
 ): CreateMaintenanceTaskInput {
   const selectedMachine = machines.find((machine) => machine.id === form.machineId);
+  const months = toOptionalNumber(form.intervalMonths);
+  const hours = toOptionalNumber(form.intervalOperatingHours);
+  const km = toOptionalNumber(form.intervalKilometers);
+  const days = toOptionalNumber(form.intervalDays);
+
+  // Derive interval type from actual numeric values — never from a raw string
+  const intervalType: MaintenanceIntervalType =
+    months !== null && (hours !== null || km !== null) ? "combined"
+    : months !== null ? "months"
+    : hours !== null ? "operating_hours"
+    : km !== null ? "kilometers"
+    : days !== null ? "days"
+    : "none";
 
   return {
     farmId: existingTask?.farmId ?? selectedMachine?.farmId ?? "00000000-0000-4000-8000-000000000001",
@@ -283,11 +278,11 @@ function createMaintenanceTaskInput(
     dueDate: form.dueDate || null,
     dueOperatingHours: toOptionalNumber(form.dueOperatingHours),
     dueKilometers: toOptionalNumber(form.dueKilometers),
-    intervalType: form.intervalType,
-    intervalDays: toOptionalNumber(form.intervalDays),
-    intervalMonths: null,
-    intervalOperatingHours: toOptionalNumber(form.intervalOperatingHours),
-    intervalKilometers: toOptionalNumber(form.intervalKilometers),
+    intervalType,
+    intervalMonths: months,
+    intervalDays: days,
+    intervalOperatingHours: hours,
+    intervalKilometers: km,
     estimatedCost: toNumber(form.estimatedCost),
     actualCost: toOptionalNumber(form.actualCost),
     notes: form.notes.trim() || null

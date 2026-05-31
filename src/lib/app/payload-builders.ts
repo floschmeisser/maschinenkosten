@@ -145,9 +145,6 @@ export function buildReminderInsertPayload(reminder: Reminder) {
     due_date: reminder.dueDate ?? null,
     priority: reminder.priority,
     status: "open" as const,
-    acknowledged_at: null as null,
-    dismissed_at: null as null,
-    completed_at: null as null,
     created_at: reminder.createdAt,
     updated_at: reminder.updatedAt,
   };

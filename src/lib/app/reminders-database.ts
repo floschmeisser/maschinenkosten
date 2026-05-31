@@ -26,9 +26,6 @@ type ReminderRow = {
   due_date: string | null;
   priority: Reminder["priority"];
   status: ReminderStatus;
-  acknowledged_at: string | null;
-  dismissed_at: string | null;
-  completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -231,9 +228,9 @@ function mapReminderRowToReminder(row: ReminderRow): Reminder {
     dueDate: row.due_date,
     priority: row.priority,
     status: row.status,
-    acknowledgedAt: row.acknowledged_at,
-    dismissedAt: row.dismissed_at,
-    completedAt: row.completed_at,
+    acknowledgedAt: null,
+    dismissedAt: null,
+    completedAt: null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -253,9 +250,6 @@ function mapReminderToRow(reminder: Reminder): ReminderRow {
     due_date: reminder.dueDate ?? null,
     priority: reminder.priority,
     status: reminder.status,
-    acknowledged_at: reminder.acknowledgedAt ?? null,
-    dismissed_at: reminder.dismissedAt ?? null,
-    completed_at: reminder.completedAt ?? null,
     created_at: reminder.createdAt,
     updated_at: reminder.updatedAt
   };
@@ -273,9 +267,6 @@ function mapReminderInputToRow(input: Partial<UpdateReminderInput & Pick<Reminde
     due_date: input.dueDate,
     priority: input.priority,
     status: input.status,
-    acknowledged_at: input.acknowledgedAt,
-    dismissed_at: input.dismissedAt,
-    completed_at: input.completedAt,
     updated_at: input.updatedAt
   };
 }

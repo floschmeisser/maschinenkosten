@@ -63,6 +63,11 @@ type SupabaseTableApi<T> = {
       };
     };
   };
+  delete: () => {
+    eq: (column: string, value: string) => {
+      eq: (column: string, value: string) => Promise<{ error: Error | null }>;
+    };
+  };
 };
 
 type MaintenanceDataSource = {
@@ -263,6 +268,33 @@ function hasDuplicateRecurringTask(input: CreateMaintenanceTaskInput, tasks: Mai
       task.dueOperatingHours === input.dueOperatingHours &&
       task.dueKilometers === input.dueKilometers
   );
+}
+
+export async function deleteMaintenanceTask(id: string): Promise<boolean> {
+  const source = await getMaintenanceDataSource();
+
+  if (!source) {
+    const had = fallbackMaintenanceTasks.some((task) => task.id === id);
+    fallbackMaintenanceTasks = fallbackMaintenanceTasks.filter((task) => task.id !== id);
+    if (had) triggerReminderSync();
+    return had;
+  }
+
+  const result = await runSupabaseQuery(
+    () => source.table.delete().eq("id", id).eq("farm_id", source.farm.id),
+    "Wartung konnte nicht gelöscht werden."
+  );
+
+  if (!result) {
+    const had = fallbackMaintenanceTasks.some((task) => task.id === id);
+    fallbackMaintenanceTasks = fallbackMaintenanceTasks.filter((task) => task.id !== id);
+    if (had) triggerReminderSync();
+    return had;
+  }
+
+  fallbackMaintenanceTasks = fallbackMaintenanceTasks.filter((task) => task.id !== id);
+  triggerReminderSync();
+  return true;
 }
 
 async function getMaintenanceDataSource(): Promise<MaintenanceDataSource | null> {

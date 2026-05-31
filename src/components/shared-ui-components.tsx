@@ -266,6 +266,30 @@ export function SettingsPanel({ locale = "de" }: SettingsPanelProps) {
   );
 }
 
+type ConfirmDialogProps = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+export function ConfirmDialog({ title, message, confirmLabel = "Löschen", cancelLabel = "Abbrechen", onConfirm, onCancel }: ConfirmDialogProps) {
+  return (
+    <div className="confirm-overlay" role="dialog" aria-modal="true">
+      <div className="confirm-panel">
+        <h3 className="confirm-panel-title">{title}</h3>
+        <p className="confirm-panel-message">{message}</p>
+        <div className="confirm-panel-actions">
+          <button className="button primary" type="button" onClick={onCancel}>{cancelLabel}</button>
+          <button className="button gold" type="button" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getStorageModeLabel(mode: RuntimeStatus["storageMode"] | undefined): string {
   switch (mode) {
     case "active": return "Aktiv";

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   calculateMachineCosts,
+  createCostInputFromMachine,
+  createCostInputFromOverride,
   createMachineCostComparison,
   defaultCostInputs,
   evaluateMachineCostHealth,
@@ -14,12 +16,15 @@ import { getMachines as getPlaceholderMachines, toMachineSummary, type MachineSu
 import { getMachines } from "@/lib/app/machines-database";
 import { getMaintenanceTasks as getPlaceholderMaintenanceTasks, type MaintenanceTask } from "@/lib/app/maintenance";
 import { getMaintenanceTasks } from "@/lib/app/maintenance-database";
+import { getDefaultOeklCategoryForMachineCategory, oeklCategoryOptions } from "@/lib/app/oekl-reference";
 
 export function CostCalculation() {
   const [inputs, setInputs] = useState<MachineCostInput>(defaultCostInputs);
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMachineId, setSelectedMachineId] = useState<string>("");
+  const [selectedOeklKey, setSelectedOeklKey] = useState<string>("tractor_medium");
   const result = useMemo(() => calculateMachineCosts(inputs), [inputs]);
   const health = useMemo(() => evaluateMachineCostHealth(inputs, result), [inputs, result]);
   const warnings = useMemo(() => [...new Set([...result.warnings, ...getAdditionalCostWarnings(inputs, result)])], [inputs, result]);
@@ -54,6 +59,27 @@ export function CostCalculation() {
     }));
   }
 
+  function handleMachineSelect(machineId: string) {
+    setSelectedMachineId(machineId);
+
+    if (!machineId) return;
+
+    const machine = machines.find((m) => m.id === machineId);
+
+    if (!machine) return;
+
+    setInputs(createCostInputFromMachine(machine, maintenanceTasks));
+    setSelectedOeklKey(getDefaultOeklCategoryForMachineCategory(machine.category));
+  }
+
+  function handleApplyOekl() {
+    const machine = selectedMachineId ? machines.find((m) => m.id === selectedMachineId) : null;
+
+    if (!machine) return;
+
+    setInputs(createCostInputFromOverride(machine, null, selectedOeklKey));
+  }
+
   return (
     <main className="page cost-page">
       <section className="page-header">
@@ -75,6 +101,38 @@ export function CostCalculation() {
 
       <section className="cost-layout">
         <form className="panel form-grid" onSubmit={(event) => event.preventDefault()}>
+          <div className="form-section">
+            <h2>Vorlage</h2>
+            <label>
+              Maschine
+              <select value={selectedMachineId} onChange={(event) => handleMachineSelect(event.target.value)}>
+                <option value="">Eigene Eingabe</option>
+                {machines.map((machine) => (
+                  <option key={machine.id} value={machine.id}>
+                    {machine.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              ÖKL Kategorie
+              <select value={selectedOeklKey} onChange={(event) => setSelectedOeklKey(event.target.value)}>
+                {oeklCategoryOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="button"
+              type="button"
+              disabled={!selectedMachineId}
+              onClick={handleApplyOekl}
+            >
+              ÖKL Richtwerte laden
+            </button>
+          </div>
           <div className="form-section">
             <h2>Werte</h2>
           </div>

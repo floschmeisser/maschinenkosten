@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import type { Machine } from "@/lib/app/machines";
 import {
   getMaintenanceStatusLabel,
@@ -53,16 +53,71 @@ const maintenanceTypes: MaintenanceType[] = [
 ];
 const maintenanceStatuses: MaintenanceStatus[] = ["open", "planned", "in_progress", "completed", "cancelled"];
 
+type IntervalDefaults = { months?: number; hours?: number };
+
+const DEFAULT_INTERVALS: Partial<Record<MaintenanceType, IntervalDefaults>> = {
+  oil_change: { months: 12, hours: 250 },
+  service: { months: 12, hours: 500 },
+  inspection: { months: 24 },
+  lubrication: { months: 3, hours: 50 },
+  wear_part: { months: 12, hours: 250 },
+};
+
 export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }: MaintenanceFormModalProps) {
   const [form, setForm] = useState<FormState>(() => createInitialFormState(task, machines));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [hints, setHints] = useState<Partial<Record<keyof FormState, string>>>({});
+  const userModifiedRef = useRef<Set<keyof FormState>>(
+    mode === "edit"
+      ? new Set<keyof FormState>(["dueDate", "dueOperatingHours", "intervalMonths", "intervalOperatingHours"])
+      : new Set<keyof FormState>()
+  );
+
+  const setSuggestion = useCallback((key: keyof FormState, value: string, hint: string) => {
+    if (userModifiedRef.current.has(key)) return;
+    setForm((current) => ({ ...current, [key]: value }));
+    setHints((current) => ({ ...current, [key]: hint }));
+  }, []);
 
   function updateField<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
+    userModifiedRef.current.add(key);
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
+    setHints((current) => ({ ...current, [key]: undefined }));
   }
+
+  // Calc A: Standardintervall nach Wartungsart
+  useEffect(() => {
+    const defaults = DEFAULT_INTERVALS[form.type];
+
+    if (!defaults) return;
+
+    if (defaults.months !== undefined) {
+      setSuggestion("intervalMonths", String(defaults.months), `Standard ${getMaintenanceTypeLabel(form.type)}`);
+    }
+
+    if (defaults.hours !== undefined) {
+      setSuggestion("intervalOperatingHours", String(defaults.hours), `Standard ${getMaintenanceTypeLabel(form.type)}`);
+    }
+  }, [form.type, setSuggestion]);
+
+  // Calc B: Fälligkeitsdatum und -stunden aus Intervall + aktuellem Stand
+  useEffect(() => {
+    const months = toOptionalNumber(form.intervalMonths);
+    const hours = toOptionalNumber(form.intervalOperatingHours);
+    const machine = machines.find((m) => m.id === form.machineId);
+
+    if (months !== null && months > 0) {
+      setSuggestion("dueDate", addMonths(new Date(), months), `Heute + ${months} Monate`);
+    }
+
+    if (hours !== null && hours > 0 && machine && machine.currentOperatingHours > 0) {
+      const dueHours = machine.currentOperatingHours + hours;
+      setSuggestion("dueOperatingHours", String(dueHours), `${machine.currentOperatingHours} h + ${hours} h`);
+    }
+  }, [form.intervalMonths, form.intervalOperatingHours, form.machineId, machines, setSuggestion]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -134,10 +189,12 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
           <label>
             Datum
             <input type="date" value={form.dueDate} onChange={(event) => updateField("dueDate", event.target.value)} />
+            {hints.dueDate ? <span className="form-hint">{hints.dueDate}</span> : null}
           </label>
           <NumberField
             label="Bei Stunden"
             value={form.dueOperatingHours}
+            hint={hints.dueOperatingHours}
             onChange={(value) => updateField("dueOperatingHours", value)}
           />
           <NumberField label="Bei Kilometern" value={form.dueKilometers} onChange={(value) => updateField("dueKilometers", value)} />
@@ -145,11 +202,17 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
 
         <fieldset className="form-section">
           <legend>Wiederholung</legend>
-          <NumberField label="Alle Monate" value={form.intervalMonths} onChange={(value) => updateField("intervalMonths", value)} />
+          <NumberField
+            label="Alle Monate"
+            value={form.intervalMonths}
+            hint={hints.intervalMonths}
+            onChange={(value) => updateField("intervalMonths", value)}
+          />
           <NumberField label="Alle Tage" value={form.intervalDays} onChange={(value) => updateField("intervalDays", value)} />
           <NumberField
             label="Alle Stunden"
             value={form.intervalOperatingHours}
+            hint={hints.intervalOperatingHours}
             onChange={(value) => updateField("intervalOperatingHours", value)}
           />
           <NumberField
@@ -189,6 +252,7 @@ type FieldProps = {
   label: string;
   value: string;
   error?: string;
+  hint?: string;
   onChange: (value: string) => void;
 };
 
@@ -202,11 +266,12 @@ function TextField({ label, value, error, onChange }: FieldProps) {
   );
 }
 
-function NumberField({ label, value, onChange }: FieldProps) {
+function NumberField({ label, value, hint, onChange }: FieldProps) {
   return (
     <label>
       {label}
       <input min="0" type="number" value={value} onChange={(event) => onChange(event.target.value)} />
+      {hint ? <span className="form-hint">{hint}</span> : null}
     </label>
   );
 }
@@ -304,4 +369,10 @@ function toOptionalNumber(value: string): number | null {
 
 function stringifyOptional(value: number | null | undefined): string {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function addMonths(date: Date, months: number): string {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result.toISOString().split("T")[0];
 }

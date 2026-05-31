@@ -36,6 +36,8 @@ type FormState = {
   expectedUsefulLifeYears: string;
   hectaresPerHour: string;
   insurancePerYear: string;
+  taxPerYear: string;
+  storagePerYear: string;
   maintenanceCostsPerYear: string;
   repairCostsPerYear: string;
   fuelCostsPerHour: string;
@@ -57,16 +59,33 @@ const USEFUL_LIFE_BY_CATEGORY: Record<MachineCategory, number> = {
   chainsaw: 8, vehicle: 10, other: 10,
 };
 
+// Richtwerte für selbstfahrende Maschinen (€/h)
+const OEKL_FUEL_BY_CATEGORY: Partial<Record<MachineCategory, number>> = {
+  tractor: 8,
+  loader: 6,
+  harvester: 18,
+  chainsaw: 2,
+};
+
 export function MachineFormModal({ mode, formMode = "create", machine, onCancel, onSave }: MachineFormModalProps) {
   const [form, setForm] = useState<FormState>(() => createInitialFormState(machine));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hints, setHints] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [showCosts, setShowCosts] = useState(formMode === "edit");
   const userModifiedRef = useRef<Set<keyof FormState>>(
-    formMode === "edit"
-      ? new Set<keyof FormState>(["annualUsage", "residualValue", "expectedUsefulLifeYears", "currentValue"])
-      : new Set<keyof FormState>()
+    (() => {
+      const s = new Set<keyof FormState>();
+      if (formMode === "edit") {
+        s.add("annualUsage");
+        s.add("residualValue");
+        s.add("expectedUsefulLifeYears");
+        s.add("currentValue");
+        if ((machine?.fuelCostsPerHour ?? 0) > 0) s.add("fuelCostsPerHour");
+      }
+      return s;
+    })()
   );
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
@@ -121,6 +140,14 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
     const suggestion = Math.round(Math.max(residual, depreciated));
     setSuggestion("currentValue", String(suggestion), `Zeitwert nach ${age} Jahren`);
   }, [form.purchasePrice, form.expectedUsefulLifeYears, form.yearOfManufacture, setSuggestion]);
+
+  // Calc 5: Diesel/h nach Kategorie (nur selbstfahrende Maschinen)
+  useEffect(() => {
+    if (isKm) return;
+    const defaultFuel = OEKL_FUEL_BY_CATEGORY[form.category];
+    if (defaultFuel === undefined || defaultFuel <= 0) return;
+    setSuggestion("fuelCostsPerHour", String(defaultFuel), `Richtwert ${getMachineCategoryLabel(form.category)}`);
+  }, [form.category, isKm, setSuggestion]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -187,71 +214,90 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
             error={errors.currentReading}
             onChange={(value) => updateField("currentReading", value)}
           />
-          <NumberField
-            label={isKm ? "km pro Jahr" : "Stunden pro Jahr"}
-            value={form.annualUsage}
-            hint={hints.annualUsage}
-            onChange={(value) => updateField("annualUsage", value)}
-          />
-          {!isKm ? (
-            <NumberField
-              label="Hektar pro Stunde"
-              value={form.hectaresPerHour}
-              onChange={(value) => updateField("hectaresPerHour", value)}
-            />
-          ) : null}
         </fieldset>
 
         <fieldset className="form-section">
-          <legend>Kosten (optional)</legend>
-          <NumberField
-            label="Anschaffungspreis"
-            value={form.purchasePrice}
-            onChange={(value) => updateField("purchasePrice", value)}
-          />
-          <NumberField
-            label="Aktueller Wert"
-            value={form.currentValue}
-            hint={hints.currentValue}
-            onChange={(value) => updateField("currentValue", value)}
-          />
-          <NumberField
-            label="Restwert"
-            value={form.residualValue}
-            hint={hints.residualValue}
-            onChange={(value) => updateField("residualValue", value)}
-          />
-          <NumberField
-            label="Nutzungsdauer Jahre"
-            value={form.expectedUsefulLifeYears}
-            hint={hints.expectedUsefulLifeYears}
-            onChange={(value) => updateField("expectedUsefulLifeYears", value)}
-          />
-          <NumberField
-            label="Versicherung pro Jahr"
-            value={form.insurancePerYear}
-            onChange={(value) => updateField("insurancePerYear", value)}
-          />
-          <NumberField
-            label="Wartung pro Jahr"
-            value={form.maintenanceCostsPerYear}
-            onChange={(value) => updateField("maintenanceCostsPerYear", value)}
-          />
-          <NumberField
-            label="Reparaturen pro Jahr"
-            value={form.repairCostsPerYear}
-            onChange={(value) => updateField("repairCostsPerYear", value)}
-          />
-          <NumberField
-            label={isKm ? "Diesel je km" : "Diesel je Stunde"}
-            value={form.fuelCostsPerHour}
-            onChange={(value) => updateField("fuelCostsPerHour", value)}
-          />
-          <NumberField
-            label={isKm ? "Fahrer je km" : "Fahrer je Stunde"}
-            value={form.operatorCostsPerHour}
-            onChange={(value) => updateField("operatorCostsPerHour", value)}
-          />
+          <legend>Kosten &amp; Abschreibung</legend>
+          {!showCosts ? (
+            <button className="button" type="button" onClick={() => setShowCosts(true)}>
+              Kostenfelder einblenden — jetzt oder später im Kosten-Tab eintragen
+            </button>
+          ) : (
+            <>
+              <NumberField
+                label="Kaufpreis (€)"
+                value={form.purchasePrice}
+                onChange={(value) => updateField("purchasePrice", value)}
+              />
+              <NumberField
+                label="Aktueller Wert (€)"
+                value={form.currentValue}
+                hint={hints.currentValue}
+                onChange={(value) => updateField("currentValue", value)}
+              />
+              <NumberField
+                label="Restwert (€)"
+                value={form.residualValue}
+                hint={hints.residualValue}
+                onChange={(value) => updateField("residualValue", value)}
+              />
+              <NumberField
+                label="Nutzungsdauer (Jahre)"
+                value={form.expectedUsefulLifeYears}
+                hint={hints.expectedUsefulLifeYears}
+                onChange={(value) => updateField("expectedUsefulLifeYears", value)}
+              />
+              <NumberField
+                label={isKm ? "km pro Jahr" : "h pro Jahr"}
+                value={form.annualUsage}
+                hint={hints.annualUsage}
+                onChange={(value) => updateField("annualUsage", value)}
+              />
+              <NumberField
+                label="Versicherung/Jahr (€)"
+                value={form.insurancePerYear}
+                onChange={(value) => updateField("insurancePerYear", value)}
+              />
+              <NumberField
+                label="Steuer/Jahr (€)"
+                value={form.taxPerYear}
+                onChange={(value) => updateField("taxPerYear", value)}
+              />
+              <NumberField
+                label="Unterstand/Jahr (€)"
+                value={form.storagePerYear}
+                onChange={(value) => updateField("storagePerYear", value)}
+              />
+              <NumberField
+                label={isKm ? "Diesel/km (€)" : "Diesel/h (€)"}
+                value={form.fuelCostsPerHour}
+                hint={hints.fuelCostsPerHour}
+                onChange={(value) => updateField("fuelCostsPerHour", value)}
+              />
+              <NumberField
+                label="Reparatur/Jahr (€)"
+                value={form.repairCostsPerYear}
+                onChange={(value) => updateField("repairCostsPerYear", value)}
+              />
+              <NumberField
+                label="Wartung/Jahr (€)"
+                value={form.maintenanceCostsPerYear}
+                onChange={(value) => updateField("maintenanceCostsPerYear", value)}
+              />
+              <NumberField
+                label={isKm ? "Fahrer/km (€)" : "Fahrer/h (€)"}
+                value={form.operatorCostsPerHour}
+                onChange={(value) => updateField("operatorCostsPerHour", value)}
+              />
+              {!isKm ? (
+                <NumberField
+                  label="Hektar/h"
+                  value={form.hectaresPerHour}
+                  onChange={(value) => updateField("hectaresPerHour", value)}
+                />
+              ) : null}
+            </>
+          )}
         </fieldset>
 
         <fieldset className="form-section">
@@ -331,6 +377,8 @@ function createInitialFormState(machine?: Machine): FormState {
     expectedUsefulLifeYears: stringifyOptional(machine?.expectedUsefulLifeYears || null),
     hectaresPerHour: stringifyOptional(machine?.hectaresPerHour),
     insurancePerYear: String(machine?.insurancePerYear ?? 0),
+    taxPerYear: String(machine?.taxPerYear ?? 0),
+    storagePerYear: String(machine?.storagePerYear ?? 0),
     maintenanceCostsPerYear: String(machine?.maintenanceCostsPerYear ?? 0),
     repairCostsPerYear: String(machine?.repairCostsPerYear ?? 0),
     fuelCostsPerHour: String(machine?.fuelCostsPerHour ?? 0),
@@ -380,8 +428,8 @@ function createMachineInput(form: FormState, existingMachine?: Machine): CreateM
     workingWidthMeters: existingMachine?.workingWidthMeters ?? null,
     hectaresPerHour: toOptionalNumber(form.hectaresPerHour),
     insurancePerYear: toNumber(form.insurancePerYear),
-    taxPerYear: existingMachine?.taxPerYear ?? 0,
-    storagePerYear: existingMachine?.storagePerYear ?? 0,
+    taxPerYear: toNumber(form.taxPerYear),
+    storagePerYear: toNumber(form.storagePerYear),
     otherFixedCostsPerYear: existingMachine?.otherFixedCostsPerYear ?? 0,
     maintenanceCostsPerYear: toNumber(form.maintenanceCostsPerYear),
     repairCostsPerYear: toNumber(form.repairCostsPerYear),

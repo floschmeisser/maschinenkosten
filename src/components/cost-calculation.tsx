@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   calculateMachineCosts,
   createCostInputFromMachine,
-  createCostInputFromOverride,
   createMachineCostComparison,
   defaultCostInputs,
   evaluateMachineCostHealth,
@@ -13,10 +12,9 @@ import {
 import type { MachineCostInput } from "@/lib/app/financials";
 import { formatCurrency } from "@/lib/app/format";
 import { getMachines as getPlaceholderMachines, toMachineSummary, type MachineSummary } from "@/lib/app/machines";
-import { getMachines } from "@/lib/app/machines-database";
+import { getMachines, updateMachine } from "@/lib/app/machines-database";
 import { getMaintenanceTasks as getPlaceholderMaintenanceTasks, type MaintenanceTask } from "@/lib/app/maintenance";
 import { getMaintenanceTasks } from "@/lib/app/maintenance-database";
-import { getDefaultOeklCategoryForMachineCategory, oeklCategoryOptions } from "@/lib/app/oekl-reference";
 
 export function CostCalculation() {
   const [inputs, setInputs] = useState<MachineCostInput>(defaultCostInputs);
@@ -24,7 +22,9 @@ export function CostCalculation() {
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMachineId, setSelectedMachineId] = useState<string>("");
-  const [selectedOeklKey, setSelectedOeklKey] = useState<string>("tractor_medium");
+  const [isSavingMachine, setIsSavingMachine] = useState(false);
+  const [saveMachineSuccess, setSaveMachineSuccess] = useState(false);
+  const [saveMachineError, setSaveMachineError] = useState<string | null>(null);
   const result = useMemo(() => calculateMachineCosts(inputs), [inputs]);
   const health = useMemo(() => evaluateMachineCostHealth(inputs, result), [inputs, result]);
   const warnings = useMemo(() => [...new Set([...result.warnings, ...getAdditionalCostWarnings(inputs, result)])], [inputs, result]);
@@ -61,24 +61,60 @@ export function CostCalculation() {
 
   function handleMachineSelect(machineId: string) {
     setSelectedMachineId(machineId);
+    setSaveMachineSuccess(false);
+    setSaveMachineError(null);
 
-    if (!machineId) return;
+    if (!machineId) {
+      setInputs(defaultCostInputs);
+      return;
+    }
 
     const machine = machines.find((m) => m.id === machineId);
 
     if (!machine) return;
 
     setInputs(createCostInputFromMachine(machine, maintenanceTasks));
-    setSelectedOeklKey(getDefaultOeklCategoryForMachineCategory(machine.category));
   }
 
-  function handleApplyOekl() {
-    const machine = selectedMachineId ? machines.find((m) => m.id === selectedMachineId) : null;
+  async function handleSaveMachine() {
+    if (!selectedMachineId) return;
 
-    if (!machine) return;
+    setIsSavingMachine(true);
+    setSaveMachineSuccess(false);
+    setSaveMachineError(null);
 
-    setInputs(createCostInputFromOverride(machine, null, selectedOeklKey));
+    try {
+      await updateMachine(selectedMachineId, {
+        purchasePrice: inputs.purchasePrice,
+        residualValue: inputs.residualValue,
+        expectedUsefulLifeYears: inputs.expectedUsefulLifeYears,
+        annualOperatingHours: inputs.annualOperatingHours,
+        annualKilometers: inputs.annualKilometers,
+        hectaresPerHour: inputs.hectaresPerHour,
+        insurancePerYear: inputs.insurancePerYear,
+        taxPerYear: inputs.taxPerYear,
+        storagePerYear: inputs.storagePerYear,
+        maintenanceCostsPerYear: inputs.maintenanceCostsPerYear,
+        repairCostsPerYear: inputs.repairCostsPerYear,
+        fuelCostsPerHour: inputs.fuelCostsPerHour,
+        operatorCostsPerHour: inputs.operatorCostsPerHour,
+      });
+
+      setSaveMachineSuccess(true);
+
+      // Refresh machine list so comparison table stays in sync
+      const machineData = await getMachines();
+      setMachines(machineData.map(toMachineSummary));
+    } catch (error) {
+      setSaveMachineError(error instanceof Error ? error.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setIsSavingMachine(false);
+    }
   }
+
+  const missingHours = selectedMachineId && inputs.unit !== "km" && inputs.annualOperatingHours <= 0;
+  const missingKm = selectedMachineId && inputs.unit === "km" && (inputs.annualKilometers ?? 0) <= 0;
+  const missingPrice = selectedMachineId && inputs.purchasePrice <= 0;
 
   return (
     <main className="page cost-page">
@@ -102,9 +138,9 @@ export function CostCalculation() {
       <section className="cost-layout">
         <form className="panel form-grid" onSubmit={(event) => event.preventDefault()}>
           <div className="form-section">
-            <h2>Vorlage</h2>
+            <h2>Maschine</h2>
             <label>
-              Maschine
+              Maschine wählen
               <select value={selectedMachineId} onChange={(event) => handleMachineSelect(event.target.value)}>
                 <option value="">Eigene Eingabe</option>
                 {machines.map((machine) => (
@@ -114,38 +150,49 @@ export function CostCalculation() {
                 ))}
               </select>
             </label>
-            <label>
-              ÖKL Kategorie
-              <select value={selectedOeklKey} onChange={(event) => setSelectedOeklKey(event.target.value)}>
-                {oeklCategoryOptions.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="button"
-              type="button"
-              disabled={!selectedMachineId}
-              onClick={handleApplyOekl}
-            >
-              ÖKL Richtwerte laden
-            </button>
+            {selectedMachineId ? (
+              <div className="form-actions-inline">
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={isSavingMachine}
+                  onClick={handleSaveMachine}
+                >
+                  {isSavingMachine ? "Speichern..." : "Werte speichern"}
+                </button>
+                {saveMachineSuccess ? <span className="form-hint">Gespeichert.</span> : null}
+                {saveMachineError ? <span className="form-error">{saveMachineError}</span> : null}
+              </div>
+            ) : null}
           </div>
           <div className="form-section">
             <h2>Werte</h2>
           </div>
-          <NumberField label="Anschaffung" value={inputs.purchasePrice} onChange={(value) => updateInput("purchasePrice", value)} />
-          <NumberField label="Restwert" value={inputs.residualValue} onChange={(value) => updateInput("residualValue", value)} />
-          <NumberField label="Nutzungsdauer" value={inputs.expectedUsefulLifeYears} onChange={(value) => updateInput("expectedUsefulLifeYears", value)} />
-          <NumberField label="Stunden/Jahr" value={inputs.annualOperatingHours} onChange={(value) => updateInput("annualOperatingHours", value)} />
+          <NumberField
+            label="Kaufpreis (€)"
+            value={inputs.purchasePrice}
+            hint={missingPrice ? "Kaufpreis fehlt — hier eintragen oder in Maschine bearbeiten" : undefined}
+            onChange={(value) => updateInput("purchasePrice", value)}
+          />
+          <NumberField label="Restwert (€)" value={inputs.residualValue} onChange={(value) => updateInput("residualValue", value)} />
+          <NumberField label="Nutzungsdauer (Jahre)" value={inputs.expectedUsefulLifeYears} onChange={(value) => updateInput("expectedUsefulLifeYears", value)} />
+          <NumberField
+            label="Stunden/Jahr"
+            value={inputs.annualOperatingHours}
+            hint={missingHours ? "Fehlt — bitte eintragen für €/h-Berechnung" : undefined}
+            onChange={(value) => updateInput("annualOperatingHours", value)}
+          />
           <NumberField label="Hektar/h" value={inputs.hectaresPerHour ?? 0} onChange={(value) => updateInput("hectaresPerHour", value)} />
-          <NumberField label="km/Jahr" value={inputs.annualKilometers ?? 0} onChange={(value) => updateInput("annualKilometers", value)} />
-          <NumberField label="Wartung/Jahr" value={inputs.maintenanceCostsPerYear} onChange={(value) => updateInput("maintenanceCostsPerYear", value)} />
-          <NumberField label="Reparatur/Jahr" value={inputs.repairCostsPerYear} onChange={(value) => updateInput("repairCostsPerYear", value)} />
-          <NumberField label="Diesel/h" value={inputs.fuelCostsPerHour} onChange={(value) => updateInput("fuelCostsPerHour", value)} />
-          <NumberField label="Fahrer/h" value={inputs.operatorCostsPerHour} onChange={(value) => updateInput("operatorCostsPerHour", value)} />
+          <NumberField
+            label="km/Jahr"
+            value={inputs.annualKilometers ?? 0}
+            hint={missingKm ? "Fehlt — bitte eintragen für €/km-Berechnung" : undefined}
+            onChange={(value) => updateInput("annualKilometers", value)}
+          />
+          <NumberField label="Wartung/Jahr (€)" value={inputs.maintenanceCostsPerYear} onChange={(value) => updateInput("maintenanceCostsPerYear", value)} />
+          <NumberField label="Reparatur/Jahr (€)" value={inputs.repairCostsPerYear} onChange={(value) => updateInput("repairCostsPerYear", value)} />
+          <NumberField label="Diesel/h (€)" value={inputs.fuelCostsPerHour} onChange={(value) => updateInput("fuelCostsPerHour", value)} />
+          <NumberField label="Fahrer/h (€)" value={inputs.operatorCostsPerHour} onChange={(value) => updateInput("operatorCostsPerHour", value)} />
         </form>
 
         <section className="panel result-panel">
@@ -256,14 +303,16 @@ function CostBreakdown({ items, title, total }: CostBreakdownProps) {
 type NumberFieldProps = {
   label: string;
   value: number;
+  hint?: string;
   onChange: (value: string) => void;
 };
 
-function NumberField({ label, value, onChange }: NumberFieldProps) {
+function NumberField({ label, value, hint, onChange }: NumberFieldProps) {
   return (
     <label>
       {label}
       <input inputMode="decimal" min="0" type="number" value={value} onChange={(event) => onChange(event.target.value)} />
+      {hint ? <span className="form-hint">{hint}</span> : null}
     </label>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { FormEvent } from "react";
 import {
   getMachineCategoryLabel,
@@ -51,20 +51,76 @@ const categories: MachineCategory[] = [
   "chainsaw", "vehicle", "other"
 ];
 
+const USEFUL_LIFE_BY_CATEGORY: Record<MachineCategory, number> = {
+  tractor: 12, loader: 12, harvester: 12, grassland: 10, tillage: 12,
+  transport: 10, sprayer: 10, slurry: 12, trailer: 15, press: 12,
+  chainsaw: 8, vehicle: 10, other: 10,
+};
+
 export function MachineFormModal({ mode, formMode = "create", machine, onCancel, onSave }: MachineFormModalProps) {
   const [form, setForm] = useState<FormState>(() => createInitialFormState(machine));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [hints, setHints] = useState<Partial<Record<keyof FormState, string>>>({});
+  const userModifiedRef = useRef<Set<keyof FormState>>(
+    formMode === "edit"
+      ? new Set<keyof FormState>(["annualUsage", "residualValue", "expectedUsefulLifeYears", "currentValue"])
+      : new Set<keyof FormState>()
+  );
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
   const canCancel = Boolean(onCancel);
   const isKm = form.unit === "km";
 
+  const setSuggestion = useCallback((key: keyof FormState, value: string, hint: string) => {
+    if (userModifiedRef.current.has(key)) return;
+    setForm((current) => ({ ...current, [key]: value }));
+    setHints((current) => ({ ...current, [key]: hint }));
+  }, []);
+
   function updateField<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
+    userModifiedRef.current.add(key);
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
+    setHints((current) => ({ ...current, [key]: undefined }));
   }
+
+  // Calc 1: Stunden/Jahr aus Stand ÷ Alter
+  useEffect(() => {
+    if (isKm) return;
+    const reading = toNumber(form.currentReading);
+    const age = new Date().getFullYear() - toNumber(form.yearOfManufacture);
+    if (reading <= 0 || age <= 0) return;
+    const suggestion = Math.round(reading / age / 50) * 50;
+    if (suggestion <= 0) return;
+    setSuggestion("annualUsage", String(suggestion), `${reading} h / ${age} Jahre`);
+  }, [form.currentReading, form.yearOfManufacture, isKm, setSuggestion]);
+
+  // Calc 2: Restwert = 10 % des Anschaffungspreises
+  useEffect(() => {
+    const price = toNumber(form.purchasePrice);
+    if (price <= 0) return;
+    setSuggestion("residualValue", String(Math.round(price * 0.1)), `10 % von ${price.toLocaleString("de-AT")} €`);
+  }, [form.purchasePrice, setSuggestion]);
+
+  // Calc 3: Nutzungsdauer nach Kategorie
+  useEffect(() => {
+    const usefulLife = USEFUL_LIFE_BY_CATEGORY[form.category];
+    setSuggestion("expectedUsefulLifeYears", String(usefulLife), `Richtwert ${getMachineCategoryLabel(form.category)}`);
+  }, [form.category, setSuggestion]);
+
+  // Calc 4: Zeitwert via linearer Abschreibung
+  useEffect(() => {
+    const price = toNumber(form.purchasePrice);
+    const usefulLife = toNumber(form.expectedUsefulLifeYears);
+    const age = new Date().getFullYear() - toNumber(form.yearOfManufacture);
+    if (price <= 0 || usefulLife <= 0 || age <= 0) return;
+    const residual = price * 0.1;
+    const depreciated = price - (price * 0.9 / usefulLife) * age;
+    const suggestion = Math.round(Math.max(residual, depreciated));
+    setSuggestion("currentValue", String(suggestion), `Zeitwert nach ${age} Jahren`);
+  }, [form.purchasePrice, form.expectedUsefulLifeYears, form.yearOfManufacture, setSuggestion]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -134,6 +190,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
           <NumberField
             label={isKm ? "km pro Jahr" : "Stunden pro Jahr"}
             value={form.annualUsage}
+            hint={hints.annualUsage}
             onChange={(value) => updateField("annualUsage", value)}
           />
           {!isKm ? (
@@ -152,11 +209,22 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
             value={form.purchasePrice}
             onChange={(value) => updateField("purchasePrice", value)}
           />
-          <NumberField label="Aktueller Wert" value={form.currentValue} onChange={(value) => updateField("currentValue", value)} />
-          <NumberField label="Restwert" value={form.residualValue} onChange={(value) => updateField("residualValue", value)} />
+          <NumberField
+            label="Aktueller Wert"
+            value={form.currentValue}
+            hint={hints.currentValue}
+            onChange={(value) => updateField("currentValue", value)}
+          />
+          <NumberField
+            label="Restwert"
+            value={form.residualValue}
+            hint={hints.residualValue}
+            onChange={(value) => updateField("residualValue", value)}
+          />
           <NumberField
             label="Nutzungsdauer Jahre"
             value={form.expectedUsefulLifeYears}
+            hint={hints.expectedUsefulLifeYears}
             onChange={(value) => updateField("expectedUsefulLifeYears", value)}
           />
           <NumberField
@@ -216,6 +284,7 @@ type FieldProps = {
   label: string;
   value: string;
   error?: string;
+  hint?: string;
   onChange: (value: string) => void;
 };
 
@@ -229,12 +298,13 @@ function TextField({ label, value, error, onChange }: FieldProps) {
   );
 }
 
-function NumberField({ label, value, error, onChange }: FieldProps) {
+function NumberField({ label, value, error, hint, onChange }: FieldProps) {
   return (
     <label>
       {label}
       <input min="0" type="number" value={value} onChange={(event) => onChange(event.target.value)} />
       {error ? <span className="form-error">{error}</span> : null}
+      {hint && !error ? <span className="form-hint">{hint}</span> : null}
     </label>
   );
 }

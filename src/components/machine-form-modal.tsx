@@ -55,6 +55,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
   const [form, setForm] = useState<FormState>(() => createInitialFormState(machine));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const title = formMode === "edit" ? "Maschine bearbeiten" : "Maschine anlegen";
   const className = mode === "page" ? "panel form-panel wide" : "panel form-panel";
   const canCancel = Boolean(onCancel);
@@ -75,9 +76,12 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
     }
 
     setIsSaving(true);
+    setSaveError(null);
 
     try {
       await onSave(createMachineInput(form, machine));
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Speichern fehlgeschlagen.");
     } finally {
       setIsSaving(false);
     }
@@ -191,6 +195,7 @@ export function MachineFormModal({ mode, formMode = "create", machine, onCancel,
         </fieldset>
 
         {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder prüfen.</p> : null}
+        {saveError ? <p className="form-error">{saveError}</p> : null}
 
         <div className="form-actions">
           {canCancel ? (

@@ -240,8 +240,13 @@ export async function completeMaintenanceTask(
     return { completedTask, nextTask: null };
   }
 
-  const nextTask = await createMaintenanceTask(nextInput);
-  return { completedTask, nextTask };
+  try {
+    const nextTask = await createMaintenanceTask(nextInput);
+    return { completedTask, nextTask };
+  } catch (error) {
+    console.error("[maintenance] Folgeaufgabe konnte nicht angelegt werden:", error);
+    return { completedTask, nextTask: null };
+  }
 }
 
 function mergeCompletionNotes(existingNotes: string | null, completionNotes: string | null | undefined): string | null {

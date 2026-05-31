@@ -66,10 +66,14 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
   }, [createSignal]);
 
   async function handleCreatePart(input: CreateMachineSparePartInput) {
-    await createMachineSparePart(input);
-    await refreshParts();
-    setIsCreating(false);
-    setMessage("Ersatzteil gespeichert.");
+    try {
+      await createMachineSparePart(input);
+      await refreshParts();
+      setIsCreating(false);
+      setMessage("Ersatzteil gespeichert.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Ersatzteil konnte nicht gespeichert werden.");
+    }
   }
 
   async function handleUpdatePart(input: CreateMachineSparePartInput) {
@@ -77,10 +81,14 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
       return;
     }
 
-    await updateMachineSparePart(editingPart.id, input);
-    await refreshParts();
-    setEditingPart(null);
-    setMessage("Ersatzteil gespeichert.");
+    try {
+      await updateMachineSparePart(editingPart.id, input);
+      await refreshParts();
+      setEditingPart(null);
+      setMessage("Ersatzteil gespeichert.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Ersatzteil konnte nicht gespeichert werden.");
+    }
   }
 
   async function handleDeletePart(partId: string) {

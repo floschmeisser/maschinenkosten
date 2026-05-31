@@ -59,6 +59,7 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
   const [form, setForm] = useState<FormState>(() => createInitialFormState(task, machines));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function updateField<Key extends keyof FormState>(key: Key, value: FormState[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -75,9 +76,12 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
     }
 
     setIsSaving(true);
+    setSaveError(null);
 
     try {
       await onSave(createMaintenanceTaskInput(form, machines, task));
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Speichern fehlgeschlagen.");
     } finally {
       setIsSaving(false);
     }
@@ -180,6 +184,7 @@ export function MaintenanceFormModal({ mode, machines, task, onCancel, onSave }:
         </fieldset>
 
         {Object.keys(errors).length > 0 ? <p className="form-error">Bitte Pflichtfelder prüfen.</p> : null}
+        {saveError ? <p className="form-error">{saveError}</p> : null}
 
         <div className="form-actions">
           <button className="button" type="button" onClick={onCancel}>

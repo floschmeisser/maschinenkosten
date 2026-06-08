@@ -87,6 +87,7 @@ export type MachineSparePart = {
   storageLocation: string | null;
   purchasePrice: number | null;
   notes: string | null;
+  photoUrls: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -147,6 +148,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     storageLocation: "Regal A2",
     purchasePrice: 18.9,
     notes: null,
+    photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
@@ -166,6 +168,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     storageLocation: "Werkstatt Kiste 3",
     purchasePrice: 7.5,
     notes: "Vor Schnitt prüfen.",
+    photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   }

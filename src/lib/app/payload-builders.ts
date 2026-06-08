@@ -105,6 +105,7 @@ export function buildSparePartInsertPayload(input: CreateMachineSparePartInput, 
     minimum_stock_quantity: input.minimumStockQuantity ?? 0,
     unit: input.unit ?? "Stk.",
     notes: input.notes ?? null,
+    photo_urls: input.photoUrls ?? [],
   };
 }
 

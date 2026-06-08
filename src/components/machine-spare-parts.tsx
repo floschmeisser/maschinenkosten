@@ -5,8 +5,10 @@ import {
   createMachineSparePart,
   deleteMachineSparePart,
   getMachineSpareParts,
+  getSparePartPhotoSignedUrls,
   updateMachineSparePart
 } from "@/lib/app/machine-spare-parts-database";
+import { PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
 import {
   getMachineSparePartCategoryLabel,
   getMachineSparePartStockStatus,
@@ -65,7 +67,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
     }
   }, [createSignal]);
 
-  async function handleCreatePart(input: CreateMachineSparePartInput) {
+  async function handleCreatePart(input: CreateMachineSparePartInput & { photos?: File[] }) {
     try {
       await createMachineSparePart(input);
       await refreshParts();
@@ -76,7 +78,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
     }
   }
 
-  async function handleUpdatePart(input: CreateMachineSparePartInput) {
+  async function handleUpdatePart(input: CreateMachineSparePartInput & { photos?: File[] }) {
     if (!editingPart) {
       return;
     }
@@ -238,6 +240,9 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
                   </div>
                 </dl>
                 <div className="task-actions">
+                  {part.photoUrls.length > 0 ? (
+                    <PhotoGallery paths={part.photoUrls} getSignedUrls={getSparePartPhotoSignedUrls} />
+                  ) : null}
                   <button className="button" type="button" onClick={() => setEditingPart(part)}>
                     Bearbeiten
                   </button>
@@ -258,13 +263,36 @@ type SparePartFormProps = {
   machine: MachineSummary;
   part: MachineSparePart | null;
   onCancel: () => void;
-  onSave: (input: CreateMachineSparePartInput) => Promise<void>;
+  onSave: (input: CreateMachineSparePartInput & { photos?: File[] }) => Promise<void>;
 };
 
 function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) {
   const [form, setForm] = useState(() => createInitialForm(part));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [existingSignedUrls, setExistingSignedUrls] = useState<{ path: string; signedUrl: string }[]>([]);
+
+  useEffect(() => {
+    if (!part || part.photoUrls.length === 0) return;
+    let active = true;
+    getSparePartPhotoSignedUrls(part.photoUrls)
+      .then((urls) => { if (active) setExistingSignedUrls(urls); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [part]);
+
+  function addPhotos(files: File[]) {
+    setPhotos((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+  }
+
+  function removePhoto(index: number) {
+    URL.revokeObjectURL(previewUrls[index]);
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function updateField<Key extends keyof SparePartFormState>(key: Key, value: SparePartFormState[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -303,7 +331,9 @@ function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) 
         unit: form.unit.trim() || "Stk.",
         storageLocation: toNullableText(form.storageLocation),
         purchasePrice: toNumber(form.purchasePrice),
-        notes: toNullableText(form.notes)
+        notes: toNullableText(form.notes),
+        photoUrls: part?.photoUrls ?? [],
+        photos: photos.length > 0 ? photos : undefined
       });
     } finally {
       setIsSaving(false);
@@ -404,6 +434,15 @@ function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) 
           <textarea rows={3} value={form.notes} onChange={(event) => updateField("notes", event.target.value)} />
         </label>
       </fieldset>
+
+      <PhotoUploadSection
+        photos={photos}
+        previewUrls={previewUrls}
+        existingUrls={existingSignedUrls}
+        hint="Teil, Verpackung, Rechnung"
+        onAdd={addPhotos}
+        onRemove={removePhoto}
+      />
 
       {error ? <p className="form-error">{error}</p> : null}
       <div className="form-actions">

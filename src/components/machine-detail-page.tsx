@@ -40,7 +40,7 @@ import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/co
 import { getCategoryGroup } from "@/lib/app/machine-categories";
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
-import { ConfirmDialog } from "./shared-ui-components";
+import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
@@ -747,7 +747,7 @@ function MaintenanceTypeCard({
               ? (lastCompleted.completedAt ? formatDate(lastCompleted.completedAt) : "–")
               : <em className="type-card-info-empty">Noch nicht</em>}
             {lastCompleted && lastCompleted.photoUrls.length > 0 ? (
-              <PhotoGallery paths={lastCompleted.photoUrls} />
+              <PhotoGallery paths={lastCompleted.photoUrls} getSignedUrls={getMaintenancePhotoSignedUrls} />
             ) : null}
           </span>
         </div>
@@ -859,12 +859,9 @@ function QuickCompleteForm({ machine, task, isSaving, onSave, onCancel }: QuickC
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    if (files.length === 0) return;
+  function addPhotos(files: File[]) {
     setPhotos((prev) => [...prev, ...files]);
     setPhotoPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    event.target.value = "";
   }
 
   function removePhoto(index: number) {
@@ -908,50 +905,13 @@ function QuickCompleteForm({ machine, task, isSaving, onSave, onCancel }: QuickC
         Notiz
         <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
-      <div className="photo-upload-section">
-        <span className="photo-upload-label">📷 Foto hinzufügen (optional)</span>
-        <span className="photo-upload-hint">Rechnung, Wartungsbuch, etc.</span>
-        <div className="photo-upload-actions">
-          <label className="button photo-upload-btn">
-            Kamera
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-          </label>
-          <label className="button photo-upload-btn">
-            Datei
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: "none" }}
-              onChange={handleFileChange}
-            />
-          </label>
-        </div>
-        {photoPreviewUrls.length > 0 ? (
-          <div className="photo-thumbnails">
-            {photoPreviewUrls.map((url, i) => (
-              <div key={url} className="photo-thumb-wrap">
-                <img className="photo-thumb" src={url} alt={`Foto ${i + 1}`} />
-                <button
-                  className="photo-thumb-remove"
-                  type="button"
-                  aria-label="Foto entfernen"
-                  onClick={() => removePhoto(i)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <PhotoUploadSection
+        photos={photos}
+        previewUrls={photoPreviewUrls}
+        hint="Rechnung, Wartungsbuch, etc."
+        onAdd={addPhotos}
+        onRemove={removePhoto}
+      />
       <div className="form-actions">
         <button className="button" type="button" onClick={onCancel}>Abbrechen</button>
         <button className="button primary" type="submit" disabled={isSaving}>{isSaving ? "..." : "Erledigt speichern"}</button>
@@ -1333,72 +1293,6 @@ function buildCostInputFromForm(machine: Machine, form: KostenFormState): Machin
   };
 }
 
-function PhotoGallery({ paths }: { paths: string[] }) {
-  const [signedUrls, setSignedUrls] = useState<{ path: string; signedUrl: string }[]>([]);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (paths.length === 0) return;
-    let active = true;
-    getMaintenancePhotoSignedUrls(paths)
-      .then((urls) => { if (active) setSignedUrls(urls); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [paths]);
-
-  if (signedUrls.length === 0) {
-    return <span className="photo-count-badge">📷 {paths.length}</span>;
-  }
-
-  return (
-    <>
-      <span
-        className="photo-count-badge"
-        role="button"
-        tabIndex={0}
-        onClick={() => setLightboxIndex(0)}
-        onKeyDown={(e) => { if (e.key === "Enter") setLightboxIndex(0); }}
-      >
-        📷 {paths.length}
-      </span>
-      {lightboxIndex !== null ? (
-        <div
-          className="photo-lightbox-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <div className="photo-lightbox" onClick={(e) => e.stopPropagation()}>
-            <button className="photo-lightbox-close" type="button" onClick={() => setLightboxIndex(null)}>✕</button>
-            <img
-              className="photo-lightbox-img"
-              src={signedUrls[lightboxIndex]?.signedUrl}
-              alt={`Foto ${lightboxIndex + 1}`}
-            />
-            {signedUrls.length > 1 ? (
-              <div className="photo-lightbox-nav">
-                <button
-                  className="button"
-                  type="button"
-                  disabled={lightboxIndex === 0}
-                  onClick={() => setLightboxIndex((i) => (i ?? 0) - 1)}
-                >◀</button>
-                <span>{lightboxIndex + 1} / {signedUrls.length}</span>
-                <button
-                  className="button"
-                  type="button"
-                  disabled={lightboxIndex === signedUrls.length - 1}
-                  onClick={() => setLightboxIndex((i) => (i ?? 0) + 1)}
-                >▶</button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
 function buildNewTaskInput(
   machine: Machine,
   type: MaintenanceType,
@@ -1481,7 +1375,7 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
     setAdjusting(null);
   }
 
-  async function handleAddPart(input: CreateMachineSparePartInput) {
+  async function handleAddPart(input: CreateMachineSparePartInput & { photos?: File[] }) {
     await createMachineSparePart(input);
     await loadParts();
     setShowAddForm(false);
@@ -1645,7 +1539,7 @@ const SPARE_PART_UNITS = ["Stk.", "Liter", "kg", "m", "Paar"] as const;
 
 type SparePartAddFormProps = {
   machine: MachineSummary;
-  onSave: (input: CreateMachineSparePartInput) => Promise<void>;
+  onSave: (input: CreateMachineSparePartInput & { photos?: File[] }) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -1680,7 +1574,8 @@ function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) 
         unit: unit || "Stk.",
         storageLocation: null,
         purchasePrice: null,
-        notes: null
+        notes: null,
+        photoUrls: []
       });
     } finally {
       setIsSaving(false);

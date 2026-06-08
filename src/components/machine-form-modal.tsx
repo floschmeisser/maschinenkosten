@@ -17,6 +17,7 @@ type MachineFormModalProps = {
   mode: "compact" | "page";
   formMode?: MachineFormMode;
   machine?: Machine;
+  defaultCategory?: MachineCategory;
   onCancel?: () => void;
   onSave?: (input: CreateMachineInput) => Promise<void> | void;
 };
@@ -67,8 +68,8 @@ const OEKL_FUEL_BY_CATEGORY: Partial<Record<MachineCategory, number>> = {
   chainsaw: 2,
 };
 
-export function MachineFormModal({ mode, formMode = "create", machine, onCancel, onSave }: MachineFormModalProps) {
-  const [form, setForm] = useState<FormState>(() => createInitialFormState(machine));
+export function MachineFormModal({ mode, formMode = "create", machine, defaultCategory, onCancel, onSave }: MachineFormModalProps) {
+  const [form, setForm] = useState<FormState>(() => createInitialFormState(machine, defaultCategory));
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -355,7 +356,7 @@ function NumberField({ label, value, error, hint, onChange }: FieldProps) {
   );
 }
 
-function createInitialFormState(machine?: Machine): FormState {
+function createInitialFormState(machine?: Machine, defaultCategory?: MachineCategory): FormState {
   const unit: MachineUnit = machine?.unit ?? "hours";
   const currentReading =
     unit === "km" ? String(machine?.currentKilometers ?? 0) : String(machine?.currentOperatingHours ?? 0);
@@ -364,7 +365,7 @@ function createInitialFormState(machine?: Machine): FormState {
 
   return {
     name: machine?.name ?? "",
-    category: machine?.category ?? "tractor",
+    category: machine?.category ?? defaultCategory ?? "tractor",
     unit,
     currentReading,
     annualUsage,

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Locale } from "@/i18n/routing";
 import type { CreateMachineInput, MachineSummary, MachineUsageUpdateInput } from "@/lib/app/machines";
+import { CATEGORY_GROUPS, type MachineCategoryGroupId } from "@/lib/app/machine-categories";
 import {
   getMachines as getPlaceholderMachines,
   mergeMachineNotes,
@@ -33,14 +34,16 @@ import { StatusBadge } from "./shared-ui-components";
 
 type MachineManagementProps = {
   locale: Locale;
+  defaultCategory?: MachineCategoryGroupId;
 };
 
-export function MachineManagement({ locale }: MachineManagementProps) {
+export function MachineManagement({ locale, defaultCategory }: MachineManagementProps) {
   const router = useRouter();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingMachines, setIsLoadingMachines] = useState(false);
   const [usageMachine, setUsageMachine] = useState<MachineSummary | null>(null);
+  const [activeCategory, setActiveCategory] = useState<MachineCategoryGroupId | "all">(defaultCategory ?? "all");
 
   const refreshMachines = useCallback(async () => {
     setIsLoadingMachines(true);
@@ -85,6 +88,17 @@ export function MachineManagement({ locale }: MachineManagementProps) {
     return [];
   }
 
+  const activeCategoryGroup = CATEGORY_GROUPS.find((g) => g.id === activeCategory);
+  const filteredMachines =
+    activeCategory === "all"
+      ? machines
+      : machines.filter((m) => activeCategoryGroup?.categories.includes(m.category));
+
+  const defaultCategoryForForm =
+    activeCategory !== "all" && activeCategoryGroup
+      ? activeCategoryGroup.categories[0]
+      : undefined;
+
   return (
     <main className="page">
       <section className="page-header">
@@ -92,7 +106,13 @@ export function MachineManagement({ locale }: MachineManagementProps) {
       </section>
 
       {isCreating ? (
-        <MachineFormModal mode="compact" formMode="create" onSave={handleCreateMachine} onCancel={() => setIsCreating(false)} />
+        <MachineFormModal
+          mode="compact"
+          formMode="create"
+          defaultCategory={defaultCategoryForForm}
+          onSave={handleCreateMachine}
+          onCancel={() => setIsCreating(false)}
+        />
       ) : !isLoadingMachines && machines.length === 0 ? (
         <section className="panel">
           <div className="machine-onboarding-cta">
@@ -114,6 +134,30 @@ export function MachineManagement({ locale }: MachineManagementProps) {
         </section>
       )}
 
+      <div className="machine-category-tabs" role="tablist" aria-label="Kategorie filtern">
+        <button
+          className={`machine-category-tab${activeCategory === "all" ? " active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={activeCategory === "all"}
+          onClick={() => setActiveCategory("all")}
+        >
+          Alle
+        </button>
+        {CATEGORY_GROUPS.map((group) => (
+          <button
+            key={group.id}
+            className={`machine-category-tab${activeCategory === group.id ? " active" : ""}`}
+            type="button"
+            role="tab"
+            aria-selected={activeCategory === group.id}
+            onClick={() => setActiveCategory(group.id)}
+          >
+            {group.icon} {group.label}
+          </button>
+        ))}
+      </div>
+
       {usageMachine ? (
         <section className="panel">
           <div className="panel-heading">
@@ -132,7 +176,7 @@ export function MachineManagement({ locale }: MachineManagementProps) {
       {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
       <MachineTable
         locale={locale}
-        machines={machines}
+        machines={filteredMachines}
         onSelect={(selectedMachine) => router.push(`/${locale}/machines/${selectedMachine.id}`)}
         onUsageUpdate={setUsageMachine}
       />

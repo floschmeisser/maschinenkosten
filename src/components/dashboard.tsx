@@ -20,6 +20,7 @@ import {
   placeholderFarmId,
   toMachineSummary
 } from "@/lib/app/machines";
+import { CATEGORY_GROUPS } from "@/lib/app/machine-categories";
 import { getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
 import { ConfirmDialog } from "./shared-ui-components";
 import {
@@ -143,23 +144,29 @@ export function Dashboard({ locale }: DashboardProps) {
 
       <section className="dashboard-section" aria-label="Meine Maschinen">
         <h2 className="dashboard-section-title">Meine Maschinen</h2>
-        <div className="machine-reading-list">
-          {machines.map((machine) => {
-            const machineTasks = maintenanceTasks.filter((t) => t.machineId === machine.id);
-            const hasDue = machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "due");
-            const hasSoon = !hasDue && machineTasks.some((t) => getMaintenanceDisplayStatus(t, machine) === "soon");
-            return (
-              <MachineReadingCard
-                key={machine.id}
-                machine={machine}
-                hasDue={hasDue}
-                hasSoon={hasSoon}
-                locale={locale}
-                onReadingUpdated={(updated) => setMachines((prev) => prev.map((m) => m.id === updated.id ? updated : m))}
-              />
-            );
-          })}
-        </div>
+        {machines.length === 0 ? null : (
+          <div className="category-card-grid">
+            {CATEGORY_GROUPS.map((group) => {
+              const groupMachines = machines.filter((m) => group.categories.includes(m.category));
+              const hasDue = groupMachines.some((m) => {
+                const tasks = maintenanceTasks.filter((t) => t.machineId === m.id);
+                return tasks.some((t) => getMaintenanceDisplayStatus(t, m) === "due");
+              });
+              return (
+                <Link
+                  key={group.id}
+                  href={`/${locale}/machines?category=${group.id}`}
+                  className="category-card"
+                >
+                  <span className="category-card-icon" aria-hidden="true">{group.icon}</span>
+                  <strong className="category-card-name">{group.label}</strong>
+                  <span className="category-card-count">{groupMachines.length} {groupMachines.length === 1 ? "Gerät" : "Geräte"}</span>
+                  {hasDue ? <span className="category-card-badge">Fällig</span> : null}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );

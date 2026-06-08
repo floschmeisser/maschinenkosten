@@ -4225,3 +4225,103 @@ td span {
   padding: 2px 10px;
   font-size: 13px;
 }
+
+/* ─── Kategorie-Karten (Dashboard) ─── */
+
+.category-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.category-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  text-decoration: none;
+  color: var(--color-ink);
+  min-height: 100px;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.category-card:active {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.category-card-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.category-card-name {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--color-ink-2);
+  line-height: 1.2;
+}
+
+.category-card-count {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.category-card-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-gold-soft);
+  border: 1px solid var(--color-gold);
+  color: var(--color-gold);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ─── Kategorie-Filter-Tabs (Maschinenliste) ─── */
+
+.machine-category-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 16px;
+}
+
+.machine-category-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-white);
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.machine-category-tab.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-ink-2);
+}
+
+.machine-category-tab:active {
+  background: var(--color-accent-mid);
+}
+
+@media (min-width: 760px) {
+  .category-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

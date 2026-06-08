@@ -4395,3 +4395,142 @@ td span {
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
 }
+
+/* ─── Foto-Upload (QuickCompleteForm) ─── */
+
+.photo-upload-section {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.photo-upload-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-ink-2);
+}
+
+.photo-upload-hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-top: -4px;
+}
+
+.photo-upload-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.photo-upload-btn {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+.photo-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-thumb-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.photo-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid var(--color-border);
+  display: block;
+}
+
+.photo-thumb-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ─── Foto-Badge + Lightbox ─── */
+
+.photo-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.photo-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.photo-lightbox {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.photo-lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.photo-lightbox-img {
+  max-width: 90vw;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+
+.photo-lightbox-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #fff;
+  font-size: 14px;
+}

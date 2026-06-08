@@ -47,6 +47,7 @@ export type MaintenanceTask = {
   actualCost: number | null;
   notes: string | null;
   completedAt: string | null;
+  photoUrls: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -58,6 +59,7 @@ export type CompleteMaintenanceTaskInput = {
   notes?: string | null;
   completedAt?: string;
   currentReading?: number | null;
+  photos?: File[];
 };
 
 export type MaintenanceUsedPart = {
@@ -103,6 +105,7 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     actualCost: null,
     notes: "Motor- und Hydraulikölstand kontrollieren.",
     completedAt: null,
+    photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
@@ -127,6 +130,7 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     actualCost: null,
     notes: "Alle Schmiernippel abschmieren.",
     completedAt: null,
+    photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   },
@@ -151,6 +155,7 @@ export const placeholderMaintenanceTasks: MaintenanceTask[] = [
     actualCost: null,
     notes: null,
     completedAt: null,
+    photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z"
   }
@@ -457,7 +462,8 @@ export function createNextRecurringMaintenanceTask(
     intervalKilometers: completedTask.intervalKilometers,
     estimatedCost: completedTask.estimatedCost,
     actualCost: null,
-    notes: completedTask.notes
+    notes: completedTask.notes,
+    photoUrls: []
   };
 }
 

@@ -350,7 +350,8 @@ function createMaintenanceTaskInput(
     intervalKilometers: km,
     estimatedCost: toNumber(form.estimatedCost),
     actualCost: toOptionalNumber(form.actualCost),
-    notes: form.notes.trim() || null
+    notes: form.notes.trim() || null,
+    photoUrls: existingTask?.photoUrls ?? []
   };
 }
 

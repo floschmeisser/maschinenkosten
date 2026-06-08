@@ -41,6 +41,7 @@ type MaintenanceTaskRow = {
   actual_cost: number | null;
   notes: string | null;
   completed_at: string | null;
+  photo_urls: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -210,6 +211,18 @@ export async function completeMaintenanceTask(
     updateInput.lastDoneReading = completionData.currentReading;
   }
 
+  if (completionData.photos && completionData.photos.length > 0) {
+    const uploadedPaths = await uploadMaintenancePhotos(
+      existing?.farmId ?? "",
+      existing?.machineId ?? "",
+      id,
+      completionData.photos
+    );
+    if (uploadedPaths.length > 0) {
+      updateInput.photoUrls = [...(existing?.photoUrls ?? []), ...uploadedPaths];
+    }
+  }
+
   const completedTask = await updateMaintenanceTask(id, updateInput);
 
   if (!completedTask || wasAlreadyCompleted) {
@@ -344,6 +357,7 @@ function mapMaintenanceTaskRowToTask(row: MaintenanceTaskRow): MaintenanceTask {
     actualCost: row.actual_cost,
     notes: row.notes,
     completedAt: row.completed_at,
+    photoUrls: row.photo_urls ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -393,10 +407,53 @@ function mapMaintenanceTaskInputToRow(
     actual_cost: input.actualCost,
     notes: input.notes,
     completed_at: input.completedAt,
+    photo_urls: input.photoUrls ?? undefined,
     updated_at: input.updatedAt
   };
 }
 
 function triggerReminderSync(): void {
   scheduleReminderSync();
+}
+
+type StorageBucketApi = {
+  upload: (path: string, file: File, options?: { upsert?: boolean }) => Promise<{ data: { path: string } | null; error: Error | null }>;
+  createSignedUrls: (paths: string[], expiresIn: number) => Promise<{ data: { signedUrl: string; path: string }[] | null; error: Error | null }>;
+};
+
+async function uploadMaintenancePhotos(
+  farmId: string,
+  machineId: string,
+  taskId: string,
+  photos: File[]
+): Promise<string[]> {
+  if (!farmId || !machineId) return [];
+  const supabase = await getSupabaseClient();
+  if (!supabase?.storage) return [];
+
+  const bucket = supabase.storage.from("maintenance-photos") as unknown as StorageBucketApi;
+  const paths: string[] = [];
+
+  for (const file of photos) {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${farmId}/${machineId}/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await bucket.upload(path, file, { upsert: false });
+    if (error) {
+      console.error("[maintenance-photos] upload failed", { path, message: (error as { message?: string }).message });
+    } else {
+      paths.push(path);
+    }
+  }
+
+  return paths;
+}
+
+export async function getMaintenancePhotoSignedUrls(paths: string[]): Promise<{ path: string; signedUrl: string }[]> {
+  if (paths.length === 0) return [];
+  const supabase = await getSupabaseClient();
+  if (!supabase?.storage) return [];
+
+  const bucket = supabase.storage.from("maintenance-photos") as unknown as StorageBucketApi;
+  const result = await bucket.createSignedUrls(paths, 3600);
+  return result.data ?? [];
 }

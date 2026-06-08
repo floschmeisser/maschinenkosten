@@ -3505,6 +3505,62 @@ td span {
   color: var(--muted);
 }
 
+/* ─── Wartungs-Karten Typografie (neu) ─── */
+
+.maintenance-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.maintenance-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.maintenance-interval {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 4px 0 0;
+}
+
+.maintenance-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 12px 0 4px;
+}
+
+.maintenance-due-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-accent);
+  margin: 0 0 0;
+}
+
+.maintenance-last-value {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.maintenance-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
 .type-card-actions {
   display: flex;
   gap: 8px;

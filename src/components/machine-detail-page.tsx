@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/routing";
-import { formatDate, formatNumber } from "@/lib/app/format";
+import { formatDate, formatLongDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSummary } from "@/lib/app/machines";
 import {
   formatMachineReading,
@@ -727,11 +727,8 @@ function MaintenanceTypeCard({
 
   return (
     <article className={`maintenance-type-card ${urgency}`}>
-      <div className="type-card-head">
-        <div className="type-card-icon-label">
-          <span className="type-card-icon">{icon}</span>
-          <span className="type-card-label">{label}</span>
-        </div>
+      <div className="maintenance-card-header">
+        <p className="maintenance-title">{label}</p>
         {activeTask ? (
           <span className={`urgency-chip ${urgency}`}>
             {urgency === "due" ? "Fällig" : urgency === "soon" ? "Bald fällig" : "Geplant"}
@@ -739,41 +736,40 @@ function MaintenanceTypeCard({
         ) : null}
       </div>
 
-      <div className="type-card-info-grid">
-        <div className="type-card-info-cell">
-          <span className="type-card-info-label">Zuletzt erledigt</span>
-          <span className="type-card-info-value">
-            {lastCompleted
-              ? (lastCompleted.completedAt ? formatDate(lastCompleted.completedAt) : "–")
-              : <em className="type-card-info-empty">Noch nicht</em>}
-            {lastCompleted && lastCompleted.photoUrls.length > 0 ? (
-              <PhotoGallery paths={lastCompleted.photoUrls} getSignedUrls={getMaintenancePhotoSignedUrls} />
-            ) : null}
-          </span>
-        </div>
-        <div className="type-card-info-cell">
-          <span className="type-card-info-label">Nächste Fälligkeit</span>
-          <span className="type-card-info-value">
-            {activeTask ? getMostRelevantDueLabel(activeTask, machine) : "–"}
-          </span>
-        </div>
-      </div>
-
       {activeTask && (activeTask.intervalMonths !== null || activeTask.intervalOperatingHours !== null || activeTask.intervalKilometers !== null) ? (
-        <div className="type-card-interval-row">
-          <span className="interval-dot" />
-          <span className="type-card-interval-text">{getMaintenanceRecurrenceLabel(activeTask)}</span>
-        </div>
+        <p className="maintenance-interval">{getMaintenanceRecurrenceLabel(activeTask)}</p>
       ) : null}
 
-      <div className="type-card-actions">
+      {activeTask ? (
+        <>
+          <p className="maintenance-section-label">Nächste Fälligkeit</p>
+          <p className="maintenance-due-value">{getMostRelevantDueLabel(activeTask, machine)}</p>
+        </>
+      ) : null}
+
+      {lastCompleted ? (
+        <>
+          <p className="maintenance-section-label">Zuletzt erledigt</p>
+          <p className="maintenance-last-value">
+            {lastCompleted.completedAt ? formatLongDate(lastCompleted.completedAt) : "–"}
+            {lastCompleted.lastDoneReading !== null
+              ? ` · ${lastCompleted.lastDoneReading.toLocaleString("de-DE", { maximumFractionDigits: 0 })} ${getMachineUnitLabel(machine.unit)}`
+              : ""}
+            {lastCompleted.photoUrls.length > 0 ? (
+              <PhotoGallery paths={lastCompleted.photoUrls} getSignedUrls={getMaintenancePhotoSignedUrls} />
+            ) : null}
+          </p>
+        </>
+      ) : null}
+
+      <div className="maintenance-card-actions">
         {activeTask ? (
           <button className="button primary" type="button" onClick={() => setIsCompleting(true)}>
             ✓ Erledigt
           </button>
         ) : null}
         <button className="button" type="button" onClick={() => setIsAdding(true)}>
-          Bearbeiten
+          ✎ Bearbeiten
         </button>
         {activeTask ? (
           <button className="button gold" type="button" onClick={() => setConfirmDelete(true)}>

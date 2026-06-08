@@ -15,3 +15,7 @@ export function formatNumber(value: number, locale = "de-DE"): string {
 export function formatDate(value: string, locale = "de-DE"): string {
   return new Intl.DateTimeFormat(locale).format(new Date(value));
 }
+
+export function formatLongDate(value: string, locale = "de-DE"): string {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(new Date(value + "T00:00:00"));
+}

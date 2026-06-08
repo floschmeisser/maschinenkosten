@@ -18,7 +18,7 @@ export type Reminder = {
   reminderKey: string;
   type: ReminderType;
   sourceType: ReminderSourceType;
-  sourceId: string;
+  sourceId?: string | null;
   machineId?: string | null;
   title: string;
   message: string | null;

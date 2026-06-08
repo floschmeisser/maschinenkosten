@@ -134,7 +134,6 @@ export function buildReminderInsertPayload(reminder: Reminder) {
     reminder_key: reminder.reminderKey,
     type: reminder.type,
     source_type: reminder.sourceType,
-    source_id: reminder.sourceId,
     machine_id: reminder.machineId ?? null,
     title: reminder.title,
     description: reminder.message ?? null,

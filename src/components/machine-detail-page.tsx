@@ -36,6 +36,8 @@ import {
   type MaintenanceType
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
+import { getCategoryGroup } from "@/lib/app/machine-categories";
+import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog } from "./shared-ui-components";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
@@ -203,6 +205,11 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
     await refreshTasks();
   }
 
+  async function handleBulkCreateTasks(inputs: CreateMaintenanceTaskInput[]) {
+    await Promise.all(inputs.map(createMaintenanceTask));
+    await refreshTasks();
+  }
+
   async function handleDeleteTask(taskId: string) {
     await deleteMaintenanceTask(taskId);
     await refreshTasks();
@@ -298,6 +305,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
           onUsageUpdate={handleUsageUpdate}
           onCompleteTask={handleCompleteTask}
           onCreateTask={handleCreateTask}
+          onBulkCreateTasks={handleBulkCreateTasks}
           onDeleteTask={handleDeleteTask}
         />
       ) : activeTab === "ersatzteile" ? (
@@ -317,6 +325,7 @@ type WartungModuleProps = {
   onUsageUpdate: (reading: number) => Promise<string[]>;
   onCompleteTask: (taskId: string, data: CompleteMaintenanceTaskInput) => Promise<void>;
   onCreateTask: (input: CreateMaintenanceTaskInput) => Promise<void>;
+  onBulkCreateTasks: (inputs: CreateMaintenanceTaskInput[]) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
 };
 
@@ -328,9 +337,53 @@ function MachineWartungModule({
   onUsageUpdate,
   onCompleteTask,
   onCreateTask,
+  onBulkCreateTasks,
   onDeleteTask
 }: WartungModuleProps) {
   const [isUpdatingStand, setIsUpdatingStand] = useState(false);
+  const [confirmTemplates, setConfirmTemplates] = useState(false);
+  const [isBulkCreating, setIsBulkCreating] = useState(false);
+  const [templateToast, setTemplateToast] = useState<string | null>(null);
+
+  const categoryGroup = getCategoryGroup(machine.category);
+  const templates = MAINTENANCE_TEMPLATES[categoryGroup.id];
+
+  async function handleCreateTemplates() {
+    setIsBulkCreating(true);
+    setConfirmTemplates(false);
+    try {
+      const inputs: CreateMaintenanceTaskInput[] = templates.map((tpl) => ({
+        farmId: machine.farmId,
+        machineId: machine.id,
+        title: tpl.title,
+        type: tpl.type,
+        customTitle: null,
+        status: "open" as const,
+        dueDate: null,
+        dueOperatingHours: null,
+        dueKilometers: null,
+        intervalType: (
+          tpl.intervalHours && tpl.intervalMonths ? "combined"
+          : tpl.intervalKm ? "kilometers"
+          : tpl.intervalHours ? "operating_hours"
+          : tpl.intervalMonths ? "months"
+          : "none"
+        ) as import("@/lib/app/maintenance").MaintenanceIntervalType,
+        intervalDays: null,
+        intervalMonths: tpl.intervalMonths ?? null,
+        intervalOperatingHours: tpl.intervalHours ?? null,
+        intervalKilometers: tpl.intervalKm ?? null,
+        estimatedCost: 0,
+        actualCost: null,
+        notes: null
+      }));
+      await onBulkCreateTasks(inputs);
+      setTemplateToast(`${templates.length} Wartungen angelegt`);
+      setTimeout(() => setTemplateToast(null), 3000);
+    } finally {
+      setIsBulkCreating(false);
+    }
+  }
   const currentReading = getMachineCurrentReading(machine);
   const unit = getMachineUnitLabel(machine.unit);
 
@@ -394,12 +447,56 @@ function MachineWartungModule({
         ) : null}
       </section>
 
+      {templateToast ? (
+        <div className="template-toast">{templateToast}</div>
+      ) : null}
+
+      {confirmTemplates ? (
+        <ConfirmDialog
+          title={`${templates.length} Standard-Wartungen für ${categoryGroup.label} anlegen?`}
+          message="Du kannst jede Wartung danach einzeln anpassen oder löschen."
+          confirmLabel={isBulkCreating ? "Anlegen..." : "Jetzt anlegen"}
+          onCancel={() => setConfirmTemplates(false)}
+          onConfirm={() => void handleCreateTemplates()}
+        />
+      ) : null}
+
       <section className="maintenance-types-section">
         {isLoading ? <p className="preference-hint">Laden...</p> : null}
         {!isLoading && tasks.length === 0 ? (
-          <div className="maintenance-onboarding-hint">
-            <strong>Wartungsintervalle einrichten</strong>
-            <p>Wähle einen Typ und tippe auf "Einrichten" um Fälligkeiten zu verfolgen.</p>
+          <>
+            <div className="maintenance-onboarding-hint">
+              <strong>Wartungsintervalle einrichten</strong>
+              <p>Wähle einen Typ und tippe auf "Einrichten" um Fälligkeiten zu verfolgen.</p>
+            </div>
+            <div className="template-card">
+              <div className="template-card-body">
+                <span className="template-card-icon">{categoryGroup.icon}</span>
+                <div>
+                  <strong>Standard-Wartungen für {categoryGroup.label} anlegen</strong>
+                  <span className="muted">{templates.length} typische Wartungen mit Standardintervallen</span>
+                </div>
+              </div>
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => setConfirmTemplates(true)}
+              >
+                Jetzt anlegen ›
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {!isLoading && tasks.length > 0 ? (
+          <div className="template-add-hint">
+            <button
+              className="button template-add-btn"
+              type="button"
+              onClick={() => setConfirmTemplates(true)}
+            >
+              Standard-Wartungen ergänzen
+            </button>
           </div>
         ) : null}
 

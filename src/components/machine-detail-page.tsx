@@ -775,6 +775,11 @@ function QuickCompleteForm({ machine, task, isSaving, onSave, onCancel }: QuickC
       <label>
         Stand bei Erledigung ({unit})
         <input inputMode="decimal" min="0" step="0.1" type="number" value={reading} onChange={(e) => setReading(e.target.value)} />
+        {reading !== String(currentReading) ? (
+          <span className="form-hint" style={{ color: "var(--color-subtle)" }}>
+            Aktueller Maschinenstand: {currentReading.toLocaleString("de-DE", { maximumFractionDigits: 0 })} {unit}
+          </span>
+        ) : null}
       </label>
       <label>
         Kosten (€)

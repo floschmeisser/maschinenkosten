@@ -6,8 +6,10 @@ import type { Locale } from "@/i18n/routing";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Machine, MachineSparePart } from "@/lib/app/machines";
 import {
+  getMachineCurrentReading,
   getMachineSparePartStockStatus,
   getMachineSparePartStockStatusLabel,
+  getMachineUnitLabel,
   getMachines as getPlaceholderMachines
 } from "@/lib/app/machines";
 import { getMachines } from "@/lib/app/machines-database";
@@ -270,6 +272,7 @@ export function MaintenanceManagement({ initialFilter, initialFocusedTaskId, loc
       {completionTask ? (
         <CompletionForm
           task={completionTask}
+          machine={machines.find((m) => m.id === completionTask.machineId)}
           onCancel={() => setCompletionTask(null)}
           onComplete={(completionData, usedParts) => handleCompleteTask(completionTask, completionData, usedParts)}
         />
@@ -680,6 +683,7 @@ function MaintenanceUsedPartsSummary({ taskId }: MaintenanceUsedPartsSummaryProp
 
 type CompletionFormProps = {
   task: MaintenanceTask;
+  machine?: Machine;
   onCancel: () => void;
   onComplete: (completionData: CompleteMaintenanceTaskInput, usedParts: CompletionUsedPartInput[]) => Promise<void> | void;
 };
@@ -697,10 +701,13 @@ type UsedPartFormRow = {
   notes: string;
 };
 
-function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
-  const [actualCost, setActualCost] = useState(String(task.actualCost ?? task.estimatedCost ?? 0));
+function CompletionForm({ task, machine, onCancel, onComplete }: CompletionFormProps) {
+  const machineReading = machine ? getMachineCurrentReading(machine) : null;
+  const unit = machine ? getMachineUnitLabel(machine.unit) : "h";
+  const [actualCost, setActualCost] = useState("");
   const [completedAt, setCompletedAt] = useState(new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState(task.notes ?? "");
+  const [reading, setReading] = useState(machineReading !== null ? String(machineReading) : "");
+  const [notes, setNotes] = useState("");
   const [spareParts, setSpareParts] = useState<MachineSparePart[]>([]);
   const [usedPartRows, setUsedPartRows] = useState<UsedPartFormRow[]>([]);
   const [partsMessage, setPartsMessage] = useState<string | null>(null);
@@ -738,9 +745,11 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
     setIsSaving(true);
 
     try {
+      const r = reading.trim() ? Number(reading) : null;
       await onComplete({
         actualCost: toOptionalNumber(actualCost),
         completedAt,
+        currentReading: r !== null && Number.isFinite(r) ? r : null,
         notes
       }, usedParts);
     } finally {
@@ -776,12 +785,30 @@ function CompletionForm({ task, onCancel, onComplete }: CompletionFormProps) {
       </div>
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
-          Kosten
-          <input min="0" type="number" value={actualCost} onChange={(event) => setActualCost(event.target.value)} />
-        </label>
-        <label>
           Erledigt am
           <input type="date" value={completedAt} onChange={(event) => setCompletedAt(event.target.value)} />
+        </label>
+        {machine ? (
+          <label>
+            Stand bei Erledigung ({unit})
+            <input
+              inputMode="decimal"
+              min="0"
+              step="0.1"
+              type="number"
+              value={reading}
+              onChange={(event) => setReading(event.target.value)}
+            />
+            {reading !== String(machineReading) ? (
+              <span className="form-hint" style={{ color: "var(--color-subtle)" }}>
+                Aktueller Maschinenstand: {machineReading?.toLocaleString("de-DE", { maximumFractionDigits: 0 })} {unit}
+              </span>
+            ) : null}
+          </label>
+        ) : null}
+        <label>
+          Kosten (€)
+          <input min="0" type="number" value={actualCost} onChange={(event) => setActualCost(event.target.value)} />
         </label>
         <label className="form-section">
           Notiz

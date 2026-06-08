@@ -1,4 +1,5 @@
 import { calculateMachineCosts, createCostInputFromMachine, evaluateMachineCostHealth } from "./cost-calculation";
+import { safeDateParse } from "./date-utils";
 import {
   getMachineSparePartStockStatus,
   type Machine,
@@ -133,11 +134,8 @@ function createMaintenanceReminder(
 }
 
 function getDaysUntil(dateValue: string): number | null {
-  const dueDate = new Date(dateValue);
-
-  if (Number.isNaN(dueDate.getTime())) {
-    return null;
-  }
+  const dueDate = safeDateParse(dateValue);
+  if (!dueDate) return null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

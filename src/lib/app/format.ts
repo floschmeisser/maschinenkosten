@@ -13,9 +13,13 @@ export function formatNumber(value: number, locale = "de-DE"): string {
 }
 
 export function formatDate(value: string, locale = "de-DE"): string {
-  return new Intl.DateTimeFormat(locale).format(new Date(value));
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "–";
+  return new Intl.DateTimeFormat(locale).format(d);
 }
 
 export function formatLongDate(value: string, locale = "de-DE"): string {
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(new Date(value + "T00:00:00"));
+  const d = new Date(value.slice(0, 10) + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return "–";
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(d);
 }

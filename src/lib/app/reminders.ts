@@ -17,7 +17,7 @@ export type Reminder = {
   farmId: string;
   reminderKey: string;
   type: ReminderType;
-  sourceType: ReminderSourceType;
+  sourceType?: ReminderSourceType | null;
   sourceId?: string | null;
   machineId?: string | null;
   title: string;
@@ -61,8 +61,8 @@ export const placeholderReminders: Reminder[] = [
   }
 ];
 
-export function createReminderKey(input: Pick<Reminder, "type" | "sourceType" | "sourceId">): string {
-  return `${input.type}:${input.sourceType}:${input.sourceId}`;
+export function createReminderKey(input: { type: ReminderType; sourceType?: ReminderSourceType | null; sourceId?: string | null }): string {
+  return `${input.type}:${input.sourceType ?? ""}:${input.sourceId ?? ""}`;
 }
 
 export function isReminderOpen(reminder: Reminder): boolean {
@@ -115,7 +115,7 @@ export function getReminderSourceLabel(reminder: Pick<Reminder, "sourceType" | "
     custom: "Erinnerung"
   };
 
-  return labels[reminder.sourceType];
+  return reminder.sourceType ? (labels[reminder.sourceType] ?? "Erinnerung") : "Erinnerung";
 }
 
 export function getReminderTypeLabel(type: ReminderType): string {

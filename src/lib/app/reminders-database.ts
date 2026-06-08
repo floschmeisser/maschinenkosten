@@ -18,7 +18,6 @@ type ReminderRow = {
   farm_id: string;
   reminder_key: string;
   type: Reminder["type"];
-  source_type: Reminder["sourceType"];
   machine_id: string | null;
   title: string;
   description: string | null;
@@ -219,8 +218,6 @@ function mapReminderRowToReminder(row: ReminderRow): Reminder {
     farmId: row.farm_id,
     reminderKey: row.reminder_key,
     type: row.type,
-    sourceType: row.source_type,
-    sourceId: null,
     machineId: row.machine_id,
     title: row.title,
     message: row.description,
@@ -241,7 +238,6 @@ function mapReminderToRow(reminder: Reminder): ReminderRow {
     farm_id: reminder.farmId,
     reminder_key: reminder.reminderKey,
     type: reminder.type,
-    source_type: reminder.sourceType,
     machine_id: reminder.machineId ?? null,
     title: reminder.title,
     description: reminder.message,
@@ -257,7 +253,6 @@ function mapReminderInputToRow(input: Partial<UpdateReminderInput & Pick<Reminde
   return {
     reminder_key: input.reminderKey,
     type: input.type,
-    source_type: input.sourceType,
     machine_id: input.machineId ?? undefined,
     title: input.title,
     description: input.message,

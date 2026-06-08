@@ -1548,6 +1548,19 @@ function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) 
   const [minimumStockQuantity, setMinimumStockQuantity] = useState("0");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  function addPhotos(files: File[]) {
+    setPhotos((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+  }
+
+  function removePhoto(index: number) {
+    URL.revokeObjectURL(previewUrls[index]);
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1571,7 +1584,8 @@ function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) 
         storageLocation: null,
         purchasePrice: null,
         notes: null,
-        photoUrls: []
+        photoUrls: [],
+        photos: photos.length > 0 ? photos : undefined
       });
     } finally {
       setIsSaving(false);
@@ -1629,6 +1643,13 @@ function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) 
           onChange={(e) => setMinimumStockQuantity(e.target.value)}
         />
       </label>
+      <PhotoUploadSection
+        photos={photos}
+        previewUrls={previewUrls}
+        hint="Teil, Verpackung, Rechnung"
+        onAdd={addPhotos}
+        onRemove={removePhoto}
+      />
       {error && <p className="field-error">{error}</p>}
       <div className="form-actions">
         <button className="button" type="button" onClick={onCancel}>Abbrechen</button>

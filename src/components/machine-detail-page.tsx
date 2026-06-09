@@ -38,7 +38,7 @@ import {
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
 import { safeDateParse } from "@/lib/app/date-utils";
-import { urgentTaskCount } from "@/lib/app/maintenance-sort";
+import { getMaintenanceUrgency, urgentTaskCount } from "@/lib/app/maintenance-sort";
 import { getCategoryGroup } from "@/lib/app/machine-categories";
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
@@ -705,6 +705,8 @@ function MaintenanceTypeCard({
     ? getMaintenanceDisplayStatus(activeTask, machine)
     : "planned";
   const statusHint = getStatusHintData(activeTask, machine);
+  const taskUrgency = activeTask ? getMaintenanceUrgency(activeTask) : "none";
+  const showAlert = taskUrgency === "overdue" || taskUrgency === "today";
 
   // Inactive: no task, no history
   if (!activeTask && !lastCompleted && !isAdding) {
@@ -781,6 +783,7 @@ function MaintenanceTypeCard({
         onClick={() => setIsExpanded((v) => !v)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsExpanded((v) => !v); } }}
       >
+        {showAlert ? <span className="mc-alert-icon" aria-hidden="true" title="Dringend">⚠</span> : null}
         <span className="mc-title">{label}</span>
         <span className={`mc-status-hint${statusHint.urgent ? " urgent" : ""}`}>
           {statusHint.text}

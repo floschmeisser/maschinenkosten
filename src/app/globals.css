@@ -4870,6 +4870,19 @@ td span {
   transform: rotate(180deg);
 }
 
+.mc-alert-icon {
+  font-size: 16px;
+  color: var(--color-gold);
+  flex-shrink: 0;
+  line-height: 1;
+  animation: mc-alert-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mc-alert-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.12); }
+}
+
 .mc-body {
   overflow: hidden;
   transition: max-height 220ms ease-out, opacity 180ms;

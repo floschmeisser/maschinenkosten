@@ -33,6 +33,7 @@ import { getStatusLabel } from "@/lib/app/status";
 import { MachineDocuments } from "./machine-documents";
 import { MachineFormModal } from "./machine-form-modal";
 import { Fab } from "./fab";
+import { EmptyState } from "./empty-state";
 import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
 import { StatusBadge } from "./shared-ui-components";
@@ -191,6 +192,15 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
 
       <Fab label="Maschine hinzufügen" onClick={() => setIsCreating(true)} />
       {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
+      {!isLoadingMachines && filteredMachines.length === 0 ? (
+        <EmptyState
+          emoji="🚜"
+          title="Noch keine Maschinen"
+          message="Lege deine erste Maschine an, um Wartungen und Kosten im Blick zu behalten."
+          actionLabel="Maschine hinzufügen"
+          onAction={() => setIsCreating(true)}
+        />
+      ) : null}
       <div className="machine-card-grid">
         {filteredMachines.map((machine) => {
           const machineTasks = tasksByMachine.get(machine.id) ?? [];

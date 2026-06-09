@@ -4527,6 +4527,57 @@ td span {
   color: var(--color-muted);
 }
 
+/* ─── Empty State ─── */
+
+.empty-state-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 12px;
+  min-height: 320px;
+}
+
+.empty-state-emoji {
+  font-size: 64px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.empty-state-message {
+  font-size: 14px;
+  color: var(--color-muted);
+  max-width: 320px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.empty-state-action {
+  margin-top: 4px;
+  background: var(--color-gold);
+  color: var(--color-ink);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+}
+
+.empty-state-action:hover {
+  background: var(--color-gold-dark);
+  color: var(--color-white);
+}
+
 /* ─── Floating Action Button ─── */
 
 .fab {

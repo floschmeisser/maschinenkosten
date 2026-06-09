@@ -13,9 +13,9 @@ export const localFarmConfigOverride: FarmAppConfigOverride = {
     // Replace with a customer logo, for example `/assets/musterhof-logo.svg`.
     logoPath: "/assets/logo.svg",
     // Use strong outdoor-readable colors. Primary should stay a field/dark green.
-    primaryColor: "#2d5a1b",
-    accentColor: "#7a5c2e",
-    backgroundColor: "#f8f7f3",
+    primaryColor: "#2B4837",
+    accentColor: "#E5A315",
+    backgroundColor: "#FAFAFA",
     welcomeTitle: "Heute",
     welcomeSubtitle: "Musterhof. Maschinen. Wartung."
   },

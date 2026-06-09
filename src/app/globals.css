@@ -3397,9 +3397,9 @@ td span {
 }
 
 .urgency-chip.planned {
-  border-color: #c8dba0;
-  background: #eaf2e3;
-  color: #2d5a1b;
+  border-color: var(--color-accent-mid);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
 }
 
 .type-card-history {

@@ -14,7 +14,7 @@ import {
   validateMachineUsageUpdate
 } from "@/lib/app/machines";
 import { deleteMachine, getMachineById, updateMachine } from "@/lib/app/machines-database";
-import { createMachineSparePart, deleteMachineSparePart, getMachineSpareParts, updateMachineSparePart } from "@/lib/app/machine-spare-parts-database";
+import { createMachineSparePart, deleteMachineSparePart, getMachineSpareParts, getSparePartPhotoSignedUrls, updateMachineSparePart } from "@/lib/app/machine-spare-parts-database";
 import type { CreateMachineSparePartInput, MachineSparePart } from "@/lib/app/machines";
 import {
   completeMaintenanceTask,
@@ -1501,62 +1501,18 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
           </button>
         </div>
       ) : (
-        <div className="spare-parts-tab-list">
-          {parts.map((part) => {
-            const isLow = part.minimumStockQuantity > 0 && part.stockQuantity <= part.minimumStockQuantity;
-            const isAdjusting = adjusting?.id === part.id;
-
-            return (
-              <div key={part.id} className={`spare-part-tab-row${isLow ? " low-stock" : ""}`}>
-                <div className="spare-part-tab-main">
-                  <div className="spare-part-tab-identity">
-                    <strong className="spare-part-tab-name">{part.name}</strong>
-                    {(part.partNumber ?? part.manufacturer) ? (
-                      <span className="spare-part-tab-number">
-                        {part.partNumber ?? part.manufacturer}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="spare-part-tab-stock">
-                    <strong className="spare-part-tab-qty">{formatNumber(part.stockQuantity)}</strong>
-                    <span className="spare-part-tab-unit">{part.unit}</span>
-                    {isLow && <span className="spare-part-low-badge">Bestand niedrig</span>}
-                  </div>
-                </div>
-                {isAdjusting ? (
-                  <ConsumeAddInlineForm
-                    mode={adjusting.mode}
-                    onSave={(amount) => handleAdjust(part, amount, adjusting.mode)}
-                    onCancel={() => setAdjusting(null)}
-                  />
-                ) : (
-                  <div className="spare-part-tab-actions">
-                    <button
-                      className="button small"
-                      type="button"
-                      onClick={() => setAdjusting({ id: part.id, mode: "consume" })}
-                    >
-                      − Verbrauchen
-                    </button>
-                    <button
-                      className="button small"
-                      type="button"
-                      onClick={() => setAdjusting({ id: part.id, mode: "add" })}
-                    >
-                      + Hinzufügen
-                    </button>
-                    <button
-                      className="button small gold"
-                      type="button"
-                      onClick={() => setDeletingPartId(part.id)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="mc-list">
+          {parts.map((part) => (
+            <SparePartCard
+              key={part.id}
+              part={part}
+              adjusting={adjusting}
+              onAdjust={handleAdjust}
+              onStartAdjust={setAdjusting}
+              onCancelAdjust={() => setAdjusting(null)}
+              onDelete={setDeletingPartId}
+            />
+          ))}
         </div>
       )}
 
@@ -1569,6 +1525,83 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
         />
       ) : null}
     </section>
+  );
+}
+
+type SparePartCardProps = {
+  part: MachineSparePart;
+  adjusting: { id: string; mode: AdjustMode } | null;
+  onAdjust: (part: MachineSparePart, amount: number, mode: AdjustMode) => Promise<void>;
+  onStartAdjust: (v: { id: string; mode: AdjustMode }) => void;
+  onCancelAdjust: () => void;
+  onDelete: (id: string) => void;
+};
+
+function SparePartCard({ part, adjusting, onAdjust, onStartAdjust, onCancelAdjust, onDelete }: SparePartCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLow = part.minimumStockQuantity > 0 && part.stockQuantity <= part.minimumStockQuantity;
+  const isAdjusting = adjusting?.id === part.id;
+
+  return (
+    <article className={`mc-card${isLow ? " urgency-overdue" : ""}`}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        className="mc-header"
+        onClick={() => setIsExpanded((v) => !v)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsExpanded((v) => !v); } }}
+      >
+        <span className="mc-title" style={{ fontSize: 15 }}>{part.name}</span>
+        <span className="mc-status-hint" style={{ fontSize: 14, fontWeight: 600 }}>
+          {formatNumber(part.stockQuantity)} {part.unit}
+        </span>
+        {isLow ? <span className="mc-status-hint urgent" style={{ marginLeft: 4 }}>Niedrig</span> : null}
+        <span className={`mc-chevron${isExpanded ? " expanded" : ""}`} aria-hidden="true">▾</span>
+      </div>
+
+      <div className={`mc-body ${isExpanded ? "mc-body--expanded" : "mc-body--collapsed"}`}>
+        <div className="mc-body-inner">
+          {part.partNumber || part.manufacturer ? (
+            <div className="mc-section">
+              {part.partNumber ? <><p className="mc-section-label">Teilenummer</p><p className="mc-section-value">{part.partNumber}</p></> : null}
+              {part.manufacturer ? <><p className="mc-section-label">Hersteller</p><p className="mc-section-value">{part.manufacturer}</p></> : null}
+            </div>
+          ) : null}
+          <div className="mc-section">
+            <p className="mc-section-label">Bestand / Minimum</p>
+            <p className="mc-section-value">
+              {formatNumber(part.stockQuantity)} / {formatNumber(part.minimumStockQuantity)} {part.unit}
+            </p>
+          </div>
+          {part.photoUrls.length > 0 ? (
+            <PhotoGallery paths={part.photoUrls} getSignedUrls={getSparePartPhotoSignedUrls} />
+          ) : null}
+          {isAdjusting ? (
+            <ConsumeAddInlineForm
+              mode={adjusting!.mode}
+              onSave={(amount) => onAdjust(part, amount, adjusting!.mode)}
+              onCancel={onCancelAdjust}
+            />
+          ) : (
+            <div className="mc-actions">
+              <button className="button primary mc-btn-complete" type="button"
+                onClick={(e) => { e.stopPropagation(); onStartAdjust({ id: part.id, mode: "consume" }); }}>
+                − Verbrauchen
+              </button>
+              <button className="button mc-btn-edit" type="button"
+                onClick={(e) => { e.stopPropagation(); onStartAdjust({ id: part.id, mode: "add" }); }}>
+                + Hinzufügen
+              </button>
+              <button className="button gold" type="button"
+                onClick={(e) => { e.stopPropagation(); onDelete(part.id); }}>
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 

@@ -38,16 +38,18 @@ import {
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
 import { safeDateParse } from "@/lib/app/date-utils";
+import { urgentTaskCount } from "@/lib/app/maintenance-sort";
 import { getCategoryGroup } from "@/lib/app/machine-categories";
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
+import { MachineDocuments } from "./machine-documents";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
 import type { MachineCostInput } from "@/lib/app/financials";
 
-type Tab = "wartung" | "ersatzteile" | "kosten";
+type Tab = "wartung" | "ersatzteile" | "kosten" | "dokumente";
 
 const STANDARD_TYPES: MaintenanceType[] = [
   "oil_engine",
@@ -236,20 +238,46 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
     }
   }
 
+  const urgentCount = urgentTaskCount(tasks);
+
   return (
     <main className="page machine-detail-v2">
-      <section className="machine-detail-header">
-        <div>
-          <span className="machine-detail-category">{machine.displayCategory}</span>
-          <h1 className="machine-detail-name">{machine.name}</h1>
-          <p className="machine-detail-meta">{machine.manufacturer} {machine.model} &middot; {machine.yearOfManufacture}</p>
+      {/* ── Hero ── */}
+      <section className="md-hero">
+        <div className="md-hero-top">
+          <div className="md-hero-info">
+            <span className="md-hero-category">{machine.displayCategory}</span>
+            <h1 className="md-hero-name">{machine.name}</h1>
+            <p className="md-hero-meta">{machine.manufacturer} {machine.model} · {machine.yearOfManufacture}</p>
+          </div>
+          <div className="md-hero-actions">
+            <button className="button" type="button" onClick={() => setIsEditingMachine((v) => !v)}>
+              {isEditingMachine ? "Schließen" : "Bearbeiten"}
+            </button>
+            <button className="button gold" type="button" onClick={() => setConfirmDeleteMachine(true)}>
+              Löschen
+            </button>
+          </div>
         </div>
-        <div className="machine-detail-header-actions">
-          <button className="button" type="button" onClick={() => setIsEditingMachine((v) => !v)}>
-            {isEditingMachine ? "Schließen" : "Bearbeiten"}
-          </button>
-          <button className="button gold" type="button" onClick={() => setConfirmDeleteMachine(true)}>
-            Löschen
+
+        <div className="md-reading-box">
+          <div className="md-reading-info">
+            <span className="md-reading-label">
+              {machine.unit === "km" ? "Kilometerstand" : "Betriebsstunden"}
+            </span>
+            <span className="md-reading-value">
+              {machine.unit === "km"
+                ? `${(machine.currentKilometers ?? 0).toLocaleString("de-DE")} km`
+                : `${machine.currentOperatingHours.toLocaleString("de-DE")} h`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="md-reading-edit"
+            aria-label="Stand bearbeiten"
+            onClick={() => setIsEditingMachine(true)}
+          >
+            ✎
           </button>
         </div>
       </section>
@@ -274,30 +302,24 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
         />
       ) : null}
 
-      <nav className="detail-tabs" aria-label="Module">
-        <button
-          className={activeTab === "wartung" ? "tab-button active" : "tab-button"}
-          type="button"
-          onClick={() => setActiveTab("wartung")}
-        >
-          Wartung
-        </button>
-        <button
-          className={activeTab === "ersatzteile" ? "tab-button active" : "tab-button"}
-          type="button"
-          onClick={() => setActiveTab("ersatzteile")}
-        >
-          Ersatzteile
-        </button>
-        <button
-          className={activeTab === "kosten" ? "tab-button active" : "tab-button"}
-          type="button"
-          onClick={() => setActiveTab("kosten")}
-        >
-          Kosten
-        </button>
+      {/* ── Tabs ── */}
+      <nav className="md-tabs" aria-label="Module">
+        {(["wartung", "ersatzteile", "kosten", "dokumente"] as Tab[]).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={`md-tab${activeTab === tab ? " active" : ""}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === "wartung" ? "Wartung" : tab === "ersatzteile" ? "Ersatzteile" : tab === "kosten" ? "Kosten" : "Dokumente"}
+            {tab === "wartung" && urgentCount > 0 ? (
+              <span className="md-tab-badge">{urgentCount}</span>
+            ) : null}
+          </button>
+        ))}
       </nav>
 
+      {/* ── Tab Content ── */}
       {activeTab === "wartung" ? (
         <MachineWartungModule
           locale={locale}
@@ -312,8 +334,10 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
         />
       ) : activeTab === "ersatzteile" ? (
         <SparePartsTabContent machine={machine} />
-      ) : (
+      ) : activeTab === "kosten" ? (
         <MachineKostenModule machine={machine} />
+      ) : (
+        <MachineDocuments machine={machine} />
       )}
     </main>
   );

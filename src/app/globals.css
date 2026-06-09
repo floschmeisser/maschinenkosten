@@ -4442,6 +4442,157 @@ td span {
   color: var(--color-muted);
 }
 
+/* ─── Machine Detail Hero + Tabs ─── */
+
+.md-hero {
+  padding: 16px;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.md-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.md-hero-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.md-hero-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 4px 0;
+  line-height: 1.2;
+}
+
+.md-hero-meta {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.md-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.md-reading-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-surface);
+  padding: 12px;
+  border-radius: 10px;
+  gap: 12px;
+}
+
+.md-reading-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.md-reading-label {
+  font-size: 11px;
+  color: var(--color-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.md-reading-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.md-reading-edit {
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent);
+  color: var(--color-white);
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: background 160ms;
+}
+
+.md-reading-edit:hover {
+  background: var(--color-ink);
+}
+
+.md-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--color-white);
+}
+
+.md-tabs::-webkit-scrollbar { display: none; }
+
+.md-tab {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 8px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.md-tab.active {
+  color: var(--color-ink);
+  border-bottom-color: var(--color-gold);
+  font-weight: 600;
+}
+
+.md-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-gold);
+  color: var(--color-ink);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  animation: mcg-pulse 1.6s ease-in-out infinite;
+}
+
+@media (min-width: 768px) {
+  .md-hero { padding: 20px 24px; }
+  .md-hero-name { font-size: 28px; }
+  .md-tabs { position: sticky; top: 0; z-index: 10; }
+}
+
 /* ─── Machine Card Grid (Liste) ─── */
 
 .machine-card-grid {

@@ -201,6 +201,19 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
 
   async function handleCompleteTask(taskId: string, data: CompleteMaintenanceTaskInput) {
     await completeMaintenanceTask(taskId, data);
+    // Update machine reading if user entered a higher value
+    if (data.currentReading !== null && data.currentReading !== undefined) {
+      const currentReading = machine.unit === "km"
+        ? (machine.currentKilometers ?? 0)
+        : machine.currentOperatingHours;
+      if (data.currentReading > currentReading) {
+        const updateInput = machine.unit === "km"
+          ? { currentKilometers: data.currentReading }
+          : { currentOperatingHours: data.currentReading };
+        const updated = await updateMachine(machine.id, updateInput);
+        if (updated) onMachineUpdated(toMachineSummary(updated));
+      }
+    }
     await refreshTasks();
   }
 
@@ -746,28 +759,37 @@ function MaintenanceTypeCard({
     );
   }
 
-  // Completing form
+  // Completing modal
   if (isCompleting && activeTask) {
     return (
-      <article className="mc-card">
-        <div className="mc-header" style={{ cursor: "default" }}>
-          <span className="mc-title">{label}</span>
+      <>
+        <article className={`mc-card ${getTaskUrgencyClass(urgency)}`}>
+          <div className="mc-header" style={{ cursor: "default" }}>
+            {showAlert ? <span className="mc-alert-icon" aria-hidden="true" title="Dringend">⚠</span> : null}
+            <span className="mc-title">{label}</span>
+          </div>
+        </article>
+        <div className="complete-dialog-overlay" onClick={() => setIsCompleting(false)}>
+          <div className="complete-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="complete-dialog-header">
+              <strong className="complete-dialog-title">✓ Erledigt: {label}</strong>
+              <button type="button" className="complete-dialog-close" onClick={() => setIsCompleting(false)} aria-label="Schließen">✕</button>
+            </div>
+            <QuickCompleteForm
+              machine={machine}
+              task={activeTask}
+              onSave={async (data) => {
+                setIsSaving(true);
+                await onComplete(activeTask.id, data);
+                setIsSaving(false);
+                setIsCompleting(false);
+              }}
+              onCancel={() => setIsCompleting(false)}
+              isSaving={isSaving}
+            />
+          </div>
         </div>
-        <div className="mc-body-inner" style={{ paddingTop: 0 }}>
-          <QuickCompleteForm
-            machine={machine}
-            task={activeTask}
-            onSave={async (data) => {
-              setIsSaving(true);
-              await onComplete(activeTask.id, data);
-              setIsSaving(false);
-              setIsCompleting(false);
-            }}
-            onCancel={() => setIsCompleting(false)}
-            isSaving={isSaving}
-          />
-        </div>
-      </article>
+      </>
     );
   }
 

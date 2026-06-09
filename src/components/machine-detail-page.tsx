@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatDate, formatLongDate, formatNumber } from "@/lib/app/format";
@@ -37,6 +37,7 @@ import {
   type MaintenanceType
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
+import { safeDateParse } from "@/lib/app/date-utils";
 import { getCategoryGroup } from "@/lib/app/machine-categories";
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
@@ -389,7 +390,7 @@ function MachineWartungModule({
   const currentReading = getMachineCurrentReading(machine);
   const unit = getMachineUnitLabel(machine.unit);
 
-  const standardCardData = STANDARD_TYPES.map((type) => {
+  const standardCardData = useMemo(() => STANDARD_TYPES.map((type) => {
     const typeTasks = tasks.filter((t) => t.type === type && t.status !== "cancelled");
     const activeTasks = typeTasks.filter((t) => t.status !== "completed");
     const completedTasks = typeTasks.filter((t) => t.status === "completed");
@@ -400,17 +401,30 @@ function MachineWartungModule({
     const urgency: MaintenanceDisplayStatus = activeTask
       ? getMaintenanceDisplayStatus(activeTask, machine)
       : "planned";
-
     return { type, activeTask, lastCompleted, urgency };
-  });
+  }), [tasks, machine]);
 
-  const urgentCards = standardCardData.filter(
-    (c) => c.activeTask && (c.urgency === "due" || c.urgency === "soon")
+  const urgencyOrder: Record<string, number> = { due: 0, soon: 1, planned: 2, completed: 3 };
+
+  const activeCards = useMemo(() => standardCardData
+    .filter((c) => c.activeTask || c.lastCompleted)
+    .sort((a, b) => {
+      const ua = urgencyOrder[a.urgency] ?? 4;
+      const ub = urgencyOrder[b.urgency] ?? 4;
+      if (ua !== ub) return ua - ub;
+      const da = safeDateParse(a.activeTask?.dueDate);
+      const db = safeDateParse(b.activeTask?.dueDate);
+      if (da && db) return da.getTime() - db.getTime();
+      if (da) return -1;
+      if (db) return 1;
+      return a.type.localeCompare(b.type, "de");
+    }),
+  [standardCardData]);
+
+  const inactiveCards = useMemo(
+    () => standardCardData.filter((c) => !c.activeTask && !c.lastCompleted),
+    [standardCardData]
   );
-  const otherActiveCards = standardCardData.filter(
-    (c) => (c.activeTask || c.lastCompleted) && !(c.activeTask && (c.urgency === "due" || c.urgency === "soon"))
-  );
-  const inactiveCards = standardCardData.filter((c) => !c.activeTask && !c.lastCompleted);
 
   return (
     <>
@@ -502,60 +516,36 @@ function MachineWartungModule({
           </div>
         ) : null}
 
-        {urgentCards.length > 0 && (
-          <>
-            <h3 className="maintenance-group-header">Fällig / Bald fällig</h3>
-            {urgentCards.map(({ type, activeTask, lastCompleted }) => (
-              <MaintenanceTypeCard
-                key={type}
-                type={type}
-                machine={machine}
-                activeTask={activeTask}
-                lastCompleted={lastCompleted}
-                onComplete={onCompleteTask}
-                onDelete={onDeleteTask}
-                onCreate={(months, hours, km) =>
-                  onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
-                }
-              />
-            ))}
-          </>
-        )}
-
-        {otherActiveCards.length > 0 && (
-          <>
-            <h3 className="maintenance-group-header">Weitere Wartungen</h3>
-            {otherActiveCards.map(({ type, activeTask, lastCompleted }) => (
-              <MaintenanceTypeCard
-                key={type}
-                type={type}
-                machine={machine}
-                activeTask={activeTask}
-                lastCompleted={lastCompleted}
-                onComplete={onCompleteTask}
-                onDelete={onDeleteTask}
-                onCreate={(months, hours, km) =>
-                  onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
-                }
-              />
-            ))}
-          </>
-        )}
-
-        {inactiveCards.map(({ type, activeTask, lastCompleted }) => (
-          <MaintenanceTypeCard
-            key={type}
-            type={type}
-            machine={machine}
-            activeTask={activeTask}
-            lastCompleted={lastCompleted}
-            onComplete={onCompleteTask}
-            onDelete={onDeleteTask}
-            onCreate={(months, hours, km) =>
-              onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
-            }
-          />
-        ))}
+        <div className="mc-list">
+          {activeCards.map(({ type, activeTask, lastCompleted }) => (
+            <MaintenanceTypeCard
+              key={type}
+              type={type}
+              machine={machine}
+              activeTask={activeTask}
+              lastCompleted={lastCompleted}
+              onComplete={onCompleteTask}
+              onDelete={onDeleteTask}
+              onCreate={(months, hours, km) =>
+                onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+              }
+            />
+          ))}
+          {inactiveCards.map(({ type, activeTask, lastCompleted }) => (
+            <MaintenanceTypeCard
+              key={type}
+              type={type}
+              machine={machine}
+              activeTask={activeTask}
+              lastCompleted={lastCompleted}
+              onComplete={onCompleteTask}
+              onDelete={onDeleteTask}
+              onCreate={(months, hours, km) =>
+                onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+              }
+            />
+          ))}
+        </div>
 
         <AddCustomMaintenanceCard
           machine={machine}
@@ -641,6 +631,34 @@ type MaintenanceTypeCardProps = {
   onDelete: (taskId: string) => Promise<void>;
 };
 
+function getTaskUrgencyClass(urgency: MaintenanceDisplayStatus): string {
+  if (urgency === "due") return "urgency-overdue";
+  if (urgency === "soon") return "urgency-soon";
+  return "";
+}
+
+function getStatusHintData(
+  activeTask: MaintenanceTask | null,
+  machine: MachineSummary
+): { text: string; urgent: boolean } {
+  if (!activeTask) return { text: "—", urgent: false };
+  const due = safeDateParse(activeTask.dueDate);
+  if (!due) {
+    const ds = getMaintenanceDisplayStatus(activeTask, machine);
+    if (ds === "due") return { text: "FÄLLIG", urgent: true };
+    if (ds === "soon") return { text: "Bald fällig", urgent: false };
+    const label = getMostRelevantDueLabel(activeTask, machine);
+    return { text: label, urgent: false };
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dueDay = new Date(due.getTime()); dueDay.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((dueDay.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return { text: "ÜBERFÄLLIG", urgent: true };
+  if (diffDays === 0) return { text: "HEUTE", urgent: true };
+  if (diffDays <= 7) return { text: `in ${diffDays} Tag${diffDays === 1 ? "" : "en"}`, urgent: false };
+  return { text: due.toLocaleDateString("de-AT", { month: "short", year: "numeric" }), urgent: false };
+}
+
 function MaintenanceTypeCard({
   type,
   machine,
@@ -650,24 +668,26 @@ function MaintenanceTypeCard({
   onCreate,
   onDelete
 }: MaintenanceTypeCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const label = getMaintenanceTypeLabel(type);
-  const icon = getMaintenanceTypeIcon(type);
   const urgency: MaintenanceDisplayStatus = activeTask
     ? getMaintenanceDisplayStatus(activeTask, machine)
     : "planned";
+  const statusHint = getStatusHintData(activeTask, machine);
 
+  // Inactive: no task, no history
   if (!activeTask && !lastCompleted && !isAdding) {
     return (
-      <article className="maintenance-type-card inactive">
-        <div className="type-card-head">
-          <div className="type-card-icon-label">
-            <span className="type-card-icon">{icon}</span>
-            <span className="type-card-label">{label}</span>
-          </div>
+      <article className="mc-card">
+        <div className="mc-header" style={{ cursor: "default" }}>
+          <span className="mc-title">{label}</span>
           <button className="button small" type="button" onClick={() => setIsAdding(true)}>
             Einrichten
           </button>
@@ -676,106 +696,143 @@ function MaintenanceTypeCard({
     );
   }
 
+  // Adding form
   if (isAdding) {
     return (
-      <article className="maintenance-type-card">
-        <div className="type-card-head">
-          <div className="type-card-icon-label">
-            <span className="type-card-icon">{icon}</span>
-            <span className="type-card-label">{label}</span>
-          </div>
+      <article className="mc-card">
+        <div className="mc-header" style={{ cursor: "default" }}>
+          <span className="mc-title">{label}</span>
         </div>
-        <QuickAddForm
-          machine={machine}
-          onSave={async (months, hours, km) => {
-            setIsSaving(true);
-            await onCreate(months, hours, km);
-            setIsSaving(false);
-            setIsAdding(false);
-          }}
-          onCancel={() => setIsAdding(false)}
-          isSaving={isSaving}
-        />
+        <div className="mc-body-inner" style={{ paddingTop: 0 }}>
+          <QuickAddForm
+            machine={machine}
+            onSave={async (months, hours, km) => {
+              setIsSaving(true);
+              await onCreate(months, hours, km);
+              setIsSaving(false);
+              setIsAdding(false);
+            }}
+            onCancel={() => setIsAdding(false)}
+            isSaving={isSaving}
+          />
+        </div>
       </article>
     );
   }
 
+  // Completing form
   if (isCompleting && activeTask) {
     return (
-      <article className="maintenance-type-card">
-        <div className="type-card-head">
-          <div className="type-card-icon-label">
-            <span className="type-card-icon">{icon}</span>
-            <span className="type-card-label">{label}</span>
-          </div>
+      <article className="mc-card">
+        <div className="mc-header" style={{ cursor: "default" }}>
+          <span className="mc-title">{label}</span>
         </div>
-        <QuickCompleteForm
-          machine={machine}
-          task={activeTask}
-          onSave={async (data) => {
-            setIsSaving(true);
-            await onComplete(activeTask.id, data);
-            setIsSaving(false);
-            setIsCompleting(false);
-          }}
-          onCancel={() => setIsCompleting(false)}
-          isSaving={isSaving}
-        />
+        <div className="mc-body-inner" style={{ paddingTop: 0 }}>
+          <QuickCompleteForm
+            machine={machine}
+            task={activeTask}
+            onSave={async (data) => {
+              setIsSaving(true);
+              await onComplete(activeTask.id, data);
+              setIsSaving(false);
+              setIsCompleting(false);
+            }}
+            onCancel={() => setIsCompleting(false)}
+            isSaving={isSaving}
+          />
+        </div>
       </article>
     );
   }
 
+  // Main collapsible card
   return (
-    <article className={`maintenance-type-card ${urgency}`}>
-      <div className="maintenance-card-header">
-        <p className="maintenance-title">{label}</p>
+    <article className={`mc-card ${getTaskUrgencyClass(urgency)}`}>
+      {/* ── Always visible header ── */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        className="mc-header"
+        onClick={() => setIsExpanded((v) => !v)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsExpanded((v) => !v); } }}
+      >
+        <span className="mc-title">{label}</span>
+        <span className={`mc-status-hint${statusHint.urgent ? " urgent" : ""}`}>
+          {statusHint.text}
+        </span>
+
+        {/* ⋯ overflow menu */}
         {activeTask ? (
-          <span className={`urgency-chip ${urgency}`}>
-            {urgency === "due" ? "Fällig" : urgency === "soon" ? "Bald fällig" : "Geplant"}
-          </span>
+          <div ref={menuRef} className="mc-menu-wrap" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="mc-menu-trigger"
+              aria-label="Mehr Aktionen"
+              onClick={() => setShowMenu((v) => !v)}
+            >
+              ⋯
+            </button>
+            {showMenu ? (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setShowMenu(false)} />
+                <div className="mc-menu-panel">
+                  <button
+                    type="button"
+                    className="mc-menu-item danger"
+                    onClick={() => { setShowMenu(false); setConfirmDelete(true); }}
+                  >
+                    Löschen
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
         ) : null}
+
+        <span className={`mc-chevron${isExpanded ? " expanded" : ""}`} aria-hidden="true">▾</span>
       </div>
 
-      {activeTask && (activeTask.intervalMonths !== null || activeTask.intervalOperatingHours !== null || activeTask.intervalKilometers !== null) ? (
-        <p className="maintenance-interval">{getMaintenanceRecurrenceLabel(activeTask)}</p>
-      ) : null}
+      {/* ── Collapsible body ── */}
+      <div className={`mc-body ${isExpanded ? "mc-body--expanded" : "mc-body--collapsed"}`}>
+        <div className="mc-body-inner">
+          {activeTask && (activeTask.intervalMonths !== null || activeTask.intervalOperatingHours !== null || activeTask.intervalKilometers !== null) ? (
+            <p className="mc-interval">{getMaintenanceRecurrenceLabel(activeTask)}</p>
+          ) : null}
 
-      {activeTask ? (
-        <>
-          <p className="maintenance-section-label">Nächste Fälligkeit</p>
-          <p className="maintenance-due-value">{getMostRelevantDueLabel(activeTask, machine)}</p>
-        </>
-      ) : null}
+          {activeTask ? (
+            <div className="mc-section">
+              <p className="mc-section-label">Nächste Fälligkeit</p>
+              <p className="mc-section-value mc-section-value--due">{getMostRelevantDueLabel(activeTask, machine)}</p>
+            </div>
+          ) : null}
 
-      {lastCompleted ? (
-        <>
-          <p className="maintenance-section-label">Zuletzt erledigt</p>
-          <p className="maintenance-last-value">
-            {lastCompleted.completedAt ? formatLongDate(lastCompleted.completedAt) : "–"}
-            {lastCompleted.lastDoneReading !== null
-              ? ` · ${lastCompleted.lastDoneReading.toLocaleString("de-DE", { maximumFractionDigits: 0 })} ${getMachineUnitLabel(machine.unit)}`
-              : ""}
-            {lastCompleted.photoUrls.length > 0 ? (
-              <PhotoGallery paths={lastCompleted.photoUrls} getSignedUrls={getMaintenancePhotoSignedUrls} />
+          {lastCompleted ? (
+            <div className="mc-section">
+              <p className="mc-section-label">Zuletzt erledigt</p>
+              <p className="mc-section-value mc-section-value--last">
+                {lastCompleted.completedAt ? formatLongDate(lastCompleted.completedAt) : "–"}
+                {lastCompleted.lastDoneReading !== null
+                  ? ` · ${lastCompleted.lastDoneReading.toLocaleString("de-DE", { maximumFractionDigits: 0 })} ${getMachineUnitLabel(machine.unit)}`
+                  : ""}
+                {lastCompleted.photoUrls.length > 0 ? (
+                  <PhotoGallery paths={lastCompleted.photoUrls} getSignedUrls={getMaintenancePhotoSignedUrls} />
+                ) : null}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mc-actions">
+            {activeTask ? (
+              <button className="button primary mc-btn-complete" type="button" onClick={(e) => { e.stopPropagation(); setIsCompleting(true); }}>
+                ✓ Erledigt
+              </button>
             ) : null}
-          </p>
-        </>
-      ) : null}
-
-      <div className="maintenance-card-actions">
-        {activeTask ? (
-          <button className="button primary" type="button" onClick={() => setIsCompleting(true)}>
-            ✓ Erledigt
-          </button>
-        ) : null}
-        <button className="button" type="button" onClick={() => setIsAdding(true)}>
-          ✎ Bearbeiten
-        </button>
-        {activeTask ? (
-          <button className="button gold" type="button" onClick={() => setConfirmDelete(true)}>
-            Löschen
-          </button>
-        ) : null}
+            <button className="button mc-btn-edit" type="button" onClick={(e) => { e.stopPropagation(); setIsAdding(true); }}>
+              ✎ Bearbeiten
+            </button>
+          </div>
+        </div>
       </div>
 
       {confirmDelete && activeTask ? (

@@ -1,20 +1,21 @@
 :root {
-  /* Palette */
-  --color-ink: #0f1410;
-  --color-accent: #2d5a1b;
-  --color-accent-2: #4a8c2a;
-  --color-accent-mid: #c4ddb4;
-  --color-accent-light: #eaf2e3;
-  --color-ink-2: #243020;
-  --color-muted: #56645a;
-  --color-subtle: #8a9a88;
-  --color-border: #d4dbd0;
-  --color-surface: #f3f5f0;
-  --color-sand: #f8f7f3;
-  --color-gold: #7a5c2e;
-  --color-gold-soft: #f4ead6;
-  --color-white: #ffffff;
-  --color-info: #5b8fc0;
+  /* Palette — Trecker-Checker Green + Amber Gold */
+  --color-ink: #0E2F1D;
+  --color-accent: #2B4837;
+  --color-accent-2: #2B4837;
+  --color-accent-mid: #B9CABE;
+  --color-accent-light: #E8EEEA;
+  --color-ink-2: #1B3A26;
+  --color-muted: #5A6B5F;
+  --color-subtle: #8E9D92;
+  --color-border: #DCE0DA;
+  --color-surface: #FAFAFA;
+  --color-sand: #FAFAFA;
+  --color-gold: #E5A315;
+  --color-gold-dark: #B98309;
+  --color-gold-soft: #FBEFD2;
+  --color-white: #FFFFFF;
+  --color-info: #5A6B5F;
 
   /* Semantic */
   --background: var(--color-surface);

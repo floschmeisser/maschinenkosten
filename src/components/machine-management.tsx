@@ -32,6 +32,7 @@ import {
 import { getStatusLabel } from "@/lib/app/status";
 import { MachineDocuments } from "./machine-documents";
 import { MachineFormModal } from "./machine-form-modal";
+import { Fab } from "./fab";
 import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
 import { StatusBadge } from "./shared-ui-components";
@@ -188,6 +189,7 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
         </section>
       ) : null}
 
+      <Fab label="Maschine hinzufügen" onClick={() => setIsCreating(true)} />
       {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
       <div className="machine-card-grid">
         {filteredMachines.map((machine) => {

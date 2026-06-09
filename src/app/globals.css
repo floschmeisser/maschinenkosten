@@ -4527,6 +4527,44 @@ td span {
   color: var(--color-muted);
 }
 
+/* ─── Floating Action Button ─── */
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 84px;
+  width: 56px;
+  height: 56px;
+  background: var(--color-gold);
+  color: var(--color-ink);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(14,47,29,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 90;
+  transition: transform 180ms, box-shadow 180ms, background 180ms;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(14,47,29,0.25);
+  background: var(--color-gold-dark);
+  color: var(--color-white);
+}
+
+.fab:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 768px) {
+  .fab { display: none; }
+}
+
 /* ─── Machine Detail Hero + Tabs ─── */
 
 .md-hero {

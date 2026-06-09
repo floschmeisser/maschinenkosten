@@ -1,9 +1,6 @@
-/* ── Mobile: padding for bottom bar ── */
-body {
-  padding-bottom: 64px;
-}
-@media (min-width: 768px) {
-  body { padding-bottom: 0; }
+/* ── Mobile only: padding for bottom bar ── */
+@media (max-width: 767px) {
+  body { padding-bottom: 64px; }
 }
 
 :root {
@@ -2441,23 +2438,21 @@ td span {
 
 @media (min-width: 760px) {
   .topbar {
-    grid-template-columns: auto minmax(260px, 420px);
+    /* brand | topbar-nav (flex, grows) | search */
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     justify-content: space-between;
     padding: 16px 24px;
   }
 
   .layout {
-    grid-template-columns: 220px minmax(0, 1fr);
-    align-items: start;
+    /* Single column — sidebar nav is gone, replaced by top nav */
+    grid-template-columns: 1fr;
     padding: 24px;
   }
 
   .nav {
-    position: sticky;
-    top: 88px;
-    grid-auto-flow: row;
-    overflow: visible;
+    display: none; /* sidebar fully gone on desktop */
   }
 
   .stats-grid {
@@ -4437,6 +4432,15 @@ td span {
   gap: 8px;
   flex-wrap: wrap;
   padding: 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .machine-category-tabs {
+    flex-wrap: nowrap;
+    overflow-x: visible;
+  }
 }
 
 .machine-category-tab {
@@ -4851,10 +4855,10 @@ td span {
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .machine-card-grid {
-    grid-template-columns: repeat(3, minmax(0, 360px));
-    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
   }
 }
 

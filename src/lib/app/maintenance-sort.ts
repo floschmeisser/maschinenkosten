@@ -28,6 +28,20 @@ const URGENCY_ORDER: Record<MaintenanceUrgency, number> = {
   none: 4,
 };
 
+export function hasMachineUrgentTasks(tasks: MaintenanceTask[]): boolean {
+  return tasks.some((task) => {
+    const u = getMaintenanceUrgency(task);
+    return u === "overdue" || u === "today";
+  });
+}
+
+export function urgentTaskCount(tasks: MaintenanceTask[]): number {
+  return tasks.filter((task) => {
+    const u = getMaintenanceUrgency(task);
+    return u === "overdue" || u === "today";
+  }).length;
+}
+
 export function sortByUrgency(tasks: MaintenanceTask[]): MaintenanceTask[] {
   return [...tasks].sort((a, b) => {
     const ua = getMaintenanceUrgency(a);

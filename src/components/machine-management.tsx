@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Locale } from "@/i18n/routing";
@@ -9,11 +9,15 @@ import type { CreateMachineInput, MachineSummary, MachineUsageUpdateInput } from
 import { CATEGORY_GROUPS, type MachineCategoryGroupId } from "@/lib/app/machine-categories";
 import {
   getMachines as getPlaceholderMachines,
+  getMachineCategoryLabel,
   mergeMachineNotes,
   toMachineSummary,
   validateMachineUsageUpdate
 } from "@/lib/app/machines";
 import { createMachine, getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
+import { hasMachineUrgentTasks, urgentTaskCount } from "@/lib/app/maintenance-sort";
+import { getMaintenanceTasks } from "@/lib/app/maintenance-database";
+import { formatLongDate } from "@/lib/app/format";
 import { calculateMachineCosts, createCostInputFromMachine, evaluateMachineCostHealth } from "@/lib/app/cost-calculation";
 import { getMaintenanceTasksByMachine } from "@/lib/app/maintenance-database";
 import { getUsedPartsForMachine, type MachineUsedPartHistoryItem } from "@/lib/app/maintenance-used-parts-database";
@@ -40,17 +44,28 @@ type MachineManagementProps = {
 export function MachineManagement({ locale, defaultCategory }: MachineManagementProps) {
   const router = useRouter();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
+  const [allTasks, setAllTasks] = useState<MaintenanceTask[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingMachines, setIsLoadingMachines] = useState(false);
   const [usageMachine, setUsageMachine] = useState<MachineSummary | null>(null);
   const [activeCategory, setActiveCategory] = useState<MachineCategoryGroupId | "all">(defaultCategory ?? "all");
 
+  const tasksByMachine = useMemo(() => {
+    const map = new Map<string, MaintenanceTask[]>();
+    for (const t of allTasks) {
+      const existing = map.get(t.machineId) ?? [];
+      map.set(t.machineId, [...existing, t]);
+    }
+    return map;
+  }, [allTasks]);
+
   const refreshMachines = useCallback(async () => {
     setIsLoadingMachines(true);
 
     try {
-      const machineData = await loadMachines();
+      const [machineData, taskData] = await Promise.all([loadMachines(), getMaintenanceTasks()]);
       setMachines(machineData.map(toMachineSummary));
+      setAllTasks(taskData);
     } catch {
       setMachines(getPlaceholderMachines().map(toMachineSummary));
     } finally {
@@ -174,14 +189,78 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
       ) : null}
 
       {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
-      <MachineTable
-        locale={locale}
-        machines={filteredMachines}
-        onSelect={(selectedMachine) => router.push(`/${locale}/machines/${selectedMachine.id}`)}
-        onUsageUpdate={setUsageMachine}
-      />
+      <div className="machine-card-grid">
+        {filteredMachines.map((machine) => {
+          const machineTasks = tasksByMachine.get(machine.id) ?? [];
+          const hasUrgent = hasMachineUrgentTasks(machineTasks);
+          const urgentCount = urgentTaskCount(machineTasks);
+          const openCount = machineTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length;
+          const lastDone = machineTasks
+            .filter((t) => t.completedAt)
+            .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""))[0]?.completedAt ?? null;
+
+          return (
+            <article key={machine.id} className="mcg-card">
+              <div className="mcg-header">
+                <div className="mcg-header-left">
+                  <span className="mcg-icon">{getMachineCategoryIcon(machine.category)}</span>
+                  <div>
+                    <div className="mcg-name">{machine.name}</div>
+                    <div className="mcg-category">{getMachineCategoryLabel(machine.category)}</div>
+                  </div>
+                </div>
+                {hasUrgent ? (
+                  <span className="mcg-urgency-badge" title={`${urgentCount} fällige Wartung${urgentCount === 1 ? "" : "en"}`}>
+                    {urgentCount > 9 ? "9+" : urgentCount}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="mcg-info">
+                <div className="mcg-info-line">
+                  <span className="mcg-info-label">Stand</span>
+                  <span className="mcg-info-value">
+                    {machine.unit === "km"
+                      ? `${(machine.currentKilometers ?? 0).toLocaleString("de-DE")} km`
+                      : `${machine.currentOperatingHours.toLocaleString("de-DE")} h`}
+                  </span>
+                </div>
+                <div className="mcg-info-line">
+                  <span className="mcg-info-label">Letzte Wartung</span>
+                  <span className="mcg-info-value">{lastDone ? formatLongDate(lastDone) : "—"}</span>
+                </div>
+                <div className="mcg-info-line">
+                  <span className="mcg-info-label">Offene Wartungen</span>
+                  <span className="mcg-info-value">{openCount}</span>
+                </div>
+              </div>
+
+              <div className="mcg-action">
+                <button
+                  type="button"
+                  className="mcg-btn-open"
+                  onClick={() => router.push(`/${locale}/machines/${machine.id}`)}
+                >
+                  Öffnen →
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </main>
   );
+}
+
+function getMachineCategoryIcon(category: string): string {
+  const icons: Record<string, string> = {
+    tractor: "🚜", loader: "🚜", harvester: "🚜",
+    grassland: "🌾", tillage: "🌾",
+    transport: "🚚", sprayer: "💨", slurry: "🛢️",
+    trailer: "📦", press: "⚙️", chainsaw: "🪚",
+    vehicle: "🚗", other: "⚙️",
+  };
+  return icons[category] ?? "⚙️";
 }
 
 type MachineDetailProps = {

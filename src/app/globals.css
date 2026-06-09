@@ -4442,6 +4442,151 @@ td span {
   color: var(--color-muted);
 }
 
+/* ─── Machine Card Grid (Liste) ─── */
+
+.machine-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+@media (min-width: 600px) {
+  .machine-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .machine-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 360px));
+    justify-content: start;
+  }
+}
+
+.mcg-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 160ms;
+}
+
+.mcg-card:hover {
+  box-shadow: 0 2px 10px rgba(14, 47, 29, 0.08);
+}
+
+.mcg-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mcg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mcg-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--color-surface);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.mcg-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mcg-category {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-top: 1px;
+}
+
+.mcg-urgency-badge {
+  width: 26px;
+  height: 26px;
+  background: var(--color-gold);
+  color: var(--color-ink);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+  animation: mcg-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mcg-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.mcg-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mcg-info-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.mcg-info-label {
+  color: var(--color-subtle);
+  font-weight: 500;
+}
+
+.mcg-info-value {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-align: right;
+}
+
+.mcg-action {
+  display: flex;
+}
+
+.mcg-btn-open {
+  flex: 1;
+  background: var(--color-accent);
+  color: var(--color-white);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms;
+}
+
+.mcg-btn-open:hover {
+  background: var(--color-ink);
+}
+
 .template-toast {
   position: fixed;
   bottom: 24px;

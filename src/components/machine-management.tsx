@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/app/format";
 import type { Locale } from "@/i18n/routing";
 import type { CreateMachineInput, MachineSummary, MachineUsageUpdateInput } from "@/lib/app/machines";
-import { CATEGORY_GROUPS, type MachineCategoryGroupId } from "@/lib/app/machine-categories";
+import { CATEGORY_GROUPS, getCategoryEmoji, type MachineCategoryGroupId } from "@/lib/app/machine-categories";
 import {
   getMachines as getPlaceholderMachines,
   getMachineCategoryLabel,
@@ -203,7 +203,7 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
             <article key={machine.id} className="mcg-card">
               <div className="mcg-header">
                 <div className="mcg-header-left">
-                  <span className="mcg-icon">{getMachineCategoryIcon(machine.category)}</span>
+                  <span className="mcg-icon">{getCategoryEmoji(machine.category)}</span>
                   <div>
                     <div className="mcg-name">{machine.name}</div>
                     <div className="mcg-category">{getMachineCategoryLabel(machine.category)}</div>
@@ -250,17 +250,6 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
       </div>
     </main>
   );
-}
-
-function getMachineCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    tractor: "🚜", loader: "🚜", harvester: "🚜",
-    grassland: "🌾", tillage: "🌾",
-    transport: "🚚", sprayer: "💨", slurry: "🛢️",
-    trailer: "📦", press: "⚙️", chainsaw: "🪚",
-    vehicle: "🚗", other: "⚙️",
-  };
-  return icons[category] ?? "⚙️";
 }
 
 type MachineDetailProps = {

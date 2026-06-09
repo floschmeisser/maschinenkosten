@@ -39,7 +39,7 @@ import {
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
 import { safeDateParse } from "@/lib/app/date-utils";
 import { getMaintenanceUrgency, urgentTaskCount } from "@/lib/app/maintenance-sort";
-import { getCategoryGroup } from "@/lib/app/machine-categories";
+import { getCategoryEmoji, getCategoryGroup } from "@/lib/app/machine-categories";
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
@@ -247,7 +247,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
         <div className="md-hero-top">
           <div className="md-hero-info">
             <span className="md-hero-category">{machine.displayCategory}</span>
-            <h1 className="md-hero-name">{machine.name}</h1>
+            <h1 className="md-hero-name">{getCategoryEmoji(machine.category)} {machine.name}</h1>
             <p className="md-hero-meta">{machine.manufacturer} {machine.model} · {machine.yearOfManufacture}</p>
           </div>
           <div className="md-hero-actions">

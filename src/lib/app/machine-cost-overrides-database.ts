@@ -52,10 +52,12 @@ type OverrideRow = {
   updated_at: string;
 };
 
+type SelectEqChain<T> = Promise<{ data: T[] | null; error: Error | null }> & {
+  eq: (column: string, value: string) => SelectEqChain<T>;
+};
+
 type SupabaseUpsertApi<T> = {
-  select: (columns?: string) => {
-    eq: (column: string, value: string) => Promise<{ data: T[] | null; error: Error | null }>;
-  };
+  select: (columns?: string) => SelectEqChain<T>;
   upsert: (input: Partial<T>, options?: { onConflict?: string }) => {
     select: (columns?: string) => {
       single: () => Promise<{ data: T | null; error: Error | null }>;
@@ -78,7 +80,7 @@ export async function getMachineCostOverride(machineId: string): Promise<Machine
   if (!source) return null;
 
   const result = await runSupabaseQuery(
-    () => source.table.select("*").eq("machine_id", machineId),
+    () => source.table.select("*").eq("farm_id", source.farm.id).eq("machine_id", machineId),
     "Kosteneinstellungen konnten nicht geladen werden."
   );
 

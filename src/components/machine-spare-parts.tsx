@@ -454,7 +454,7 @@ function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) 
           Abbrechen
         </button>
         <button className="button primary" type="submit" disabled={isSaving}>
-          {isSaving ? "Speichern..." : "Speichern"}
+          {isSaving ? <><span className="spinner" />Wird gespeichert...</> : "Speichern"}
         </button>
       </div>
     </form>

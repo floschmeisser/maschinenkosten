@@ -38,6 +38,7 @@ import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
 import { StatusBadge } from "./shared-ui-components";
 import { useToast } from "@/contexts/toast-context";
+import { SkeletonCard } from "./skeleton-card";
 
 type MachineManagementProps = {
   locale: Locale;
@@ -194,7 +195,11 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
       ) : null}
 
       <Fab label="Maschine hinzufügen" onClick={() => setIsCreating(true)} />
-      {isLoadingMachines ? <p className="preference-hint">Laden...</p> : null}
+      {isLoadingMachines ? (
+        <div className="machine-card-grid">
+          {[0, 1, 2].map((i) => <SkeletonCard key={i} height="200px" />)}
+        </div>
+      ) : null}
       {!isLoadingMachines && filteredMachines.length === 0 ? (
         <EmptyState
           emoji="🚜"
@@ -204,7 +209,7 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
           onAction={() => setIsCreating(true)}
         />
       ) : null}
-      <div className="machine-card-grid">
+      {!isLoadingMachines ? <div className="machine-card-grid">
         {filteredMachines.map((machine) => {
           const machineTasks = tasksByMachine.get(machine.id) ?? [];
           const hasUrgent = hasMachineUrgentTasks(machineTasks);
@@ -262,7 +267,7 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
             </article>
           );
         })}
-      </div>
+      </div> : null}
     </main>
   );
 }
@@ -634,7 +639,7 @@ function UsageUpdateForm({ machine, onCancel, onSave }: UsageUpdateFormProps) {
           Abbrechen
         </button>
         <button className="button primary" type="submit" disabled={isSaving}>
-          {isSaving ? "Speichern..." : "Speichern"}
+          {isSaving ? <><span className="spinner" />Wird gespeichert...</> : "Speichern"}
         </button>
       </div>
     </form>

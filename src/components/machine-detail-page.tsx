@@ -46,6 +46,7 @@ import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
 import { EmptyState } from "./empty-state";
 import { Fab } from "./fab";
+import { SkeletonCard } from "./skeleton-card";
 import { MachineDocuments } from "./machine-documents";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
@@ -537,7 +538,6 @@ function MachineWartungModule({
       ) : null}
 
       <section className="maintenance-types-section">
-        {isLoading ? <p className="preference-hint">Laden...</p> : null}
         {!isLoading && tasks.length === 0 ? (
           <EmptyState
             emoji="🔧"
@@ -561,34 +561,40 @@ function MachineWartungModule({
         ) : null}
 
         <div className="mc-list">
-          {activeCards.map(({ type, activeTask, lastCompleted }) => (
-            <MaintenanceTypeCard
-              key={type}
-              type={type}
-              machine={machine}
-              activeTask={activeTask}
-              lastCompleted={lastCompleted}
-              onComplete={onCompleteTask}
-              onDelete={onDeleteTask}
-              onCreate={(months, hours, km) =>
-                onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
-              }
-            />
-          ))}
-          {inactiveCards.map(({ type, activeTask, lastCompleted }) => (
-            <MaintenanceTypeCard
-              key={type}
-              type={type}
-              machine={machine}
-              activeTask={activeTask}
-              lastCompleted={lastCompleted}
-              onComplete={onCompleteTask}
-              onDelete={onDeleteTask}
-              onCreate={(months, hours, km) =>
-                onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
-              }
-            />
-          ))}
+          {isLoading ? (
+            [0, 1, 2, 3].map((i) => <SkeletonCard key={i} height="120px" />)
+          ) : (
+            <>
+              {activeCards.map(({ type, activeTask, lastCompleted }) => (
+                <MaintenanceTypeCard
+                  key={type}
+                  type={type}
+                  machine={machine}
+                  activeTask={activeTask}
+                  lastCompleted={lastCompleted}
+                  onComplete={onCompleteTask}
+                  onDelete={onDeleteTask}
+                  onCreate={(months, hours, km) =>
+                    onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+                  }
+                />
+              ))}
+              {inactiveCards.map(({ type, activeTask, lastCompleted }) => (
+                <MaintenanceTypeCard
+                  key={type}
+                  type={type}
+                  machine={machine}
+                  activeTask={activeTask}
+                  lastCompleted={lastCompleted}
+                  onComplete={onCompleteTask}
+                  onDelete={onDeleteTask}
+                  onCreate={(months, hours, km) =>
+                    onCreateTask(buildNewTaskInput(machine, type, getMaintenanceTypeLabel(type), null, months, hours, km))
+                  }
+                />
+              ))}
+            </>
+          )}
         </div>
 
         <AddCustomMaintenanceCard
@@ -1136,6 +1142,7 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
   const [showForm, setShowForm] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [breakdown, setBreakdown] = useState<LiveCostBreakdown | null>(null);
+  const [isLoadingBreakdown, setIsLoadingBreakdown] = useState(true);
 
   useEffect(() => {
     getMachineCostOverride(machine.id).then((existing) => {
@@ -1145,8 +1152,13 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
   }, [machine]);
 
   useEffect(() => {
-    calculateVariableCosts(machine).then(setBreakdown).catch((err: unknown) => {
+    setIsLoadingBreakdown(true);
+    calculateVariableCosts(machine).then((b) => {
+      setBreakdown(b);
+      setIsLoadingBreakdown(false);
+    }).catch((err: unknown) => {
       console.error("[MachineKosten] calculateVariableCosts failed:", err);
+      setIsLoadingBreakdown(false);
     });
   }, [machine.id]);
 
@@ -1268,7 +1280,11 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
         </div>
       )}
 
-      {breakdown !== null ? (
+      {isLoadingBreakdown ? (
+        <div className="kosten-breakdown" style={{ display: "flex", flexDirection: "column", gap: 8, padding: "8px 0" }}>
+          {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} height="40px" />)}
+        </div>
+      ) : breakdown !== null ? (
         <div className="kosten-breakdown">
           <div className="kosten-breakdown-row" style={{ background: "var(--surface-muted)" }}>
             <span style={{ color: "var(--primary-dark)", fontWeight: 700 }}>Variable Kosten (Ø 12 Monate)</span>
@@ -1357,7 +1373,7 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
           <div className="kosten-form-actions">
             {savedAt !== null && <span className="muted">Gespeichert {savedAt}</span>}
             <button className="button primary" type="submit" disabled={isSaving}>
-              {isSaving ? "Speichern..." : "Werte speichern"}
+              {isSaving ? <><span className="spinner" />Wird gespeichert...</> : "Werte speichern"}
             </button>
           </div>
         </form>

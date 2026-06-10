@@ -231,6 +231,11 @@ function MachineDocumentForm({ machine, onCancel, onSave, storageStatus }: Machi
       return;
     }
 
+    if (file.size > 10 * 1024 * 1024) {
+      setError(`Datei zu groß (max. 10 MB): ${file.name}`);
+      return;
+    }
+
     setIsSaving(true);
 
     try {

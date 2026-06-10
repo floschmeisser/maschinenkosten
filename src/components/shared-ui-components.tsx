@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+import { useToast } from "@/contexts/toast-context";
 import {
   getAppSettingsPreferences,
   getFarmProfilePreference,
@@ -382,9 +383,19 @@ type PhotoUploadSectionProps = {
   onRemove: (index: number) => void;
 };
 
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
 export function PhotoUploadSection({ photos, previewUrls, existingUrls, hint, onAdd, onRemove }: PhotoUploadSectionProps) {
+  const { addToast } = useToast();
+
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
+    const oversized = files.filter((f) => f.size > MAX_PHOTO_BYTES);
+    if (oversized.length > 0) {
+      addToast(`Datei zu groß (max. 10 MB): ${oversized.map((f) => f.name).join(", ")}`, "error");
+      event.target.value = "";
+      return;
+    }
     if (files.length > 0) onAdd(files);
     event.target.value = "";
   }

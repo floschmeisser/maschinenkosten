@@ -37,6 +37,7 @@ import { EmptyState } from "./empty-state";
 import { MachineSpareParts } from "./machine-spare-parts";
 import { MachineTable } from "./machine-table";
 import { StatusBadge } from "./shared-ui-components";
+import { useToast } from "@/contexts/toast-context";
 
 type MachineManagementProps = {
   locale: Locale;
@@ -45,6 +46,7 @@ type MachineManagementProps = {
 
 export function MachineManagement({ locale, defaultCategory }: MachineManagementProps) {
   const router = useRouter();
+  const { addToast } = useToast();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [allTasks, setAllTasks] = useState<MaintenanceTask[]>([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -81,6 +83,7 @@ export function MachineManagement({ locale, defaultCategory }: MachineManagement
 
   async function handleCreateMachine(input: CreateMachineInput) {
     const newMachine = await createMachine(input);
+    addToast("✓ Maschine hinzugefügt");
     router.push(`/${locale}/machines/${newMachine.id}`);
   }
 

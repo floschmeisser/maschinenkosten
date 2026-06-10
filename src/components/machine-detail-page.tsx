@@ -51,6 +51,7 @@ import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOver
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
 import type { MachineCostInput } from "@/lib/app/financials";
+import { useToast } from "@/contexts/toast-context";
 
 type Tab = "wartung" | "ersatzteile" | "kosten" | "dokumente";
 
@@ -162,6 +163,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
   const [isEditingMachine, setIsEditingMachine] = useState(false);
   const [confirmDeleteMachine, setConfirmDeleteMachine] = useState(false);
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
+  const { addToast } = useToast();
 
   const refreshTasks = useCallback(async () => {
     setIsLoadingTasks(true);
@@ -218,6 +220,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
       }
     }
     await refreshTasks();
+    addToast("✓ Wartung erledigt");
   }
 
   async function handleCreateTask(input: CreateMaintenanceTaskInput) {
@@ -233,6 +236,7 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
   async function handleDeleteTask(taskId: string) {
     await deleteMaintenanceTask(taskId);
     await refreshTasks();
+    addToast("✓ Wartung gelöscht");
   }
 
   async function handleEditMachineSave(input: import("@/lib/app/machines").CreateMachineInput) {

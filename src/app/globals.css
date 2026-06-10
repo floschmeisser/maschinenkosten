@@ -4588,6 +4588,45 @@ td span {
   padding: 16px;
 }
 
+/* ── Toast Notifications ── */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+
+.toast {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  animation: toast-in 0.2s ease;
+}
+
+.toast-success {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.toast-error {
+  background: var(--color-gold);
+  color: var(--color-ink);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @media (min-width: 768px) {
   .complete-dialog-overlay {
     align-items: center;

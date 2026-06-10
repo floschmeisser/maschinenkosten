@@ -20,6 +20,7 @@ import {
   type MachineSummary
 } from "@/lib/app/machines";
 import { formatCurrency, formatNumber } from "@/lib/app/format";
+import { useToast } from "@/contexts/toast-context";
 
 type MachineSparePartsProps = {
   createSignal?: number;
@@ -44,7 +45,7 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
   const [isCreating, setIsCreating] = useState(false);
   const [editingPart, setEditingPart] = useState<MachineSparePart | null>(null);
   const [query, setQuery] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const refreshParts = useCallback(async () => {
     setIsLoading(true);
@@ -72,9 +73,9 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
       await createMachineSparePart(input);
       await refreshParts();
       setIsCreating(false);
-      setMessage("Ersatzteil gespeichert.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Ersatzteil konnte nicht gespeichert werden.");
+      addToast("✓ Ersatzteil gespeichert");
+    } catch {
+      addToast("Fehler beim Speichern — versuche es später", "error");
     }
   }
 
@@ -87,9 +88,9 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
       await updateMachineSparePart(editingPart.id, input);
       await refreshParts();
       setEditingPart(null);
-      setMessage("Ersatzteil gespeichert.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Ersatzteil konnte nicht gespeichert werden.");
+      addToast("✓ Ersatzteil gespeichert");
+    } catch {
+      addToast("Fehler beim Speichern — versuche es später", "error");
     }
   }
 
@@ -100,7 +101,11 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
 
     const deleted = await deleteMachineSparePart(partId);
     await refreshParts();
-    setMessage(deleted ? "Ersatzteil gelöscht." : "Ersatzteil konnte nicht gelöscht werden.");
+    if (deleted) {
+      addToast("✓ Ersatzteil gelöscht");
+    } else {
+      addToast("Fehler beim Löschen — versuche es später", "error");
+    }
   }
 
   const visibleParts = useMemo(() => {
@@ -175,8 +180,6 @@ export function MachineSpareParts({ createSignal = 0, machine }: MachineSparePar
           <strong>{parts.length}</strong>
         </div>
       </div>
-      {message ? <p className={message.includes("konnte") ? "form-error" : "form-success"}>{message}</p> : null}
-
       {parts.length > 0 ? (
         <label className="spare-parts-search">
           Suchen

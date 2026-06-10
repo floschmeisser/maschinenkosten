@@ -10,6 +10,7 @@ import { getActiveFarmConfig } from "@/lib/app/farm-config";
 import type { FarmProfileKey } from "@/lib/app/farm-config";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
 import { GlobalSearch } from "./global-search";
+import { ToastProvider } from "@/contexts/toast-context";
 
 type AppShellProps = {
   children: ReactNode;
@@ -78,7 +79,9 @@ export function AppShell({ children, locale, messages }: AppShellProps) {
       </header>
 
       <div className="layout">
-        <div className="content">{children}</div>
+        <div className="content">
+          <ToastProvider>{children}</ToastProvider>
+        </div>
       </div>
 
       {/* ── Mobile Bottom Tab Bar ── */}

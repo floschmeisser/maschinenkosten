@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Locale } from "@/i18n/routing";
 import {
@@ -23,6 +24,7 @@ import {
 import { CATEGORY_GROUPS } from "@/lib/app/machine-categories";
 import { getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
 import { ConfirmDialog } from "./shared-ui-components";
+import { EmptyState } from "./empty-state";
 import {
   getDashboardDueText,
   getMaintenanceDisplayStatus,
@@ -40,6 +42,7 @@ type DashboardProps = {
 };
 
 export function Dashboard({ locale }: DashboardProps) {
+  const router = useRouter();
   const [machines, setMachines] = useState<MachineSummary[]>(() => getPlaceholderMachines().map(toMachineSummary));
   const [maintenanceTasks, setMaintenanceTasks] = useState<MaintenanceTask[]>(() => getPlaceholderMaintenanceTasks());
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => [...placeholderCalendarEvents]);
@@ -97,11 +100,13 @@ export function Dashboard({ locale }: DashboardProps) {
       <section className="dashboard-section" aria-label="Nächste Aufgaben">
         <h2 className="dashboard-section-title">Was steht an?</h2>
         {machines.length === 0 ? (
-          <div className="dashboard-empty">
-            <strong>Noch keine Maschinen</strong>
-            <span className="muted">Leg deine erste Maschine an, um Wartungen zu verfolgen.</span>
-            <Link className="button primary" href={`/${locale}/machines/new`}>Maschine anlegen</Link>
-          </div>
+          <EmptyState
+            emoji="👋"
+            title="Willkommen bei MaschinenKosten"
+            message="Lege deine erste Maschine an und verwalte deine Wartungen und Kosten — alles an einem Ort."
+            actionLabel="Erste Maschine hinzufügen"
+            onAction={() => router.push(`/${locale}/machines/new`)}
+          />
         ) : topTasks.length === 0 ? (
           <div className="dashboard-empty">
             <strong>Alles erledigt</strong>
@@ -308,6 +313,16 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
           onDayClick={handleDayClick}
         />
       )}
+
+      {allEvents.length === 0 ? (
+        <EmptyState
+          emoji="📅"
+          title="Keine Termine"
+          message="Wartungs-Termine erscheinen automatisch basierend auf deinen Maschinen. Du kannst auch manuelle Termine hinzufügen."
+          actionLabel="Termin hinzufügen"
+          onAction={() => { setSelectedDate(toDateString(new Date())); setPanelMode("create"); }}
+        />
+      ) : null}
 
       {selectedDate !== null && panelMode === "detail" ? (
         <DayDetailPanel

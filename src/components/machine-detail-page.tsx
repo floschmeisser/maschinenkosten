@@ -44,6 +44,7 @@ import { getCategoryEmoji, getCategoryGroup } from "@/lib/app/machine-categories
 import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
+import { EmptyState } from "./empty-state";
 import { MachineDocuments } from "./machine-documents";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
@@ -518,28 +519,13 @@ function MachineWartungModule({
       <section className="maintenance-types-section">
         {isLoading ? <p className="preference-hint">Laden...</p> : null}
         {!isLoading && tasks.length === 0 ? (
-          <>
-            <div className="maintenance-onboarding-hint">
-              <strong>Wartungsintervalle einrichten</strong>
-              <p>Wähle einen Typ und tippe auf "Einrichten" um Fälligkeiten zu verfolgen.</p>
-            </div>
-            <div className="template-card">
-              <div className="template-card-body">
-                <span className="template-card-icon">{categoryGroup.icon}</span>
-                <div>
-                  <strong>Standard-Wartungen für {categoryGroup.label} anlegen</strong>
-                  <span className="muted">{templates.length} typische Wartungen mit Standardintervallen</span>
-                </div>
-              </div>
-              <button
-                className="button primary"
-                type="button"
-                onClick={() => setConfirmTemplates(true)}
-              >
-                Jetzt anlegen ›
-              </button>
-            </div>
-          </>
+          <EmptyState
+            emoji="🔧"
+            title="Noch keine Wartungen geplant"
+            message="Nutze Smart Templates um Standard-Wartungen hinzuzufügen, oder erstelle deine eigenen."
+            actionLabel="Wartung hinzufügen"
+            onAction={() => setConfirmTemplates(true)}
+          />
         ) : null}
 
         {!isLoading && tasks.length > 0 ? (
@@ -1556,12 +1542,13 @@ function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
       {isLoading ? (
         <p className="preference-hint">Laden...</p>
       ) : parts.length === 0 && !showAddForm ? (
-        <div className="spare-parts-tab-empty">
-          <p>Noch keine Ersatzteile eingetragen.</p>
-          <button className="button" type="button" onClick={() => setShowAddForm(true)}>
-            + Ersatzteil hinzufügen
-          </button>
-        </div>
+        <EmptyState
+          emoji="📦"
+          title="Noch keine Ersatzteile erfasst"
+          message="Erfasse Ersatzteile um Bestand und Mindestbestand zu tracken — mit Preisen für die Kostenrechnung."
+          actionLabel="Ersatzteil hinzufügen"
+          onAction={() => setShowAddForm(true)}
+        />
       ) : (
         <div className="mc-list">
           {parts.map((part) => (

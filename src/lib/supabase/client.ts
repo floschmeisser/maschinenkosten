@@ -47,12 +47,18 @@ export function warnSupabaseFallback(message: string, error?: unknown): void {
   }
 }
 
+const QUERY_TIMEOUT_MS = 15_000;
+
 export async function runSupabaseQuery<T>(
   query: () => Promise<{ data?: T | null; error: Error | null }>,
   fallbackMessage: string
 ): Promise<{ data?: T | null; error: Error | null } | null> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Supabase timeout after ${QUERY_TIMEOUT_MS}ms`)), QUERY_TIMEOUT_MS)
+  );
+
   try {
-    const result = await query();
+    const result = await Promise.race([query(), timeout]);
 
     if (result.error) {
       warnSupabaseFallback(fallbackMessage, result.error);

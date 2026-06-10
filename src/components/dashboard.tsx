@@ -21,7 +21,7 @@ import {
   placeholderFarmId,
   toMachineSummary
 } from "@/lib/app/machines";
-import { CATEGORY_GROUPS } from "@/lib/app/machine-categories";
+import { CATEGORY_GROUPS, getCategoryEmoji } from "@/lib/app/machine-categories";
 import { getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
 import { ConfirmDialog } from "./shared-ui-components";
 import { EmptyState } from "./empty-state";
@@ -37,6 +37,7 @@ import {
 import { getMaintenanceTasks as loadMaintenanceTasks } from "@/lib/app/maintenance-database";
 import { getFarmProfilePreference } from "@/lib/app/preferences";
 import { syncRemindersFromCurrentData } from "@/lib/app/reminder-sync";
+import { useToast } from "@/contexts/toast-context";
 
 type DashboardProps = {
   locale: Locale;
@@ -82,8 +83,17 @@ export function Dashboard({ locale }: DashboardProps) {
 
   const topTasks = getTopUrgentTasks(maintenanceTasks, machines, 3);
 
+  const dueCount = maintenanceTasks.filter((t) => {
+    const m = machines.find((mac) => mac.id === t.machineId);
+    return getMaintenanceDisplayStatus(t, m) === "due";
+  }).length;
+
   function handleEventCreated(event: CalendarEvent) {
     setCalendarEvents((prev) => [...prev, event]);
+  }
+
+  function handleReadingUpdated(updated: MachineSummary) {
+    setMachines((prev) => prev.map((m) => m.id === updated.id ? updated : m));
   }
 
   async function handleEventDeleted(id: string) {
@@ -108,30 +118,41 @@ export function Dashboard({ locale }: DashboardProps) {
             actionLabel="Erste Maschine hinzufügen"
             onAction={() => router.push(`/${locale}/machines/new`)}
           />
-        ) : topTasks.length === 0 ? (
-          <div className="dashboard-empty">
-            <strong>Alles erledigt</strong>
-            <span className="muted">Keine offenen Aufgaben</span>
-          </div>
         ) : (
-          <div className="task-card-list">
-            {topTasks.map((task) => {
-              const machine = machines.find((m) => m.id === task.machineId);
-              const dueText = getDashboardDueText(task, machine);
-              const status = getMaintenanceDisplayStatus(task, machine);
-              return (
-                <Link
-                  key={task.id}
-                  className={`task-card ${status}`}
-                  href={`/${locale}/machines/${task.machineId}`}
-                >
-                  <span className="task-card-machine">{machine?.name ?? "Maschine"}</span>
-                  <strong className="task-card-title">{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
-                  <span className="task-card-due">{dueText}</span>
-                </Link>
-              );
-            })}
-          </div>
+          <>
+            <div className={`dashboard-status-line${dueCount > 0 ? " has-due" : ""}`}>
+              {dueCount > 0 ? (
+                <>
+                  <span className="dashboard-status-badge">⚠</span>
+                  <span>{dueCount} Wartung{dueCount !== 1 ? "en" : ""} fällig</span>
+                </>
+              ) : (
+                <span>✓ Alles erledigt</span>
+              )}
+            </div>
+            {topTasks.length > 0 ? (
+              <div className="task-card-list">
+                {topTasks.map((task) => {
+                  const machine = machines.find((m) => m.id === task.machineId);
+                  const dueText = getDashboardDueText(task, machine);
+                  const status = getMaintenanceDisplayStatus(task, machine);
+                  return (
+                    <Link
+                      key={task.id}
+                      className={`task-card ${status}`}
+                      href={`/${locale}/machines/${task.machineId}`}
+                    >
+                      <span className="task-card-machine">
+                        {machine ? getCategoryEmoji(machine.category) : "🔧"} {machine?.name ?? "Maschine"}
+                      </span>
+                      <strong className="task-card-title">{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
+                      <span className="task-card-due">{dueText}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+          </>
         )}
       </section>
 
@@ -147,6 +168,29 @@ export function Dashboard({ locale }: DashboardProps) {
           onEventDeleted={handleEventDeleted}
         />
       </section>
+
+      {machines.length > 0 ? (
+        <section className="dashboard-section" aria-label="Stand aktualisieren">
+          <h2 className="dashboard-section-title">Stand aktualisieren</h2>
+          <div className="machine-reading-list">
+            {machines.map((m) => {
+              const machTasks = maintenanceTasks.filter((t) => t.machineId === m.id);
+              const hasDue = machTasks.some((t) => getMaintenanceDisplayStatus(t, m) === "due");
+              const hasSoon = !hasDue && machTasks.some((t) => getMaintenanceDisplayStatus(t, m) === "soon");
+              return (
+                <MachineReadingCard
+                  key={m.id}
+                  machine={m}
+                  hasDue={hasDue}
+                  hasSoon={hasSoon}
+                  locale={locale}
+                  onReadingUpdated={handleReadingUpdated}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="dashboard-section" aria-label="Meine Maschinen">
         <h2 className="dashboard-section-title">Meine Maschinen</h2>
@@ -624,6 +668,7 @@ function MachineReadingCard({ machine, hasDue, hasSoon, locale, onReadingUpdated
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
   const reading = getMachineCurrentReading(machine);
   const unitLabel = getMachineUnitLabel(machine.unit);
 
@@ -639,6 +684,10 @@ function MachineReadingCard({ machine, hasDue, hasSoon, locale, onReadingUpdated
   async function saveEdit() {
     const num = Number(editValue);
     if (!Number.isFinite(num) || num < 0) return;
+    if (num < reading) {
+      addToast(`Stand kann nicht kleiner sein als ${reading.toLocaleString("de-DE")} ${unitLabel}.`, "error");
+      return;
+    }
     setIsSaving(true);
     try {
       const input = machine.unit === "km" ? { currentKilometers: num } : { currentOperatingHours: num };

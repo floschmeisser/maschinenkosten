@@ -52,6 +52,7 @@ import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOver
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
 import { formatCurrency } from "@/lib/app/format";
 import type { MachineCostInput } from "@/lib/app/financials";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/toast-context";
 
 type Tab = "wartung" | "ersatzteile" | "kosten" | "dokumente";
@@ -388,6 +389,34 @@ type WartungModuleProps = {
 
 const URGENCY_ORDER: Record<string, number> = { due: 0, soon: 1, planned: 2, completed: 3 };
 
+type SpcRow = {
+  maintenance_task_id: string | null;
+  quantity: number;
+  unit_cost_at_time: number | null;
+};
+type SpcChain = Promise<{ data: SpcRow[] | null; error: unknown }> & {
+  eq(col: string, val: string): SpcChain;
+};
+
+async function loadConsumptionsForMachine(farmId: string, machineId: string): Promise<Map<string, number>> {
+  const supabase = await getSupabaseClient();
+  if (!supabase) return new Map();
+  try {
+    const { data } = await (supabase.from("spare_part_consumptions") as unknown as { select(c: string): SpcChain })
+      .select("maintenance_task_id, quantity, unit_cost_at_time")
+      .eq("farm_id", farmId)
+      .eq("machine_id", machineId);
+    return (data ?? []).reduce((map, c) => {
+      if (!c.maintenance_task_id || c.unit_cost_at_time == null) return map;
+      const prev = map.get(c.maintenance_task_id) ?? 0;
+      map.set(c.maintenance_task_id, prev + c.quantity * c.unit_cost_at_time);
+      return map;
+    }, new Map<string, number>());
+  } catch {
+    return new Map();
+  }
+}
+
 function MachineWartungModule({
   locale,
   machine,
@@ -405,6 +434,14 @@ function MachineWartungModule({
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [templateToast, setTemplateToast] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [costByTask, setCostByTask] = useState<Map<string, number>>(() => new Map());
+
+  useEffect(() => {
+    if (!showHistory) return;
+    loadConsumptionsForMachine(machine.farmId, machine.id)
+      .then(setCostByTask)
+      .catch(() => {});
+  }, [showHistory, machine.farmId, machine.id]);
 
   useEffect(() => {
     if (fabTrigger && fabTrigger > 0) setConfirmTemplates(true);
@@ -626,17 +663,27 @@ function MachineWartungModule({
           </button>
           {showHistory ? (
             <div className="wartung-history-list">
-              {completedTasks.map((task) => (
-                <div key={task.id} className="wartung-history-item">
-                  <div className="wartung-history-item-main">
-                    <strong>{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
-                    <span>{task.completedAt ? formatDate(task.completedAt) : "–"}</span>
+              {completedTasks.map((task) => {
+                const laborCost = task.actualCost ?? 0;
+                const materialCost = costByTask.get(task.id) ?? 0;
+                const total = laborCost + materialCost;
+                return (
+                  <div key={task.id} className="wartung-history-item">
+                    <div className="wartung-history-item-main">
+                      <strong>{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
+                      <span>{task.completedAt ? formatDate(task.completedAt) : "–"}</span>
+                      {laborCost > 0 && materialCost > 0 ? (
+                        <span className="wartung-history-cost-detail">
+                          Arbeit {formatCurrency(laborCost)} · Material {formatCurrency(materialCost)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="wartung-history-cost">
+                      {total > 0 ? formatCurrency(total) : "—"}
+                    </span>
                   </div>
-                  {task.actualCost !== null ? (
-                    <span className="wartung-history-cost">{formatCurrency(task.actualCost)}</span>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
         </section>

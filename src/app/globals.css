@@ -5674,3 +5674,8 @@ td span {
   color: var(--color-ink-2);
   flex-shrink: 0;
 }
+
+.wartung-history-cost-detail {
+  font-size: 11px;
+  color: var(--color-muted);
+}

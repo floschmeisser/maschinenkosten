@@ -20,10 +20,12 @@ type MaintenanceUsedPartRow = {
   created_at: string;
 };
 
+type SelectEqChain<T> = Promise<{ data: T[] | null; error: Error | null }> & {
+  eq: (column: string, value: string) => SelectEqChain<T>;
+};
+
 type SupabaseTableApi<T> = {
-  select: (columns?: string) => {
-    eq: (column: string, value: string) => Promise<{ data: T[] | null; error: Error | null }>;
-  };
+  select: (columns?: string) => SelectEqChain<T>;
   insert: (input: Partial<T>) => {
     select: (columns?: string) => {
       single: () => Promise<{ data: T | null; error: Error | null }>;
@@ -70,7 +72,7 @@ export async function getUsedPartsForMaintenanceTask(taskId: string): Promise<Ma
   }
 
   const result = await runSupabaseQuery(
-    () => source.table.select("*").eq("farm_id", source.farm.id),
+    () => source.table.select("*").eq("farm_id", source.farm.id).eq("maintenance_task_id", taskId),
     "Verwendete Ersatzteile konnten nicht geladen werden."
   );
 
@@ -78,8 +80,9 @@ export async function getUsedPartsForMaintenanceTask(taskId: string): Promise<Ma
     return fallbackUsedParts.filter((part) => part.maintenanceTaskId === taskId);
   }
 
-  fallbackUsedParts = result.data.map(mapUsedPartRowToUsedPart);
-  return fallbackUsedParts.filter((part) => part.maintenanceTaskId === taskId);
+  const loaded = result.data.map(mapUsedPartRowToUsedPart);
+  fallbackUsedParts = [...fallbackUsedParts.filter((p) => p.maintenanceTaskId !== taskId), ...loaded];
+  return loaded;
 }
 
 export async function getUsedPartsForMachine(machineId: string): Promise<MachineUsedPartHistoryItem[]> {

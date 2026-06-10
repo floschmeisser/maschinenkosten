@@ -386,6 +386,8 @@ type WartungModuleProps = {
   fabTrigger?: number;
 };
 
+const URGENCY_ORDER: Record<string, number> = { due: 0, soon: 1, planned: 2, completed: 3 };
+
 function MachineWartungModule({
   locale,
   machine,
@@ -464,13 +466,11 @@ function MachineWartungModule({
     return { type, activeTask, lastCompleted, urgency };
   }), [tasks, machine]);
 
-  const urgencyOrder: Record<string, number> = { due: 0, soon: 1, planned: 2, completed: 3 };
-
   const activeCards = useMemo(() => standardCardData
     .filter((c) => c.activeTask || c.lastCompleted)
     .sort((a, b) => {
-      const ua = urgencyOrder[a.urgency] ?? 4;
-      const ub = urgencyOrder[b.urgency] ?? 4;
+      const ua = URGENCY_ORDER[a.urgency] ?? 4;
+      const ub = URGENCY_ORDER[b.urgency] ?? 4;
       if (ua !== ub) return ua - ub;
       const da = safeDateParse(a.activeTask?.dueDate);
       const db = safeDateParse(b.activeTask?.dueDate);

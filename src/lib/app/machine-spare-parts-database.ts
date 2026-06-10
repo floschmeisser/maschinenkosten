@@ -317,6 +317,7 @@ function mapSparePartInputToRow(
     unit: input.unit,
     notes: input.notes,
     photo_urls: input.photoUrls,
+    unit_cost: input.unitCost,
     updated_at: input.updatedAt
   };
 }

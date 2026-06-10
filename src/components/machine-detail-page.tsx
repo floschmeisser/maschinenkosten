@@ -404,6 +404,7 @@ function MachineWartungModule({
   const [confirmTemplates, setConfirmTemplates] = useState(false);
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [templateToast, setTemplateToast] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (fabTrigger && fabTrigger > 0) setConfirmTemplates(true);
@@ -484,6 +485,14 @@ function MachineWartungModule({
   const inactiveCards = useMemo(
     () => standardCardData.filter((c) => !c.activeTask && !c.lastCompleted),
     [standardCardData]
+  );
+
+  const completedTasks = useMemo(
+    () =>
+      tasks
+        .filter((t) => t.status === "completed")
+        .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
+    [tasks]
   );
 
   return (
@@ -604,6 +613,34 @@ function MachineWartungModule({
           }
         />
       </section>
+
+      {completedTasks.length > 0 ? (
+        <section className="wartung-history">
+          <button
+            className="wartung-history-toggle"
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+          >
+            <span>Erledigte Wartungen ({completedTasks.length})</span>
+            <span>{showHistory ? "▲" : "▼"}</span>
+          </button>
+          {showHistory ? (
+            <div className="wartung-history-list">
+              {completedTasks.map((task) => (
+                <div key={task.id} className="wartung-history-item">
+                  <div className="wartung-history-item-main">
+                    <strong>{getMaintenanceTypeLabel(task.type, task.customTitle ?? undefined)}</strong>
+                    <span>{task.completedAt ? formatDate(task.completedAt) : "–"}</span>
+                  </div>
+                  {task.actualCost !== null ? (
+                    <span className="wartung-history-cost">{formatCurrency(task.actualCost)}</span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
     </>
   );
@@ -1233,51 +1270,67 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
 
   return (
     <section className="kosten-module">
-      <div className="kosten-kpi-grid">
-        <div className="kosten-kpi-block">
-          <span className="kosten-kpi-label">Kosten je {isKm ? "km" : "Stunde"}</span>
-          <strong className="kosten-kpi-value">
-            {!hasValues || primaryKpi === null ? "—" : formatCurrency(primaryKpi)}
-          </strong>
-        </div>
-        <div className="kosten-kpi-block">
-          <span className="kosten-kpi-label">Kosten je Jahr</span>
-          <strong className="kosten-kpi-value">
-            {!hasValues ? "—" : formatCurrency(result.totalAnnualCosts)}
-          </strong>
-        </div>
+      <div className="kosten-hero">
+        <span className="kosten-hero-label">Diese Maschine kostet dich</span>
+        <strong className="kosten-hero-value">
+          {!hasValues || primaryKpi === null
+            ? "—"
+            : `${formatCurrency(primaryKpi)} /${isKm ? "km" : "h"}`}
+        </strong>
+        <span className="kosten-hero-sub">
+          {!hasValues
+            ? "Noch keine Werte hinterlegt — jetzt einrichten"
+            : `${formatCurrency(result.totalAnnualCosts)} pro Jahr`}
+        </span>
       </div>
 
       {!hasValues ? (
         <div className="kosten-empty-hint">
-          <p>Noch keine Kostenwerte hinterlegt.</p>
+          <p>Trage Kaufpreis und Auslastung ein um die Kosten zu berechnen.</p>
           <button className="button" type="button" onClick={() => setShowForm(true)}>
             Jetzt einrichten →
           </button>
         </div>
       ) : (
-        <div className="kosten-breakdown">
-          <div className="kosten-breakdown-row">
-            <span>Fixkosten/Jahr</span>
-            <strong>{formatCurrency(result.fixedCosts.annualFixedCosts)}</strong>
+        <>
+          <div className="kosten-split-grid">
+            <div className="kosten-split-block">
+              <span>Fixkosten</span>
+              <strong>{formatCurrency(result.fixedCosts.annualFixedCosts)}</strong>
+              <small>pro Jahr</small>
+            </div>
+            <div className="kosten-split-block">
+              <span>Variabel</span>
+              <strong>{formatCurrency(result.variableCosts.annualVariableCosts)}</strong>
+              <small>pro Jahr</small>
+            </div>
           </div>
-          <div className="kosten-breakdown-row">
-            <span>Variable Kosten/Jahr</span>
-            <strong>{formatCurrency(result.variableCosts.annualVariableCosts)}</strong>
+
+          {!isKm && costInput.annualOperatingHours < 120 ? (
+            <div className="kosten-util-hint">
+              <strong>Geringe Auslastung</strong>
+              <span>
+                Bei {costInput.annualOperatingHours} h/Jahr sind die Kosten je Stunde hoch.
+                Mehr Einsatz senkt die Stückkosten.
+              </span>
+            </div>
+          ) : null}
+
+          <div className="kosten-breakdown">
+            <div className="kosten-breakdown-row">
+              <span>Abschreibung/Jahr</span>
+              <strong>{formatCurrency(result.fixedCosts.annualDepreciation)}</strong>
+            </div>
+            <div className="kosten-breakdown-row">
+              <span>Auslastung</span>
+              <strong>
+                {isKm
+                  ? `${costInput.annualKilometers ?? 0} km/Jahr`
+                  : `${costInput.annualOperatingHours} h/Jahr`}
+              </strong>
+            </div>
           </div>
-          <div className="kosten-breakdown-row">
-            <span>Abschreibung/Jahr</span>
-            <strong>{formatCurrency(result.fixedCosts.annualDepreciation)}</strong>
-          </div>
-          <div className="kosten-breakdown-row">
-            <span>Auslastung</span>
-            <strong>
-              {isKm
-                ? `${costInput.annualKilometers ?? 0} km/Jahr`
-                : `${costInput.annualOperatingHours} h/Jahr`}
-            </strong>
-          </div>
-        </div>
+        </>
       )}
 
       {isLoadingBreakdown ? (
@@ -1324,6 +1377,13 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
         <span>Werte anpassen (ÖKL / manuell)</span>
         <span>{showForm ? "▲" : "▼"}</span>
       </button>
+
+      {form.oeklCategory && !showForm ? (
+        <p className="kosten-oekl-note">
+          Basierend auf ÖKL-Richtwerten für{" "}
+          {oeklCategoryOptions.find((o) => o.key === form.oeklCategory)?.label ?? form.oeklCategory}.
+        </p>
+      ) : null}
 
       {showForm && (
         <form className="kosten-form" onSubmit={handleSave}>

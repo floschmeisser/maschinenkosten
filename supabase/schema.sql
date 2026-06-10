@@ -522,3 +522,40 @@ create policy "Farm owners can manage cost overrides"
     select 1 from public.farms
     where farms.id = machine_cost_overrides.farm_id and farms.owner_id = auth.uid()
   ));
+
+-- spare_part_consumptions: tracks actual spare part usage per machine/task with cost at time of consumption.
+-- Used by calculateVariableCosts() in financials.ts to compute live variable cost breakdown.
+create table if not exists public.spare_part_consumptions (
+  id uuid primary key default gen_random_uuid(),
+  farm_id uuid not null references public.farms(id) on delete cascade,
+  machine_id uuid not null references public.machines(id) on delete cascade,
+  spare_part_id uuid references public.machine_spare_parts(id) on delete set null,
+  maintenance_task_id uuid references public.maintenance_tasks(id) on delete set null,
+  quantity numeric not null default 1,
+  unit_cost_at_time numeric,
+  consumed_at timestamptz not null default now(),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_spc_machine
+  on public.spare_part_consumptions(machine_id, consumed_at desc);
+create index if not exists idx_spc_farm
+  on public.spare_part_consumptions(farm_id);
+create index if not exists idx_spc_task
+  on public.spare_part_consumptions(maintenance_task_id);
+
+alter table public.spare_part_consumptions enable row level security;
+
+create policy "Farm owners can manage spare part consumptions"
+  on public.spare_part_consumptions for all to authenticated
+  using (exists (
+    select 1 from public.farms
+    where farms.id = spare_part_consumptions.farm_id
+    and farms.owner_id = auth.uid()
+  ))
+  with check (exists (
+    select 1 from public.farms
+    where farms.id = spare_part_consumptions.farm_id
+    and farms.owner_id = auth.uid()
+  ));

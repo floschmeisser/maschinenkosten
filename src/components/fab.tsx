@@ -4,9 +4,11 @@ type FabProps = {
   icon?: string;
   label: string;
   onClick: () => void;
+  show?: boolean;
 };
 
-export function Fab({ icon = "+", label, onClick }: FabProps) {
+export function Fab({ icon = "+", label, onClick, show = true }: FabProps) {
+  if (!show) return null;
   return (
     <button
       type="button"

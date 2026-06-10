@@ -25,6 +25,7 @@ import { CATEGORY_GROUPS } from "@/lib/app/machine-categories";
 import { getMachines as loadMachines, updateMachine } from "@/lib/app/machines-database";
 import { ConfirmDialog } from "./shared-ui-components";
 import { EmptyState } from "./empty-state";
+import { Fab } from "./fab";
 import {
   getDashboardDueText,
   getMaintenanceDisplayStatus,
@@ -323,6 +324,11 @@ function CalendarWidget({ locale, machines, maintenanceTasks, calendarEvents, fa
           onAction={() => { setSelectedDate(toDateString(new Date())); setPanelMode("create"); }}
         />
       ) : null}
+
+      <Fab
+        label="Termin hinzufügen"
+        onClick={() => { setSelectedDate(toDateString(new Date())); setPanelMode("create"); }}
+      />
 
       {selectedDate !== null && panelMode === "detail" ? (
         <DayDetailPanel

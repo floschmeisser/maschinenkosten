@@ -45,6 +45,7 @@ import { MAINTENANCE_TEMPLATES } from "@/lib/app/maintenance-templates";
 import { MachineFormModal } from "./machine-form-modal";
 import { ConfirmDialog, PhotoGallery, PhotoUploadSection } from "./shared-ui-components";
 import { EmptyState } from "./empty-state";
+import { Fab } from "./fab";
 import { MachineDocuments } from "./machine-documents";
 import { getMachineCostOverride, upsertMachineCostOverride, type MachineCostOverride } from "@/lib/app/machine-cost-overrides-database";
 import { oeklCategoryOptions } from "@/lib/app/oekl-reference";
@@ -254,6 +255,8 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
   }
 
   const urgentCount = urgentTaskCount(tasks);
+  const [wartungFabTrigger, setWartungFabTrigger] = useState(0);
+  const [ersatzteileFabTrigger, setErsatzteileFabTrigger] = useState(0);
 
   return (
     <main className="page machine-detail-v2">
@@ -346,14 +349,21 @@ function MachineDetailPage({ locale, machine, onMachineUpdated, onMachineDeleted
           onCreateTask={handleCreateTask}
           onBulkCreateTasks={handleBulkCreateTasks}
           onDeleteTask={handleDeleteTask}
+          fabTrigger={wartungFabTrigger}
         />
       ) : activeTab === "ersatzteile" ? (
-        <SparePartsTabContent machine={machine} />
+        <SparePartsTabContent machine={machine} fabTrigger={ersatzteileFabTrigger} />
       ) : activeTab === "kosten" ? (
         <MachineKostenModule machine={machine} />
       ) : (
         <MachineDocuments machine={machine} />
       )}
+
+      {activeTab === "wartung" ? (
+        <Fab label="Wartung hinzufügen" onClick={() => setWartungFabTrigger((n) => n + 1)} />
+      ) : activeTab === "ersatzteile" ? (
+        <Fab label="Ersatzteil hinzufügen" onClick={() => setErsatzteileFabTrigger((n) => n + 1)} />
+      ) : null}
     </main>
   );
 }
@@ -368,6 +378,7 @@ type WartungModuleProps = {
   onCreateTask: (input: CreateMaintenanceTaskInput) => Promise<void>;
   onBulkCreateTasks: (inputs: CreateMaintenanceTaskInput[]) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
+  fabTrigger?: number;
 };
 
 function MachineWartungModule({
@@ -379,12 +390,17 @@ function MachineWartungModule({
   onCompleteTask,
   onCreateTask,
   onBulkCreateTasks,
-  onDeleteTask
+  onDeleteTask,
+  fabTrigger
 }: WartungModuleProps) {
   const [isUpdatingStand, setIsUpdatingStand] = useState(false);
   const [confirmTemplates, setConfirmTemplates] = useState(false);
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [templateToast, setTemplateToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (fabTrigger && fabTrigger > 0) setConfirmTemplates(true);
+  }, [fabTrigger]);
 
   const categoryGroup = getCategoryGroup(machine.category);
   const templates = MAINTENANCE_TEMPLATES[categoryGroup.id];
@@ -1472,12 +1488,17 @@ type AdjustMode = "consume" | "add";
 
 type SparePartsTabContentProps = {
   machine: MachineSummary;
+  fabTrigger?: number;
 };
 
-function SparePartsTabContent({ machine }: SparePartsTabContentProps) {
+function SparePartsTabContent({ machine, fabTrigger }: SparePartsTabContentProps) {
   const [parts, setParts] = useState<MachineSparePart[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+
+  useEffect(() => {
+    if (fabTrigger && fabTrigger > 0) setShowAddForm(true);
+  }, [fabTrigger]);
   const [adjusting, setAdjusting] = useState<{ id: string; mode: AdjustMode } | null>(null);
   const [deletingPartId, setDeletingPartId] = useState<string | null>(null);
 

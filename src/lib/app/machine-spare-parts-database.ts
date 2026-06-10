@@ -28,6 +28,7 @@ type MachineSparePartRow = {
   unit: string;
   notes: string | null;
   photo_urls: string[] | null;
+  unit_cost: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -276,6 +277,7 @@ function mapSparePartRowToSparePart(row: MachineSparePartRow): MachineSparePart 
     storageLocation: null,
     purchasePrice: null,
     notes: row.notes,
+    unitCost: row.unit_cost ?? null,
     photoUrls: row.photo_urls ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -294,6 +296,7 @@ function mapSparePartToRow(part: MachineSparePart): MachineSparePartRow {
     minimum_stock_quantity: part.minimumStockQuantity,
     unit: part.unit,
     notes: part.notes,
+    unit_cost: part.unitCost ?? null,
     photo_urls: part.photoUrls,
     created_at: part.createdAt,
     updated_at: part.updatedAt

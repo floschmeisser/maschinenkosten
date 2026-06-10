@@ -331,6 +331,7 @@ function SparePartForm({ machine, onCancel, onSave, part }: SparePartFormProps) 
         unit: form.unit.trim() || "Stk.",
         storageLocation: toNullableText(form.storageLocation),
         purchasePrice: toNumber(form.purchasePrice),
+        unitCost: null,
         notes: toNullableText(form.notes),
         photoUrls: part?.photoUrls ?? [],
         photos: photos.length > 0 ? photos : undefined

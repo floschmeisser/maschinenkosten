@@ -6,6 +6,15 @@ export function formatCurrency(value: number, locale = "de-DE", currency = "EUR"
   }).format(value);
 }
 
+export function formatEur(value: number): string {
+  return new Intl.NumberFormat("de-AT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 export function formatNumber(value: number, locale = "de-DE"): string {
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 1

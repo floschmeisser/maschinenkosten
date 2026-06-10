@@ -1,3 +1,6 @@
+import { getSupabaseClient } from "@/lib/supabase/client";
+import type { Machine } from "./machines";
+
 export type MachineCostInput = {
   unit?: "hours" | "km";
   purchasePrice: number;
@@ -175,4 +178,81 @@ function roundTo(value: number, decimals: number): number {
 
   const factor = 10 ** decimals;
   return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
+export type LiveCostBreakdown = {
+  fuelPerUnit: number;
+  maintenancePerUnit: number;
+  sparePartsPerUnit: number;
+  totalPerUnit: number;
+};
+
+type FilterChain<T> = Promise<{ data: T[] | null; error: unknown }> & {
+  eq(col: string, val: string): FilterChain<T>;
+  gte(col: string, val: string): FilterChain<T>;
+  not(col: string, op: string, val: null): FilterChain<T>;
+};
+
+type SelectableTable<T> = {
+  select(cols: string): FilterChain<T>;
+};
+
+const ZERO_BREAKDOWN: LiveCostBreakdown = {
+  fuelPerUnit: 0,
+  maintenancePerUnit: 0,
+  sparePartsPerUnit: 0,
+  totalPerUnit: 0,
+};
+
+export async function calculateVariableCosts(
+  machine: Machine,
+  options?: { months?: number }
+): Promise<LiveCostBreakdown> {
+  const months = options?.months ?? 12;
+  const since = new Date();
+  since.setMonth(since.getMonth() - months);
+  const sinceIso = since.toISOString();
+
+  const supabase = await getSupabaseClient();
+  if (!supabase) {
+    return { ...ZERO_BREAKDOWN, fuelPerUnit: machine.fuelCostsPerHour ?? 0, totalPerUnit: machine.fuelCostsPerHour ?? 0 };
+  }
+
+  const fuelPerUnit = machine.fuelCostsPerHour ?? 0;
+
+  const { data: tasks } = await (supabase.from("maintenance_tasks") as unknown as SelectableTable<{ actual_cost: number | null }>)
+    .select("actual_cost")
+    .eq("farm_id", machine.farmId)
+    .eq("machine_id", machine.id)
+    .gte("completed_at", sinceIso)
+    .not("actual_cost", "is", null);
+
+  const maintenanceTotal = (tasks ?? []).reduce((sum, t) => sum + (t.actual_cost ?? 0), 0);
+
+  const { data: consumptions } = await (supabase.from("spare_part_consumptions") as unknown as SelectableTable<{ quantity: number; unit_cost_at_time: number | null }>)
+    .select("quantity, unit_cost_at_time")
+    .eq("farm_id", machine.farmId)
+    .eq("machine_id", machine.id)
+    .gte("consumed_at", sinceIso)
+    .not("unit_cost_at_time", "is", null);
+
+  const sparePartsTotal = (consumptions ?? []).reduce(
+    (sum, c) => sum + c.quantity * (c.unit_cost_at_time ?? 0),
+    0
+  );
+
+  const isKm = machine.unit === "km";
+  const annualUsage = isKm ? (machine.annualKilometers ?? 0) : machine.annualOperatingHours;
+  const usageInWindow = (months / 12) * (annualUsage > 0 ? annualUsage : 1);
+  const safeWindow = usageInWindow > 0 ? usageInWindow : 1;
+
+  const maintenancePerUnit = roundRate(maintenanceTotal / safeWindow);
+  const sparePartsPerUnit = roundRate(sparePartsTotal / safeWindow);
+
+  return {
+    fuelPerUnit,
+    maintenancePerUnit,
+    sparePartsPerUnit,
+    totalPerUnit: roundRate(fuelPerUnit + maintenancePerUnit + sparePartsPerUnit),
+  };
 }

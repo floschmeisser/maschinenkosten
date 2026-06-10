@@ -37,6 +37,7 @@ import {
   type MaintenanceType
 } from "@/lib/app/maintenance";
 import { calculateMachineCosts, createCostInputFromOverride } from "@/lib/app/cost-calculation";
+import { calculateVariableCosts, type LiveCostBreakdown } from "@/lib/app/financials";
 import { safeDateParse } from "@/lib/app/date-utils";
 import { getMaintenanceUrgency, urgentTaskCount } from "@/lib/app/maintenance-sort";
 import { getCategoryEmoji, getCategoryGroup } from "@/lib/app/machine-categories";
@@ -1128,6 +1129,7 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<LiveCostBreakdown | null>(null);
 
   useEffect(() => {
     getMachineCostOverride(machine.id).then((existing) => {
@@ -1135,6 +1137,12 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
       setForm(buildKostenFormState(machine, existing));
     });
   }, [machine]);
+
+  useEffect(() => {
+    calculateVariableCosts(machine).then(setBreakdown).catch((err: unknown) => {
+      console.error("[MachineKosten] calculateVariableCosts failed:", err);
+    });
+  }, [machine.id]);
 
   const costInput = buildCostInputFromForm(machine, form);
   const result = calculateMachineCosts(costInput);
@@ -1253,6 +1261,38 @@ function MachineKostenModule({ machine }: MachineKostenModuleProps) {
           </div>
         </div>
       )}
+
+      {breakdown !== null ? (
+        <div className="kosten-breakdown">
+          <div className="kosten-breakdown-row" style={{ background: "var(--surface-muted)" }}>
+            <span style={{ color: "var(--primary-dark)", fontWeight: 700 }}>Variable Kosten (Ø 12 Monate)</span>
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Treibstoff</span>
+            <strong>{formatCurrency(breakdown.fuelPerUnit)}{perUnitLabel}</strong>
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Wartung (12 M Ø)</span>
+            <strong>
+              {breakdown.maintenancePerUnit === 0
+                ? "—"
+                : `${formatCurrency(breakdown.maintenancePerUnit)}${perUnitLabel}`}
+            </strong>
+          </div>
+          <div className="kosten-breakdown-row">
+            <span>Ersatzteile (12 M Ø)</span>
+            <strong>
+              {breakdown.sparePartsPerUnit === 0
+                ? "—"
+                : `${formatCurrency(breakdown.sparePartsPerUnit)}${perUnitLabel}`}
+            </strong>
+          </div>
+          <div className="kosten-breakdown-row" style={{ borderTop: "2px solid var(--border)" }}>
+            <span style={{ color: "var(--primary-dark)", fontWeight: 700 }}>Summe variabel</span>
+            <strong style={{ fontSize: 16 }}>{formatCurrency(breakdown.totalPerUnit)}{perUnitLabel}</strong>
+          </div>
+        </div>
+      ) : null}
 
       <button
         className="kosten-form-toggle"
@@ -1722,6 +1762,7 @@ function SparePartAddForm({ machine, onSave, onCancel }: SparePartAddFormProps) 
         unit: unit || "Stk.",
         storageLocation: null,
         purchasePrice: null,
+        unitCost: null,
         notes: null,
         photoUrls: [],
         photos: photos.length > 0 ? photos : undefined

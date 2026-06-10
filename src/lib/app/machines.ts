@@ -86,10 +86,24 @@ export type MachineSparePart = {
   unit: string;
   storageLocation: string | null;
   purchasePrice: number | null;
+  unitCost: number | null;
   notes: string | null;
   photoUrls: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type SparePartConsumption = {
+  id: string;
+  farmId: string;
+  machineId: string;
+  sparePartId: string;
+  maintenanceTaskId: string | null;
+  quantity: number;
+  unitCostAtTime: number | null;
+  consumedAt: string;
+  note: string | null;
+  createdAt: string;
 };
 
 export type MachineDocument = {
@@ -147,6 +161,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     unit: "Stk.",
     storageLocation: "Regal A2",
     purchasePrice: 18.9,
+    unitCost: null,
     notes: null,
     photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
@@ -167,6 +182,7 @@ export const placeholderMachineSpareParts: MachineSparePart[] = [
     unit: "Stk.",
     storageLocation: "Werkstatt Kiste 3",
     purchasePrice: 7.5,
+    unitCost: null,
     notes: "Vor Schnitt prüfen.",
     photoUrls: [],
     createdAt: "2026-05-01T08:00:00.000Z",
